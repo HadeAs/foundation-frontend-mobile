@@ -1,0 +1,51 @@
+* {
+  box-sizing: border-box;
+}
+
+.app-page {
+  min-height: 100vh;
+  background: #f3f6fb;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-nav {
+  height: 96rpx;
+  background: #123f7a;
+  color: #ffffff;
+  display: grid;
+  grid-template-columns: 112rpx 1fr 128rpx;
+  align-items: center;
+  padding: 0 24rpx;
+  gap: 12rpx;
+}
+
+.app-nav--title-only {
+  grid-template-columns: 1fr;
+}
+
+.app-nav__title {
+  text-align: center;
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+.app-nav__button {
+  min-height: 60rpx;
+  border-radius: 8rpx;
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  font-size: 26rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-nav__spacer {
+  min-height: 60rpx;
+}
+
+.app-content {
+  flex: 1;
+  padding: 28rpx 24rpx;
+}

@@ -1,0 +1,43 @@
+{
+  "name": "uniapp-industrial-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:h5": "uni -p h5",
+    "build:h5": "uni build -p h5",
+    "test": "vitest run",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@dcloudio/uni-app": "3.0.0-5010420260703001",
+    "@dcloudio/uni-components": "3.0.0-5010420260703001",
+    "@dcloudio/uni-h5": "3.0.0-5010420260703001",
+    "@dcloudio/uni-mp-weixin": "3.0.0-5010420260703001",
+    "@dcloudio/uni-ui": "^1.5.8",
+    "vue": "^3.4.38"
+  },
+  "devDependencies": {
+    "@dcloudio/types": "^3.4.14",
+    "@dcloudio/uni-app-plus": "^3.0.0-5010420260703001",
+    "@dcloudio/uni-app-uts": "^3.0.0-5010420260703001",
+    "@dcloudio/uni-app-vite": "^3.0.0-5010420260703001",
+    "@dcloudio/uni-app-vue": "^3.0.0-5010420260703001",
+    "@dcloudio/uni-cli-shared": "^3.0.0-5010420260703001",
+    "@dcloudio/uni-h5-vite": "^3.0.0-5010420260703001",
+    "@dcloudio/uni-h5-vue": "^3.0.0-5010420260703001",
+    "@dcloudio/uni-mp-vite": "^3.0.0-5010420260703001",
+    "@dcloudio/uni-nvue-styler": "^3.0.0-5010420260703001",
+    "@dcloudio/uni-shared": "^3.0.0-5010420260703001",
+    "@dcloudio/vite-plugin-uni": "3.0.0-5010420260703001",
+    "@types/node": "^26.1.0",
+    "@vitejs/plugin-vue": "^5.1.2",
+    "@vue/test-utils": "^2.4.6",
+    "jsdom": "^24.1.1",
+    "sass": "^1.77.8",
+    "typescript": "^5.5.4",
+    "vite": "5.2.8",
+    "vitest": "^2.0.5",
+    "vue-tsc": "^2.0.29"
+  }
+}
