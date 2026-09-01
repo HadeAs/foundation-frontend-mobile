@@ -1,23 +1,24 @@
 {
-  "name": "工业移动端",
-  "appid": "__UNI__EF475D9",
-  "description": "简易版工业系统移动端",
-  "versionName": "1.0.0",
-  "versionCode": "100",
-  "vueVersion": "3",
-  "uniStatistics": {
-    "enable": false
-  },
-  "app-plus": {
-    "usingComponents": true,
-    "nvueCompiler": "uni-app",
-    "compilerVersion": 3,
-    "distribute": {
-      "android": {
-        "permissions": [
-          "<uses-permission android:name=\"android.permission.CAMERA\"/>"
-        ]
-      }
+    "name" : "工业移动端",
+    "appid" : "__UNI__EF475D9",
+    "description" : "简易版工业系统移动端",
+    "versionName" : "1.0.0",
+    "versionCode" : 100,
+    "vueVersion" : "3",
+    "uniStatistics" : {
+        "enable" : false
+    },
+    "app-plus" : {
+        "usingComponents" : true,
+        "nvueCompiler" : "uni-app",
+        "compilerVersion" : 3,
+        "distribute" : {
+            "android" : {
+                "permissions" : [ "<uses-permission android:name=\"android.permission.CAMERA\"/>" ]
+            },
+            "ios" : {
+                "dSYMs" : false
+            }
+        }
     }
-  }
 }

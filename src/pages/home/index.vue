@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef } from 'vue';
+import manifest from '../../manifest.json';
 import { getAccessToken, getCurrentUser, logout } from '../../services/auth';
 import { stopAppUpdatePolling } from '../../services/appUpdate';
 
 type HomeTab = 'menu' | 'profile';
 
 const activeTab = shallowRef<HomeTab>('menu');
+const appVersion = shallowRef(manifest.versionName);
 const user = getCurrentUser() ?? {
   userId: 0,
   name: '未登录',
@@ -19,6 +21,12 @@ const title = computed(() => (activeTab.value === 'menu' ? '首页' : '个人信
 onMounted(() => {
   if (!getAccessToken()) {
     uni.reLaunch({ url: '/pages/login/index' });
+  }
+
+  if (typeof plus !== 'undefined') {
+    plus.runtime.getProperty(plus.runtime.appid || '', (widgetInfo) => {
+      appVersion.value = widgetInfo.version || plus.runtime.version || manifest.versionName;
+    });
   }
 });
 
@@ -93,6 +101,7 @@ function openContainerManagement() {
         <view class="info-row"><text>用户 ID</text><text>{{ user.userId }}</text></view>
         <view class="info-row"><text>登录账号</text><text>{{ user.account }}</text></view>
         <view class="info-row"><text>所属部门</text><text>{{ user.department }}</text></view>
+        <view class="info-row"><text>当前版本</text><text>{{ appVersion }}</text></view>
       </view>
 
       <button class="logout-button" @tap="handleLogout">退出登录</button>
