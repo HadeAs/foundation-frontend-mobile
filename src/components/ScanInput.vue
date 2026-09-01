@@ -124,8 +124,8 @@ defineExpose({ setScanResult });
 
 .scan-input__button {
   border-left: 2rpx solid #b7c4d4;
-  background: #eef4fb;
-  color: #123f7a;
+  background: #e8f7f7;
+  color: #0d9496;
   font-size: 28rpx;
   font-weight: 700;
   display: flex;

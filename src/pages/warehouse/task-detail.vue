@@ -106,8 +106,8 @@ onMounted(() => {
 }
 
 .detail-status--created {
-  background: #e8f1ff;
-  color: #1d4ed8;
+  background: #e6f5f5;
+  color: #0d7f81;
 }
 
 .detail-status--running {

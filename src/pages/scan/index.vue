@@ -171,7 +171,7 @@ onUnmounted(() => {
   width: 100%;
   height: 88rpx;
   border-radius: 8rpx;
-  background: #123f7a;
+  background: #0d9496;
   color: #ffffff;
   font-size: 30rpx;
   font-weight: 700;

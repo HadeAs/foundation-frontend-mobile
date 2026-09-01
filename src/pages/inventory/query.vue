@@ -113,7 +113,7 @@ function statusClass(status: InventoryStatus) {
   flex: none;
   z-index: 2;
   padding: 24rpx;
-  background: #f3f6fb;
+  background: #f2f8f8;
 }
 
 .inventory-list {
@@ -144,7 +144,7 @@ function statusClass(status: InventoryStatus) {
   border: 2rpx solid #d8e2ef;
   border-radius: 8rpx;
   background: #ffffff;
-  color: #123f7a;
+  color: #0d9496;
   font-size: 28rpx;
   font-weight: 700;
   display: flex;
@@ -163,7 +163,7 @@ function statusClass(status: InventoryStatus) {
 }
 
 .pull-refresh--active {
-  color: #123f7a;
+  color: #0d9496;
   font-weight: 700;
 }
 

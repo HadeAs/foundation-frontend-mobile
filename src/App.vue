@@ -1,4 +1,11 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { onLaunch } from '@dcloudio/uni-app';
+import { startAppUpdatePolling } from './services/appUpdate';
+
+onLaunch(() => {
+  void startAppUpdatePolling();
+});
+</script>
 
 <template>
   <slot />
@@ -7,7 +14,7 @@
 <style lang="scss">
 page {
   min-height: 100%;
-  background: #f3f6fb;
+  background: #f2f8f8;
   color: #102a43;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }

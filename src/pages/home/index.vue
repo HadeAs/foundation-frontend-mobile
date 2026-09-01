@@ -1,23 +1,30 @@
 <script setup lang="ts">
-import { computed, shallowRef } from 'vue';
-import { getCurrentUser, logout } from '../../services/auth';
+import { computed, onMounted, shallowRef } from 'vue';
+import { getAccessToken, getCurrentUser, logout } from '../../services/auth';
+import { stopAppUpdatePolling } from '../../services/appUpdate';
 
 type HomeTab = 'menu' | 'profile';
 
 const activeTab = shallowRef<HomeTab>('menu');
-const fallbackUser = {
-  name: '张三',
-  employeeNo: 'OP-001',
-  team: 'A 班 / 生产部',
-  role: '操作员',
-  account: 'operator01'
+const user = getCurrentUser() ?? {
+  userId: 0,
+  name: '未登录',
+  role: '未分配角色',
+  account: '-',
+  department: '未分配部门'
 };
-
-const user = computed(() => getCurrentUser() ?? fallbackUser);
+const avatarInitial = Array.from(user.name.trim())[0]?.toUpperCase() || '用';
 const title = computed(() => (activeTab.value === 'menu' ? '首页' : '个人信息'));
 
-function handleLogout() {
-  logout();
+onMounted(() => {
+  if (!getAccessToken()) {
+    uni.reLaunch({ url: '/pages/login/index' });
+  }
+});
+
+async function handleLogout() {
+  stopAppUpdatePolling();
+  await logout();
   uni.reLaunch({ url: '/pages/login/index' });
 }
 
@@ -76,18 +83,16 @@ function openContainerManagement() {
     <view v-else class="app-content">
       <view class="profile-card">
         <view class="profile-head">
-          <view class="profile-avatar">头像</view>
+          <view class="profile-avatar">{{ avatarInitial }}</view>
           <view>
             <view class="profile-name">{{ user.name }}</view>
-            <view class="profile-role">一线操作员</view>
+            <view class="profile-role">{{ user.role }}</view>
           </view>
         </view>
 
-        <view class="info-row"><text>姓名</text><text>{{ user.name }}</text></view>
-        <view class="info-row"><text>工号</text><text>{{ user.employeeNo }}</text></view>
-        <view class="info-row"><text>班组/部门</text><text>{{ user.team }}</text></view>
-        <view class="info-row"><text>角色</text><text>{{ user.role }}</text></view>
+        <view class="info-row"><text>用户 ID</text><text>{{ user.userId }}</text></view>
         <view class="info-row"><text>登录账号</text><text>{{ user.account }}</text></view>
+        <view class="info-row"><text>所属部门</text><text>{{ user.department }}</text></view>
       </view>
 
       <button class="logout-button" @tap="handleLogout">退出登录</button>
@@ -138,7 +143,7 @@ function openContainerManagement() {
   border-radius: 12rpx;
   background: #ffffff;
   border: 2rpx solid #a9b8ca;
-  color: #123f7a;
+  color: #0d9496;
   font-size: 42rpx;
   font-weight: 700;
   display: flex;
@@ -178,9 +183,11 @@ function openContainerManagement() {
   width: 96rpx;
   height: 96rpx;
   border-radius: 50%;
-  border: 2rpx dashed #8ca5c4;
-  color: #64748b;
-  font-size: 24rpx;
+  border: 2rpx solid #79b8b9;
+  background: #e8f7f7;
+  color: #0d9496;
+  font-size: 34rpx;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -246,8 +253,8 @@ function openContainerManagement() {
 }
 
 .bottom-tab--active {
-  color: #123f7a;
+  color: #0d9496;
   font-weight: 700;
-  background: #eef4ff;
+  background: #e8f7f7;
 }
 </style>

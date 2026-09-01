@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev:app": "uni -p app",
+    "build:app": "uni build -p app",
     "dev:h5": "uni -p h5",
     "build:h5": "uni build -p h5",
     "test": "vitest run",

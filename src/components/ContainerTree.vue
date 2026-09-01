@@ -165,7 +165,7 @@ watch(
 }
 
 .tree-node--container {
-  background: #edf6ff;
+  background: #e8f7f7;
   padding: 16rpx 20rpx 16rpx 0;
 }
 
@@ -190,7 +190,7 @@ watch(
   height: 0;
   border-top: 14rpx solid transparent;
   border-bottom: 14rpx solid transparent;
-  border-left: 18rpx solid #123f7a;
+  border-left: 18rpx solid #0d9496;
 }
 
 .tree-node__toggle--expanded::before {
@@ -198,7 +198,7 @@ watch(
   top: 28rpx;
   border-left: 14rpx solid transparent;
   border-right: 14rpx solid transparent;
-  border-top: 18rpx solid #123f7a;
+  border-top: 18rpx solid #0d9496;
   border-bottom: 0;
 }
 

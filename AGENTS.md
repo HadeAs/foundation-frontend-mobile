@@ -28,4 +28,4 @@ This checkout contains no Git history, so no repository-specific commit conventi
 
 ## Security & Configuration
 
-Do not commit production credentials, signing files, device identifiers, or vendor PDA secrets. The credentials in `src/services/auth.ts` are demo-only. Keep platform permissions in `manifest.json` minimal and document new native capabilities in `docs/`.
+Do not commit production credentials, signing files, device identifiers, or vendor PDA secrets. Never log authentication tokens or remembered account data stored on the device. Keep platform permissions in `manifest.json` minimal and document new native capabilities in `docs/`.

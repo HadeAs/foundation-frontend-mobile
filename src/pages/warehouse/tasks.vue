@@ -116,7 +116,7 @@ function openTask(task: WarehouseTask) {
   flex: none;
   z-index: 2;
   padding: 24rpx;
-  background: #f3f6fb;
+  background: #f2f8f8;
 }
 
 .task-list {
@@ -147,7 +147,7 @@ function openTask(task: WarehouseTask) {
   border: 2rpx solid #d8e2ef;
   border-radius: 8rpx;
   background: #ffffff;
-  color: #123f7a;
+  color: #0d9496;
   font-size: 28rpx;
   font-weight: 700;
   display: flex;
@@ -166,7 +166,7 @@ function openTask(task: WarehouseTask) {
 }
 
 .pull-refresh--active {
-  color: #123f7a;
+  color: #0d9496;
   font-weight: 700;
 }
 
@@ -237,8 +237,8 @@ function openTask(task: WarehouseTask) {
 }
 
 .task-status--created {
-  background: #e8f1ff;
-  color: #1d4ed8;
+  background: #e6f5f5;
+  color: #0d7f81;
 }
 
 .task-status--running {

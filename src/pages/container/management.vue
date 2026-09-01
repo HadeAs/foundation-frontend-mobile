@@ -131,7 +131,7 @@ onBeforeUnmount(() => {
 
 .container-search {
   padding: 24rpx;
-  background: #f3f6fb;
+  background: #f2f8f8;
 }
 
 .container-content {

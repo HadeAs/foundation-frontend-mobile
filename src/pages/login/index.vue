@@ -1,20 +1,55 @@
 <script setup lang="ts">
-import { shallowRef } from 'vue';
-import { login } from '../../services/auth';
+import { computed, shallowRef } from "vue";
+import { API_ENVIRONMENTS, login } from "../../services/auth";
+import { startAppUpdatePolling } from "../../services/appUpdate";
 
-const account = shallowRef('operator01');
-const password = shallowRef('123456');
+const REMEMBERED_ACCOUNT_KEY = "foundation.mobile.remembered-account";
+const account = shallowRef(
+  (uni.getStorageSync(REMEMBERED_ACCOUNT_KEY) as string) || "",
+);
+const password = shallowRef("");
 const rememberAccount = shallowRef(true);
+const submitting = shallowRef(false);
+const environmentIndex = shallowRef(0);
+const environmentNames = API_ENVIRONMENTS.map(({ label }) => label);
+const selectedEnvironment = computed(
+  () => API_ENVIRONMENTS[environmentIndex.value],
+);
 
-function handleLogin() {
-  const result = login(account.value, password.value);
+function handleEnvironmentChange(event: Event) {
+  const value = (event as unknown as { detail?: { value?: string | number } })
+    .detail?.value;
+  const index = Number(value);
+  if (Number.isInteger(index) && API_ENVIRONMENTS[index]) {
+    environmentIndex.value = index;
+  }
+}
 
-  if (!result.ok) {
-    uni.showToast({ title: result.message ?? '账号或密码错误', icon: 'none' });
+async function handleLogin() {
+  if (submitting.value) {
     return;
   }
 
-  uni.reLaunch({ url: '/pages/home/index' });
+  submitting.value = true;
+  const result = await login(
+    account.value,
+    password.value,
+    selectedEnvironment.value.baseUrl,
+  );
+  submitting.value = false;
+
+  if (!result.ok) {
+    uni.showToast({ title: result.message ?? "账号或密码错误", icon: "none" });
+    return;
+  }
+
+  if (rememberAccount.value) {
+    uni.setStorageSync(REMEMBERED_ACCOUNT_KEY, account.value.trim());
+  } else {
+    uni.removeStorageSync(REMEMBERED_ACCOUNT_KEY);
+  }
+  await startAppUpdatePolling();
+  uni.reLaunch({ url: "/pages/home/index" });
 }
 </script>
 
@@ -25,23 +60,47 @@ function handleLogin() {
       <view class="login-title">工业移动端</view>
 
       <input v-model="account" class="login-input" placeholder="账号" />
-      <input v-model="password" class="login-input" placeholder="密码" password />
+      <input
+        v-model="password"
+        class="login-input"
+        placeholder="密码"
+        password
+      />
 
       <view class="login-row" @tap="rememberAccount = !rememberAccount">
-        <text>{{ rememberAccount ? '☑' : '☐' }} 记住账号</text>
-        <text>本地模拟登录</text>
+        <text>{{ rememberAccount ? "☑" : "☐" }} 记住账号</text>
       </view>
 
-      <button class="login-button" @tap="handleLogin">登录</button>
+      <button
+        class="login-button"
+        :disabled="submitting"
+        :loading="submitting"
+        @tap="handleLogin"
+      >
+        登录
+      </button>
     </view>
+
+    <picker
+      class="environment-switch"
+      :value="environmentIndex"
+      :range="environmentNames"
+      @change="handleEnvironmentChange"
+    >
+      <view class="environment-switch__text">{{
+        selectedEnvironment.label
+      }}</view>
+    </picker>
   </view>
 </template>
 
 <style scoped lang="scss">
 .login-page {
   min-height: 100vh;
-  background: #f3f6fb;
+  background: #f2f8f8;
   padding: 120rpx 48rpx 48rpx;
+  display: flex;
+  flex-direction: column;
 }
 
 .login-panel {
@@ -80,6 +139,17 @@ function handleLogin() {
   color: #102a43;
 }
 
+.environment-switch {
+  margin: auto auto 0;
+  padding: 24rpx 40rpx 8rpx;
+}
+
+.environment-switch__text {
+  color: #64748b;
+  font-size: 28rpx;
+  text-align: center;
+}
+
 .login-row {
   display: flex;
   justify-content: space-between;
@@ -92,9 +162,13 @@ function handleLogin() {
 .login-button {
   height: 92rpx;
   border-radius: 8rpx;
-  background: #123f7a;
+  background: #0d9496;
   color: #ffffff;
   font-size: 32rpx;
   font-weight: 700;
+}
+
+.login-button[disabled] {
+  opacity: 0.68;
 }
 </style>
