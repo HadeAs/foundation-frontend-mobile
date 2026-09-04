@@ -22,6 +22,10 @@ Use two-space indentation, semicolons, and single quotes in TypeScript. Keep Typ
 
 Vitest runs in `jsdom` and discovers `src/**/*.test.ts`. Name suites after their module, for example `services/__tests__/scanAdapter.test.ts`. Cover success, failure, state reset, and input-normalization paths for service changes. No coverage threshold is configured; every behavior change should still include a focused regression test.
 
+## Specification Maintenance
+
+Keep `docs/industrial-mobile-business-spec.md` and `docs/industrial-mobile-prototype-guidelines.md` synchronized with every feature or shared UI change. Remove superseded rules and update each affected change log in the same commit.
+
 ## Commit & Pull Request Guidelines
 
 This checkout contains no Git history, so no repository-specific commit convention can be verified. Use short, imperative Conventional Commits such as `feat(scan): support keyboard wedge input` or `fix(auth): clear stale user state`. Pull requests should explain the user impact, link the issue, list validation commands, and include H5 or device screenshots for UI changes. Note every tested target (H5, Android/App-Plus, WeChat) and any PDA hardware assumptions.
