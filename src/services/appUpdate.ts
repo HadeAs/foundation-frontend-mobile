@@ -1,4 +1,5 @@
 import { getAccessToken, getCurrentApiBaseUrl } from './auth';
+import { apiRequest } from './apiTransport';
 
 export const APP_LATEST_VERSION_CONFIG_KEY = 'foundation.app.latest-version';
 export const APP_WGT_FILE_ID_CONFIG_KEY = 'foundation.app.wgt-file-id';
@@ -136,7 +137,7 @@ function getRuntimeInfo(): Promise<AppRuntimeInfo> {
 
 function requestConfigValue(baseUrl: string, key: string, token: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    uni.request({
+    apiRequest({
       url: `${baseUrl}/api/v1/system/configs/value/${encodeURIComponent(key)}`,
       method: 'GET',
       header: token ? { Authorization: `Bearer ${token}` } : {},

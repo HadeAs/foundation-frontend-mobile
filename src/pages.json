@@ -13,6 +13,69 @@
       }
     },
     {
+      "path": "pages/panel-packing/index",
+      "style": {
+        "navigationStyle": "custom",
+        "disableScroll": true
+      }
+    },
+    {
+      "path": "pages/order-packing/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
+      "path": "pages/panel-unbinding/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
+      "path": "pages/vehicle-loading/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
+      "path": "pages/vehicle-unloading/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
+      "path": "pages/location-binding/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
+      "path": "pages/warehouse-application/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
+      "path": "pages/pending-receiving/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
+      "path": "pages/receiving/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
+      "path": "pages/shipping/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
+      "path": "pages/logistics-create/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
+      "path": "pages/logistics-cancel/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
+      "path": "pages/warehouse-logistics/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
+      "path": "pages/traffic-control/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
+      "path": "pages/empty-vehicle/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
       "path": "pages/scan/index",
       "style": {
         "navigationStyle": "custom"

@@ -1,10 +1,11 @@
 import { defineConfig } from 'vite';
 import uniModule from '@dcloudio/vite-plugin-uni';
+import vue from '@vitejs/plugin-vue';
 
 const uni = typeof uniModule === 'function' ? uniModule : uniModule.default;
 
 export default defineConfig({
-  plugins: process.env.VITEST ? [] : [uni()],
+  plugins: process.env.VITEST ? [vue({ template: { compilerOptions: { isCustomElement: (tag) => ['view', 'text'].includes(tag) } } })] : [uni()],
   server: {
     proxy: {
       '/api': {

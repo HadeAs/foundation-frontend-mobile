@@ -5,3 +5,5 @@ unpackage/
 .DS_Store
 .superpowers/
 outputs/
+output/
+.playwright-cli/

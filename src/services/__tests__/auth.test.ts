@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { API_ENVIRONMENTS, getAccessToken, getCurrentUser, login, logout } from '../auth';
+import { API_ENVIRONMENTS, AUTH_SESSION_STORAGE_KEY, getAccessToken, getCurrentUser, login, logout } from '../auth';
+import { panelPackingApi } from '../panelPacking';
+import { apiRequest } from '../apiTransport';
 
 const storage = new Map<string, unknown>();
 const requestMock = vi.fn();
@@ -18,6 +20,7 @@ function respondWith(statusCode: number, data: Record<string, unknown>) {
 
 describe('auth service', () => {
   beforeEach(() => {
+    vi.stubEnv('VITE_API_MODE', 'real');
     storage.clear();
     requestMock.mockReset();
     vi.stubGlobal('uni', {
@@ -31,6 +34,43 @@ describe('auth service', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
+  });
+
+  it('uses real login/logout while profile, business and update requests remain mock by default', async () => {
+    vi.stubEnv('VITE_API_MODE', '');
+    storage.set(`${AUTH_SESSION_STORAGE_KEY}.mock`, { token: 'old-mock-token', user: { name: '旧模拟用户' } });
+    expect(getAccessToken()).toBe('');
+    respondWith(200, { code: 0, data: { token: 'signed-token', userId: 7, username: 'operator01', realName: '张三' } });
+    expect(await login('operator01', 'secret')).toEqual({ ok: true });
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(requestMock.mock.calls[0][0]).toMatchObject({ method: 'POST', url: `${API_ENVIRONMENTS[0].baseUrl}/api/v1/auth/login` });
+    expect(getAccessToken()).toBe('signed-token');
+    expect(getCurrentUser()).toMatchObject({ name: '张三', account: 'operator01', department: '系统管理部' });
+    expect((await panelPackingApi.getBox('BOX-1')).box.containerCode).toBe('BOX-1');
+    const update = await new Promise<UniNamespace.RequestSuccessCallbackResult>((resolve) => {
+      apiRequest({ url: '/api/v1/system/configs/value/foundation.app.latest-version', success: resolve });
+    });
+    expect(update.data).toMatchObject({ data: '' });
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    requestMock.mockImplementationOnce((options: UniNamespace.RequestOptions) => {
+      options.fail?.({ errMsg: 'request:fail timeout' });
+      options.complete?.({ errMsg: 'request:fail timeout' });
+      return requestTask;
+    });
+    await logout();
+    expect(requestMock).toHaveBeenCalledTimes(2);
+    expect(requestMock.mock.calls[1][0]).toMatchObject({ method: 'POST', url: `${API_ENVIRONMENTS[0].baseUrl}/api/v1/auth/logout`, header: { Authorization: 'Bearer signed-token' } });
+    expect(getAccessToken()).toBe('');
+    expect(storage.has(AUTH_SESSION_STORAGE_KEY)).toBe(false);
+    await logout(); expect(requestMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('never falls back to mock login after a real rejection in mock business mode', async () => {
+    vi.stubEnv('VITE_API_MODE', 'mock');
+    respondWith(401, { message: '账号或密码错误' });
+    expect(await login('admin', 'demo')).toEqual({ ok: false, message: '账号或密码错误' });
+    expect(getAccessToken()).toBe('');
+    expect(requestMock).toHaveBeenCalledOnce();
   });
 
   it('logs in through the documented API and stores the signed session', async () => {
@@ -94,7 +134,8 @@ describe('auth service', () => {
     }));
   });
 
-  it('does not send a request when the production address is empty', async () => {
+  it.each(['real', 'mock'])('does not send a request when the production address is empty (%s)', async (mode) => {
+    vi.stubEnv('VITE_API_MODE', mode);
     const production = API_ENVIRONMENTS.find(({ id }) => id === 'production');
 
     await expect(login('operator01', 'secret', production?.baseUrl)).resolves.toEqual({

@@ -7,17 +7,24 @@ const props = withDefaults(defineProps<{
   confirmType?: string;
   showScanButton?: boolean;
   scanOnBlur?: boolean;
+  disabled?: boolean;
+  compact?: boolean;
+  inlineErrors?: boolean;
 }>(), {
   placeholder: '请输入或扫描',
   confirmType: 'done',
   showScanButton: false,
-  scanOnBlur: false
+  scanOnBlur: false,
+  disabled: false,
+  compact: false,
+  inlineErrors: false
 });
 
 const emit = defineEmits<{
   'update:modelValue': [value: string];
   scan: [value: string];
   clear: [];
+  error: [message: string];
 }>();
 
 function updateValue(event: Event) {
@@ -27,6 +34,7 @@ function updateValue(event: Event) {
 }
 
 function emitScan(value = props.modelValue) {
+  if (props.disabled) return;
   const trimmed = value.trim();
   if (trimmed) {
     emit('scan', trimmed);
@@ -34,16 +42,19 @@ function emitScan(value = props.modelValue) {
 }
 
 function clearValue() {
+  if (props.disabled) return;
   emit('update:modelValue', '');
   emit('clear');
 }
 
 async function handleCameraScan() {
+  if (props.disabled) return;
   try {
     const result = await scanWithCamera();
     setScanResult(result.value);
   } catch {
-    uni.showToast({ title: '扫码失败', icon: 'none' });
+    if (props.inlineErrors) emit('error', '扫码失败或已取消，请重试');
+    else uni.showToast({ title: '扫码失败', icon: 'none' });
   }
 }
 
@@ -58,11 +69,12 @@ defineExpose({ setScanResult });
 </script>
 
 <template>
-  <view class="scan-input" :class="{ 'scan-input--with-button': showScanButton }">
+  <view class="scan-input" :class="{ 'scan-input--with-button': showScanButton, 'scan-input--compact': compact, 'scan-input--disabled': disabled }">
     <view class="scan-input__field">
       <input
         class="scan-input__control"
         :value="modelValue"
+        :disabled="disabled"
         :placeholder="placeholder"
         :confirm-type="confirmType"
         @input="updateValue"
@@ -132,4 +144,14 @@ defineExpose({ setScanResult });
   align-items: center;
   justify-content: center;
 }
+
+.scan-input--compact {
+  height: 76rpx;
+}
+.scan-input--compact .scan-input__control {
+  padding: 0 16rpx;
+  font-size: 28rpx;
+}
+.scan-input--disabled { opacity: 0.55; }
+.scan-input--disabled .scan-input__button { border-left-color: #b8b8b8; }
 </style>

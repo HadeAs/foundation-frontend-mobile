@@ -1,3 +1,5 @@
+import { apiRequest } from './apiTransport';
+
 interface ApiResult<T> {
   code?: number;
   message?: string;
@@ -87,7 +89,7 @@ function requestLogin(baseUrl: string, username: string, password: string) {
 
 function requestUserDetail(baseUrl: string, userId: number, token: string) {
   return new Promise<UniNamespace.RequestSuccessCallbackResult>((resolve, reject) => {
-    uni.request({
+    apiRequest({
       url: `${baseUrl}/api/v1/system/users/${userId}`,
       method: 'GET',
       header: { Authorization: `Bearer ${token}` },
@@ -185,6 +187,7 @@ export async function logout(): Promise<void> {
       method: 'POST',
       header: { Authorization: `Bearer ${session.token}` },
       timeout: 5_000,
+      success: () => {},
       complete: () => resolve()
     });
   });

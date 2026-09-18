@@ -2,6 +2,12 @@
   box-sizing: border-box;
 }
 
+// Override page variants and uni-app's pseudo border without changing button size.
+button[disabled],
+button[disabled]::after {
+  border-color: #b8b8b8 !important;
+}
+
 .app-page {
   min-height: 100vh;
   background: #f2f8f8;

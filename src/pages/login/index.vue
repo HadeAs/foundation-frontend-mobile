@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, shallowRef } from "vue";
+import { computed, onUnmounted, shallowRef } from "vue";
+import { onHide } from '@dcloudio/uni-app';
+import OperationNotice from '../../components/OperationNotice.vue';
 import { API_ENVIRONMENTS, login } from "../../services/auth";
 import { startAppUpdatePolling } from "../../services/appUpdate";
 
@@ -10,6 +12,14 @@ const account = shallowRef(
 const password = shallowRef("");
 const rememberAccount = shallowRef(true);
 const submitting = shallowRef(false);
+const notice = shallowRef('');
+let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+function clearNotice() {
+  clearTimeout(noticeTimer);
+  notice.value = '';
+}
+onHide(clearNotice);
+onUnmounted(clearNotice);
 const environmentIndex = shallowRef(0);
 const environmentNames = API_ENVIRONMENTS.map(({ label }) => label);
 const selectedEnvironment = computed(
@@ -21,6 +31,7 @@ function handleEnvironmentChange(event: Event) {
     .detail?.value;
   const index = Number(value);
   if (Number.isInteger(index) && API_ENVIRONMENTS[index]) {
+    clearNotice();
     environmentIndex.value = index;
   }
 }
@@ -30,6 +41,7 @@ async function handleLogin() {
     return;
   }
 
+  clearNotice();
   submitting.value = true;
   const result = await login(
     account.value,
@@ -39,7 +51,8 @@ async function handleLogin() {
   submitting.value = false;
 
   if (!result.ok) {
-    uni.showToast({ title: result.message ?? "账号或密码错误", icon: "none" });
+    notice.value = result.message ?? '账号或密码错误';
+    noticeTimer = setTimeout(clearNotice, 6500);
     return;
   }
 
@@ -55,6 +68,7 @@ async function handleLogin() {
 
 <template>
   <view class="login-page">
+    <view class="login-notice"><OperationNotice :text="notice" error /></view>
     <view class="login-panel">
       <view class="login-logo">LOGO</view>
       <view class="login-title">工业移动端</view>
@@ -95,6 +109,13 @@ async function handleLogin() {
 </template>
 
 <style scoped lang="scss">
+.login-notice {
+  position: fixed;
+  top: var(--status-bar-height, 0px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+}
 .login-page {
   min-height: 100vh;
   background: #f2f8f8;
