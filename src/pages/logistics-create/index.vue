@@ -9,7 +9,7 @@ import { useLogisticsCreation } from '../../composables/useLogisticsCreation';
 import { locationPath } from '../../services/logistics';
 import LocationCascade from '../../components/LocationCascade.vue';
 
-const { options, destination, candidates, choosing, busy, disabled, canSubmit, notice, notify, clear, scan, openChoice, closeChoice, choose, submit } = useLogisticsCreation();
+const { options, destination, candidates, choosing, busy, disabled, canSubmit, canReturn, notice, notify, clear, scan, openChoice, closeChoice, choose, submit, returnToWarehouse } = useLogisticsCreation();
 const input = ref('');
 let active = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -70,7 +70,7 @@ onUnmounted(() => {
         </view>
       </template>
     </view>
-    <view class="footer"><button :disabled="disabled" @tap="clearPage">清空页面</button><button class="primary" :disabled="!canSubmit" @tap="submit">确认创建</button></view>
+    <view class="footer"><button :disabled="disabled" @tap="clearPage">清空页面</button><button class="return-button" :disabled="!canReturn" @tap="returnToWarehouse">回库</button><button class="primary" :disabled="!canSubmit" @tap="submit">确认创建</button></view>
     <LocationCascade v-if="choosing" :locations="candidates" :selected="destination" @confirm="choose" @cancel="closeChoice" />
   </view>
 </template>
@@ -98,7 +98,8 @@ button:focus-visible { outline: 2px solid #0d9496; outline-offset: 2px; }
 .empty { padding: 52rpx 20rpx; text-align: center; color: #748d93; font-size: 28rpx; }
 .empty-hint { margin-top: 16rpx; font-size: 24rpx; }
 .processing { font-size: 22rpx; color: #087779; padding-top: 8rpx; }
-.footer { flex-shrink: 0; display: grid; grid-template-columns: 1fr 1.35fr; gap: 10rpx; padding: 14rpx 20rpx calc(14rpx + env(safe-area-inset-bottom)); }
+.footer { flex-shrink: 0; display: grid; grid-template-columns: 1fr 1fr 1.35fr; gap: 10rpx; padding: 14rpx 20rpx calc(14rpx + env(safe-area-inset-bottom)); }
+.return-button { color: #087779; background: #e6f6f6; border-color: #0d9496; }
 .primary { color: white; background: #0d9496; border-color: #0d9496; }
 .danger { color: #bb3535; border-color: #bb3535; }
 .choice { margin: 14rpx 16rpx; width: calc(100% - 32rpx); min-height: 76rpx; height: auto; line-height: 1.5; padding: 14rpx; display: flex; align-items: center; justify-content: space-between; gap: 16rpx; text-align: left; font-weight: normal; }

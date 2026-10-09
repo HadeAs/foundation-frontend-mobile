@@ -19,8 +19,13 @@ export interface CreateLogisticsRequest {
   vendor: LogisticsOptions['vendor'];
   taskType: LogisticsOptions['taskType'];
   originLocationCode: string;
+  destinationMode?: 'SPECIFIED';
   destinationLocationCode: string;
   shippingNo?: string;
+}
+export interface ReturnLogisticsRequest extends Omit<CreateLogisticsRequest, 'destinationMode' | 'destinationLocationCode'> {
+  destinationMode: 'RETURN_LINE_SIDE';
+  destinationLocationCode?: never;
 }
 export interface LogisticsTask {
   taskId: string; taskNo: string; version: number;
@@ -32,7 +37,8 @@ export interface LogisticsTask {
 export interface TaskCreationResponse { requestId: string; task: LogisticsTask }
 export const logisticsApi = {
   getOptions: (scanCode: string) => request<LogisticsOptions>('/logistics/options', 'GET', { scanCode }),
-  create: (data: CreateLogisticsRequest) => request<TaskCreationResponse>('/logistics/tasks', 'POST', { ...data })
+  create: (data: CreateLogisticsRequest) => request<TaskCreationResponse>('/logistics/tasks', 'POST', { ...data }),
+  returnToWarehouse: (data: ReturnLogisticsRequest) => request<TaskCreationResponse>('/logistics/tasks', 'POST', { ...data })
 };
 export function locationPath(location: LocationCandidate): string {
   return `${location.floorName} / ${location.areaName} / ${location.locationName}`;

@@ -1,15 +1,17 @@
-import type { Binding, BoxBindings, Panel } from './panelPacking';
-import type { LoadPair, VehicleSlot, Vehicle, LoadedBox, MaterialLine, VehicleLoads } from './vehicleLoading';
-import type { LocationContainers, ContainerRef, LocationContainer, LocationOperation } from './locationBinding';
-import type { ApplicationObject, BoxContents } from './warehouseApplication';
-import type { ReceivingTask } from './pendingReceiving';
-import type { ReceivingResult, ReceivingRequest, ClearWmsRequest, ReceivingReceipt } from './receiving';
-import type { ShippingObject, ShippingReceipt, ShippingRequest } from './shipping';
-import type { CreateLogisticsRequest, LogisticsOptions, TaskCreationResponse, LocationCandidate, LogisticsTask } from './logistics';
-import type { CancelTaskRequest, CancellationResult } from './logisticsCancellation';
-import type { EmptyVehicleOptions, CallEmptyVehicleRequest } from './emptyVehicle';
-import type { TrafficArea, TrafficAction, TrafficActionRequest } from './traffic';
-import type { WarehouseLogisticsOptions, WarehouseLogisticsRequest } from './warehouseLogistics';
+// Stateful backend fixture for regression tests only. Never import from application code.
+import type { Binding, BoxBindings, Panel } from '../../panelPacking';
+import type { LoadPair, VehicleSlot, Vehicle, LoadedBox, MaterialLine, VehicleLoads } from '../../vehicleLoading';
+import type { LocationContainers, ContainerRef, LocationContainer, LocationOperation } from '../../locationBinding';
+import type { ApplicationObject, BoxContents } from '../../warehouseApplication';
+import type { ReceivingTask } from '../../pendingReceiving';
+import type { ReceivingResult, ReceivingRequest, ClearWmsRequest, ReceivingReceipt } from '../../receiving';
+import type { ShippingObject, ShippingReceipt, ShippingRequest } from '../../shipping';
+import type { CreateLogisticsRequest, ReturnLogisticsRequest, LogisticsOptions, TaskCreationResponse, LocationCandidate, LogisticsTask } from '../../logistics';
+import type { CancelTaskRequest, CancellationResult } from '../../logisticsCancellation';
+import type { EmptyVehicleOptions, CallEmptyVehicleRequest } from '../../emptyVehicle';
+import type { TrafficArea, TrafficAction, TrafficActionRequest } from '../../traffic';
+import type { WarehouseLogisticsOptions, WarehouseLogisticsRequest } from '../../warehouseLogistics';
+import type { MaterialCallBoxes, MaterialCallRequest, MaterialCallReceipt } from '../../materialCall';
 
 const prefix = '/api/v1/business/nari-logistics';
 class MockHttpError extends Error {
@@ -25,9 +27,11 @@ let receivingEntries: { task: ReceivingTask; boxes: BoxContents[]; wmsBindings: 
 let receivingHistory: Map<string, { action: string; input: ReceivingRequest | ClearWmsRequest; receipt: ReceivingReceipt; before: BoxContents[] }>;
 let shippingWms: Record<string, MaterialLine[]>;
 let shippingHistory: { request: ShippingRequest; receipt: ShippingReceipt; before: BoxContents[]; shipped: BoxContents[] }[];
-let logisticsHistory: { input: CreateLogisticsRequest; result: TaskCreationResponse }[];
+let logisticsHistory: { input: CreateLogisticsRequest | ReturnLogisticsRequest; result: TaskCreationResponse }[];
 let emptyCallHistory: { input: CallEmptyVehicleRequest; result: TaskCreationResponse }[];
 let warehouseLogisticsHistory: { input: WarehouseLogisticsRequest; result: TaskCreationResponse }[];
+let materialCallOrders: Record<string, string[]>;
+let materialCallHistory: Map<string, { input: MaterialCallRequest; result: MaterialCallReceipt; tasks: LogisticsTask[] }>;
 let emptyTargets: Record<string, string[]>;
 let cancelledTasks: Set<string>;
 let cancellationHistory: Map<string, { input: CancelTaskRequest; result: CancellationResult }>;
@@ -38,15 +42,12 @@ let trafficPageFailed: boolean;
 let loadRelations: Record<string, Pick<LoadedBox, 'id' | 'version'>>;
 let locations: Record<string, Omit<LocationContainers, 'occupied' | 'container'> & { container?: ContainerRef }>;
 
-let mockSessionId: string;
-export function getMockSessionId(): string { return mockSessionId; }
-
 export function resetMockData() {
-  // Pending UI requests must not outlive the in-memory backend they refer to.
-  mockSessionId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   logisticsHistory = [];
   emptyCallHistory = [];
   warehouseLogisticsHistory = [];
+  materialCallOrders = {};
+  materialCallHistory = new Map();
   emptyTargets = {};
   cancelledTasks = new Set();
   cancellationHistory = new Map();
@@ -197,7 +198,7 @@ export function resetMockData() {
     ['KW-SHIP-BOX', { containerType: 'BOX', containerCode: 'BOX-SHIP-SINGLE' }],
     ['KW-SHIP-EMPTY', undefined]
   ] as const) locations[code] = { location: { locationCode: code, locationName: '成品发货接驳位' }, version: 1, container, eligibility: { allowed: true } };
-  for (const suffix of ['NORMAL', 'SINGLE', 'LONG', 'BLOCKED', 'NO-END', 'FAIL', 'HIK', 'PROCESS']) {
+  for (const suffix of ['NORMAL', 'SINGLE', 'LONG', 'BLOCKED', 'NO-END', 'FAIL', 'HIK', 'PROCESS', 'RETURN-FAIL']) {
     const vehicle: Vehicle = { containerType: 'VEHICLE', containerCode: `CAR-LOG-${suffix}`, version: 1 };
     vehicles.push(vehicle);
     const locationCode = `KW-LOG-${suffix}`;
@@ -275,6 +276,30 @@ export function resetMockData() {
       eligibility: code.endsWith('-BLOCKED') ? { allowed: false, reason: '当前任务暂不允许接收' } : { allowed: true }
     }, boxes: contents, wmsBindings: JSON.parse(JSON.stringify(contents)) };
   });
+  for (const [code, name] of [['KW-MATERIAL-CALL', '一号叫料接收位'], ['KW-MATERIAL-CALL-2', '二号叫料接收位']]) {
+    locations[code] = { location: { locationCode: code, locationName: name, floorCode: 'F1', floorName: '一层',
+      areaCode: 'CALL', areaName: '叫料接收区' }, version: 1, eligibility: { allowed: true } };
+  }
+  for (const [orderNo, suffix, count] of [
+    ['MO-20261009-001', 'NORMAL', 3], ['MO-LONG', 'LONG', 30], ['MO-EMPTY', 'EMPTY', 0],
+    ['MO-QUERY-FAIL', 'QUERY-FAIL', 3], ['MO-SUBMIT-FAIL', 'SUBMIT-FAIL', 2], ['MO-BOX-BLOCKED', 'BOX-BLOCKED', 3],
+    ['MO-BATCH-BLOCKED', 'BATCH-BLOCKED', 2], ['MO-SUBMIT-UNKNOWN', 'SUBMIT-UNKNOWN', 2], ['MO-RESULT-FAIL', 'RESULT-FAIL', 2],
+    ['MO-RESULT-MISSING', 'RESULT-MISSING', 2], ['MO-DISPATCH-UNKNOWN', 'DISPATCH-UNKNOWN', 2], ['MO-DISPATCH-FAIL', 'DISPATCH-FAIL', 2]
+  ] as const) {
+    materialCallOrders[orderNo] = Array.from({ length: count }, (_, index) => {
+      const code = `BOX-MC-${suffix}-${String(index + 1).padStart(2, '0')}`;
+      const box = makeBox(code);
+      box.bindings = Array.from({ length: suffix === 'LONG' ? 1 : (index + 1) * 2 }, (_, panelIndex) => {
+        const panel = { ...panels[0], panelCode: `MU-${code}-${panelIndex + 1}`, orderNo };
+        panels.push(panel);
+        return toBinding(panel);
+      });
+      box.totalQuantity = box.bindings.length; box.empty = false; boxes[code] = box;
+      locations[`KW-${code}`] = { location: { locationCode: `KW-${code}`, locationName: `${code}起始位` }, version: 1,
+        container: { containerType: 'BOX', containerCode: code }, eligibility: { allowed: true } };
+      return code;
+    });
+  }
 }
 function receivingResult(scanCode: unknown): ReceivingResult {
   if (typeof scanCode !== 'string' || !scanCode.trim() || scanCode.length > 128) throw new Error('扫描编码无效');
@@ -404,7 +429,7 @@ function logisticsOptions(code: unknown): LogisticsOptions {
     'KW-SHIP-CAR': ['STANDARD', 'GENERAL'], 'KW-SHIP-BOX': ['HIKVISION', 'GENERAL'],
     'KW-LOG-HIK': ['HIKVISION', 'GENERAL'], 'KW-LOG-PROCESS': ['STANDARD', 'PROCESS_ROUTE']
   };
-  for (const suffix of ['NORMAL', 'SINGLE', 'LONG', 'BLOCKED', 'NO-END', 'FAIL']) configurations[`KW-LOG-${suffix}`] = ['STANDARD', 'GENERAL'];
+  for (const suffix of ['NORMAL', 'SINGLE', 'LONG', 'BLOCKED', 'NO-END', 'FAIL', 'RETURN-FAIL']) configurations[`KW-LOG-${suffix}`] = ['STANDARD', 'GENERAL'];
   const config = configurations[origin.locationCode];
   if (!config) throw new Error('起始位置未配置唯一的物流品牌和任务类型');
   const [vendor, taskType] = config;
@@ -482,9 +507,76 @@ function cancellationTasks(): LogisticsTask[] {
       status: 'CREATED', statusName: '已创建', triggerMode: index % 6 ? 'MANUAL' : '满载自动发起',
       createdTime: new Date(Date.UTC(2026, 8, 17, 2, 59 - index)).toISOString() };
   });
-  return [...logisticsHistory.map((entry) => entry.result.task), ...emptyCallHistory.map((entry) => entry.result.task), ...warehouseLogisticsHistory.map((entry) => entry.result.task), ...fixtures];
+  return [...logisticsHistory.map((entry) => entry.result.task), ...emptyCallHistory.map((entry) => entry.result.task), ...warehouseLogisticsHistory.map((entry) => entry.result.task),
+    ...[...materialCallHistory.values()].flatMap((entry) => entry.tasks), ...fixtures];
+}
+function materialCallBoxes(locationCode: unknown, orderNo: unknown): MaterialCallBoxes {
+  const target = requireLocation(locationCode);
+  if (target.container) throw new Error('当前库位已绑定容器，请重新扫描空闲库位');
+  if (typeof orderNo !== 'string' || !orderNo.trim() || orderNo.length > 128) throw new Error('请输入有效生产订单号');
+  if (orderNo === 'MO-QUERY-FAIL') throw new Error('生产订单箱子查询失败，请稍后重试');
+  const codes = materialCallOrders[orderNo];
+  if (!Array.isArray(codes)) throw new MockHttpError('生产订单号不存在', 404);
+  const candidates = codes.map((code, index) => {
+    const box = requireBox(code);
+    const reserved = [...materialCallHistory.values()].some((entry) => entry.tasks.some((task) => task.container.containerCode === code && !cancelledTasks.has(task.taskId)));
+    const eligibility = reserved ? { allowed: false, reason: '该箱已有未结束叫料任务' } : orderNo === 'MO-BOX-BLOCKED' && index === 0
+      ? { allowed: false, reason: '该箱当前不可叫料' } : { allowed: true };
+    return { boxCode: code, version: box.box.version, orderNo, origin: locations[`KW-${code}`].location, materialQuantity: box.totalQuantity, eligibility };
+  });
+  return { destination: { floorCode: 'F1', floorName: '一层', areaCode: 'CALL', areaName: '叫料接收区', ...target.location },
+    destinationVersion: target.version, orderNo, boxes: candidates,
+    eligibility: orderNo === 'MO-BATCH-BLOCKED' ? { allowed: false, reason: '当前订单暂不可叫料' } : candidates.some((box) => box.eligibility.allowed)
+      ? { allowed: true } : { allowed: false, reason: candidates.length ? '该订单的箱子已有未结束叫料任务' : '该生产订单暂无可叫料箱子' } };
 }
 function mockData(path: string, method: string, data: Record<string, unknown>): unknown {
+  if (method === 'GET' && path === `${prefix}/order-calls/candidates`) return materialCallBoxes(data.destinationLocationCode, data.orderNo);
+  if (method === 'GET' && path.startsWith(`${prefix}/order-calls/`)) {
+    const id = decodeURIComponent(path.slice(`${prefix}/order-calls/`.length));
+    const entry = materialCallHistory.get(id);
+    if (!entry) throw new MockHttpError('暂未查询到本次叫料结果', 404);
+    if (entry.input.orderNo === 'MO-RESULT-FAIL') throw new MockHttpError('叫料结果查询暂不可用', 500);
+    return entry.result;
+  }
+  if (method === 'POST' && path === `${prefix}/order-calls`) {
+    const input = data as unknown as MaterialCallRequest;
+    if (typeof input.requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.requestId) ||
+      !Array.isArray(input.boxes) || !input.boxes.length || input.boxes.length > 1000 || input.boxes.some((box) => !box || typeof box.boxCode !== 'string') ||
+      new Set(input.boxes.map((box) => box.boxCode)).size !== input.boxes.length) throw new Error('请选择有效且不重复的箱子');
+    const previous = materialCallHistory.get(input.requestId);
+    if (previous) {
+      const saved = previous.input;
+      if (saved.destinationLocationCode !== input.destinationLocationCode || saved.destinationVersion !== input.destinationVersion || saved.orderNo !== input.orderNo ||
+        saved.boxes.length !== input.boxes.length || saved.boxes.some((box) => !input.boxes.some((item) => item.boxCode === box.boxCode && item.version === box.version))) {
+        throw new MockHttpError('相同请求标识不能用于不同叫料内容', 409);
+      }
+      return previous.result;
+    }
+    const target = requireLocation(input.destinationLocationCode);
+    if (target.version !== input.destinationVersion) throw new MockHttpError('位置信息已变化，请重新查询', 409);
+    const current = materialCallBoxes(input.destinationLocationCode, input.orderNo);
+    if (!current.eligibility.allowed) throw new MockHttpError(current.eligibility.reason!, 409);
+    for (const box of input.boxes) {
+      const candidate = current.boxes.find((item) => item.boxCode === box.boxCode);
+      if (!candidate) throw new Error('所选箱子不属于当前生产订单，请重新查询');
+      if (candidate.version !== box.version) throw new MockHttpError('箱子信息已变化，请重新查询', 409);
+      if (!candidate.eligibility.allowed) throw new MockHttpError(candidate.eligibility.reason!, 409);
+    }
+    if (input.orderNo === 'MO-SUBMIT-FAIL') throw new Error('叫料失败：后端暂无法处理该生产订单');
+    if (input.orderNo === 'MO-RESULT-MISSING') throw new MockHttpError('叫料提交结果未知，请查询原请求', 500);
+    const tasks: LogisticsTask[] = input.boxes.map((box) => ({ taskId: String(nextId++), taskNo: `WL-CALL-${nextId++}`, version: 1,
+      vendor: 'STANDARD', taskType: 'GENERAL', container: requireBox(box.boxCode).box,
+      origin: current.boxes.find((item) => item.boxCode === box.boxCode)!.origin, destination: target.location,
+      status: 'CREATED', statusName: '等待派送', triggerMode: 'MANUAL', createdTime: new Date().toISOString() }));
+    const result: MaterialCallReceipt = { requestId: input.requestId, callNo: `CALL-MOCK-${nextId++}`, orderNo: input.orderNo, destination: target.location,
+      tasks: tasks.map((task) => ({ boxCode: task.container.containerCode, taskId: task.taskId, taskNo: task.taskNo,
+        dispatchState: input.orderNo === 'MO-DISPATCH-UNKNOWN' ? 'UNKNOWN' : input.orderNo === 'MO-DISPATCH-FAIL' ? 'FAILED' : 'QUEUED',
+        ...(input.orderNo === 'MO-DISPATCH-UNKNOWN' ? { reason: '等待核实调度受理结果' } : input.orderNo === 'MO-DISPATCH-FAIL' ? { reason: '调度派送失败' } : {}) })),
+      createdTime: new Date().toISOString() };
+    materialCallHistory.set(input.requestId, { input: JSON.parse(JSON.stringify(input)), result, tasks });
+    if (['MO-SUBMIT-UNKNOWN', 'MO-RESULT-FAIL'].includes(input.orderNo)) throw new MockHttpError('叫料提交结果未知，请查询原请求', 500);
+    return result;
+  }
   if (method === 'GET' && path === `${prefix}/warehouse-logistics/options`) {
     if (Object.keys(data).some((key) => key !== 'scanCode')) throw new Error('缴库发起查询仅接收 scanCode');
     return warehouseLogisticsOptions(data.scanCode);
@@ -624,27 +716,38 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
     return logisticsOptions(data.scanCode);
   }
   if (method === 'POST' && path === `${prefix}/logistics/tasks`) {
-    const input = data as unknown as CreateLogisticsRequest;
+    const input = data as unknown as CreateLogisticsRequest | ReturnLogisticsRequest;
     if (typeof input.requestId !== 'string' || !/^[0-9a-f-]{36}$/i.test(input.requestId)) throw new Error('请求标识无效');
     const previous = logisticsHistory.find((entry) => entry.input.requestId === input.requestId);
     if (previous) {
       const saved = previous.input;
-      if (saved.object.containerCode !== input.object?.containerCode || saved.object.containerType !== input.object?.containerType ||
-        ['version', 'vendor', 'taskType', 'originLocationCode', 'destinationLocationCode', 'shippingNo'].some((key) => saved[key as keyof CreateLogisticsRequest] !== input[key as keyof CreateLogisticsRequest])) throw new Error('相同请求标识不能用于不同任务内容');
+      if ((saved.destinationMode || 'SPECIFIED') !== (input.destinationMode || 'SPECIFIED') ||
+        saved.object.containerCode !== input.object?.containerCode || saved.object.containerType !== input.object?.containerType ||
+        ['version', 'vendor', 'taskType', 'originLocationCode', 'destinationLocationCode', 'shippingNo'].some((key) =>
+          saved[key as keyof CreateLogisticsRequest] !== input[key as keyof CreateLogisticsRequest])) throw new Error('相同请求标识不能用于不同任务内容');
       return previous.result;
     }
+    if (input.destinationMode !== undefined && !['SPECIFIED', 'RETURN_LINE_SIDE'].includes(input.destinationMode)) throw new Error('目标位置模式无效');
+    const returning = input.destinationMode === 'RETURN_LINE_SIDE';
+    if (returning && 'destinationLocationCode' in input) throw new Error('回库目标由后端决定，不能提交目标位置');
+    if (returning && input.object?.containerType !== 'VEHICLE') throw new Error('回库仅支持载具');
     const target = requireContainer(input.object);
     const current = logisticsOptions(target.containerCode);
     if (!current.eligibility.allowed) throw new Error(current.eligibility.reason);
     if (target.version !== input.version || current.origin.locationCode !== input.originLocationCode) throw new Error('容器版本或起始位置已变化，请重新扫描');
     if (current.vendor !== input.vendor || current.taskType !== input.taskType) throw new Error('起始位置任务配置已变化，请重新扫描');
     const selected = current.destinations.find((item) => item.location.locationCode === input.destinationLocationCode);
-    if (!selected) throw new Error('目标位置不在当前允许范围内');
+    if (!returning && !selected) throw new Error('目标位置不在当前允许范围内');
     if (input.shippingNo && !shippingHistory.some((entry) => entry.receipt.shippingNo === input.shippingNo && entry.receipt.object.containerCode === target.containerCode &&
       entry.receipt.object.containerType === target.containerType && entry.receipt.canCreateLogisticsTask)) throw new Error('发货单与当前运输对象不匹配');
-    if (current.origin.locationCode === 'KW-LOG-FAIL') throw new Error('物流任务创建失败：目标位置暂不可用');
-    const result: TaskCreationResponse = { requestId: input.requestId, task: { taskId: String(nextId++), taskNo: `WL-MOCK-${nextId++}`, version: 1,
-      vendor: current.vendor, taskType: current.taskType, container: current.object, origin: current.origin, destination: selected.location,
+    if (returning && current.origin.locationCode === 'KW-LOG-RETURN-FAIL') throw new Error('回库失败：回库位置暂不可用');
+    if (!returning && current.origin.locationCode === 'KW-LOG-FAIL') throw new Error('物流任务创建失败：目标位置暂不可用');
+    // Demonstration-only backend rules, not production line-side destination configuration.
+    const destination = returning ? current.vendor === 'HIKVISION'
+      ? { locationCode: 'KW-RETURN-HIK', locationName: '海康回库位' }
+      : { locationCode: 'KW-RETURN-STANDARD', locationName: '斯坦德回库位' } : selected!.location;
+    const result: TaskCreationResponse = { requestId: input.requestId, task: { taskId: String(nextId++), taskNo: `${returning ? 'RT' : 'WL'}-MOCK-${nextId++}`, version: 1,
+      vendor: current.vendor, taskType: current.taskType, container: current.object, origin: current.origin, destination,
       status: 'CREATED', statusName: '已创建', triggerMode: 'MANUAL', createdTime: new Date().toISOString() } };
     logisticsHistory.push({ input: JSON.parse(JSON.stringify(input)), result });
     return result;
@@ -663,9 +766,6 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
       .sort((a, b) => b.createdTime.localeCompare(a.createdTime) || b.taskId.localeCompare(a.taskId));
     return { records: matches.slice((page - 1) * size, page * size), total: matches.length, size, current: page, pages: Math.ceil(matches.length / size) };
   }
-  if (method === 'GET' && /^\/api\/v1\/system\/users\/\d+$/.test(path)) return { department: { deptName: '系统管理部' } };
-  // No remote version or file: mock mode never downloads or installs a WGT.
-  if (method === 'GET' && path.startsWith('/api/v1/system/configs/value/')) return '';
   if (method === 'GET' && path === `${prefix}/warehouse-applications/objects`) {
     if ('scanType' in data) throw new Error('缴库对象查询仅接收 scanCode');
     return applicationObject(data.scanCode);

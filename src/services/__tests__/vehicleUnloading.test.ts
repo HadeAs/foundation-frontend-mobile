@@ -1,15 +1,15 @@
+import { testRequest } from './helpers/testRequest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetMockData } from '../mockApi';
+import { resetMockData } from './fixtures/nariBackend';
 import { seedTestSession } from './helpers/authSession';
 import { panelPackingApi } from '../panelPacking';
 import { useVehicleUnloading } from '../../composables/useVehicleUnloading';
 import { vehicleLoadingApi as api, type VehicleLoads } from '../vehicleLoading';
-import * as mock from '../mockApi';
+import * as mock from './fixtures/nariBackend';
 
 const storage = new Map<string, unknown>();
-const network = vi.fn(() => { throw new Error('Mock 不得调用真实网络'); });
+const network = vi.fn(testRequest);
 beforeEach(() => {
-  vi.stubEnv('VITE_API_MODE', 'mock');
   vi.useFakeTimers();
   storage.clear();
   network.mockClear();
@@ -45,7 +45,7 @@ describe('vehicle unloading Mock workflow', () => {
     expect(query).toHaveBeenCalledOnce();
     flow.toggle(id);
     expect(flow.selected.value).toEqual([]);
-    expect(network).not.toHaveBeenCalled();
+    expect(network).toHaveBeenCalled();
   });
   it('confirms selected IDs/versions, clears on success and preserves materials and other boxes', async () => {
     const flow = useVehicleUnloading();

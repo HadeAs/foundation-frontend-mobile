@@ -1,8 +1,9 @@
+import { testRequest } from './helpers/testRequest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import LocationCascade from '../../components/LocationCascade.vue';
-import { resetMockData } from '../mockApi';
-import * as mock from '../mockApi';
+import { resetMockData } from './fixtures/nariBackend';
+import * as mock from './fixtures/nariBackend';
 import { seedTestSession } from './helpers/authSession';
 import { logisticsApi as api, type LogisticsOptions } from '../logistics';
 import { useLogisticsCreation } from '../../composables/useLogisticsCreation';
@@ -10,10 +11,10 @@ import { shippingApi, shippingRequest } from '../shipping';
 import { locationBindingApi } from '../locationBinding';
 
 const storage = new Map<string, unknown>();
-const network = vi.fn(() => { throw new Error('Mock 不得调用真实网络'); });
+const network = vi.fn(testRequest);
 async function finish<T>(promise: Promise<T>): Promise<T> { await vi.runAllTimersAsync(); return promise; }
 beforeEach(async () => {
-  vi.stubEnv('VITE_API_MODE', 'mock'); vi.useFakeTimers(); storage.clear(); network.mockClear(); resetMockData();
+  vi.useFakeTimers(); storage.clear(); network.mockClear(); resetMockData();
   vi.stubGlobal('uni', { request: network, getStorageSync: (key: string) => storage.get(key) || '',
     setStorageSync: (key: string, value: unknown) => storage.set(key, value), removeStorageSync: (key: string) => storage.delete(key) });
   seedTestSession();
@@ -56,7 +57,7 @@ describe('logistics creation', () => {
     expect(flow.options.value?.object.containerCode).toBe('CAR-LOG-LONG');
     expect(flow.candidates.value).toHaveLength(225);
     expect(flow.destination.value?.locationCode).toBe('DEST-001');
-    expect(network).not.toHaveBeenCalled();
+    expect(network).toHaveBeenCalled();
   });
   it('replays backend vendor/type and version, submits once and clears after success', async () => {
     for (const [code, vendor, taskType] of [['CAR-LOG-HIK', 'HIKVISION', 'GENERAL'], ['CAR-LOG-PROCESS', 'STANDARD', 'PROCESS_ROUTE']]) {

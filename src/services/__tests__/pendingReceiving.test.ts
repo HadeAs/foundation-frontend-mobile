@@ -1,15 +1,16 @@
+import { testRequest } from './helpers/testRequest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetMockData } from '../mockApi';
-import * as mock from '../mockApi';
+import { resetMockData } from './fixtures/nariBackend';
+import * as mock from './fixtures/nariBackend';
 import { seedTestSession } from './helpers/authSession';
 import { pendingReceivingApi as api, displayTaskTime, type ReceivingTaskPage } from '../pendingReceiving';
 import { usePendingReceiving } from '../../composables/usePendingReceiving';
 
 const storage = new Map<string, unknown>();
-const network = vi.fn(() => { throw new Error('Mock 不得调用真实网络'); });
+const network = vi.fn(testRequest);
 async function finish<T>(promise: Promise<T>): Promise<T> { await vi.runAllTimersAsync(); return promise; }
 beforeEach(async () => {
-  vi.stubEnv('VITE_API_MODE', 'mock'); vi.useFakeTimers();
+  vi.useFakeTimers();
   storage.clear(); network.mockClear(); resetMockData();
   vi.stubGlobal('uni', { request: network, getStorageSync: (key: string) => storage.get(key) || '',
     setStorageSync: (key: string, value: unknown) => storage.set(key, value), removeStorageSync: (key: string) => storage.delete(key) });
@@ -35,7 +36,7 @@ describe('pending receiving list', () => {
     await flow.loadMore();
     expect(transport).toHaveBeenCalledTimes(3);
     expect(flow.hasMore.value).toBe(false);
-    expect(network).not.toHaveBeenCalled();
+    expect(network).toHaveBeenCalled();
   });
   it('uses trimmed exact filters only on query, resets pages and supports empty results', async () => {
     const flow = usePendingReceiving();

@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This is a Vue 3 + TypeScript uni-app client. Under `src/`, route views are in `pages/<feature>/`, reusable UI in `components/`, shared logic in `composables/`, API/mock behavior in `services/`, and domain interfaces in `types/`. Global SCSS is in `styles/theme.scss` and `uni.scss`; bundled assets belong in `static/`. Routes and platform metadata live in `pages.json` and `manifest.json`. Tests sit in `src/services/__tests__/`; product and PDA notes are in `docs/`. Treat `dist/` and `node_modules/` as generated.
+This is a Vue 3 + TypeScript uni-app client. Under `src/`, route views are in `pages/<feature>/`, reusable UI in `components/`, shared logic in `composables/`, real API calls in `services/`, and domain interfaces in `types/`. Global SCSS is in `styles/theme.scss` and `uni.scss`; bundled assets belong in `static/`. Routes and platform metadata live in `pages.json` and `manifest.json`. Tests and test-only backend fixtures sit in `src/services/__tests__/`; product and PDA notes are in `docs/`. Never import test fixtures into application code. See `docs/api-integration.md` for backend setup. Treat `dist/` and `node_modules/` as generated.
 
 ## Build, Test, and Development Commands
 

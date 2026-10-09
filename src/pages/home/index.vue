@@ -23,7 +23,7 @@ const groups = [
   ] },
   { name: '物流作业', menus: [
     ['route', '发起物流任务'], ['circle-x', '取消物流任务'], ['truck', '呼叫空载具'],
-    ['shield-check', '交通管制'], ['warehouse', '缴库发起']
+    ['shield-check', '交通管制'], ['warehouse', '缴库发起'], ['package-open', '手动叫料']
   ] }
 ];
 
@@ -37,6 +37,7 @@ onShow(() => {
   }
 });
 function openMenu(name: string) {
+  if (name === '手动叫料') { uni.navigateTo({ url: '/pages/material-call/index' }); return; }
   if (name === '物料接收') { uni.navigateTo({ url: '/pages/receiving/index' }); return; }
   if (name === '缴库发起') { uni.navigateTo({ url: '/pages/warehouse-logistics/index' }); return; }
   if (name === '交通管制') { uni.navigateTo({ url: '/pages/traffic-control/index' }); return; }

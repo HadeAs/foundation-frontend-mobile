@@ -1,3 +1,4 @@
+import { testRequest } from './helpers/testRequest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import EmptyVehiclePage from '../../pages/empty-vehicle/index.vue';
@@ -5,8 +6,8 @@ import ScanInput from '../../components/ScanInput.vue';
 import LocationCascade from '../../components/LocationCascade.vue';
 import { emptyVehicleApi as api, type EmptyVehicleOptions } from '../emptyVehicle';
 import { useEmptyVehicle } from '../../composables/useEmptyVehicle';
-import { resetMockData } from '../mockApi';
-import * as mock from '../mockApi';
+import { resetMockData } from './fixtures/nariBackend';
+import * as mock from './fixtures/nariBackend';
 import { seedTestSession } from './helpers/authSession';
 import { requestId } from '../nariRequest';
 import { logisticsCancellationApi } from '../logisticsCancellation';
@@ -15,10 +16,10 @@ import { locationBindingApi } from '../locationBinding';
 const hooks = vi.hoisted(() => ({ show: [] as (() => void)[] }));
 vi.mock('@dcloudio/uni-app', () => ({ onShow: (callback: () => void) => hooks.show.push(callback), onHide: () => {} }));
 const storage = new Map<string, unknown>();
-const network = vi.fn(() => { throw new Error('Mock 不得调用真实网络'); });
+const network = vi.fn(testRequest);
 async function finish<T>(promise: Promise<T>): Promise<T> { await vi.runAllTimersAsync(); return promise; }
 beforeEach(async () => {
-  vi.stubEnv('VITE_API_MODE', 'mock'); vi.useFakeTimers(); storage.clear(); network.mockClear(); resetMockData(); hooks.show.length = 0;
+  vi.useFakeTimers(); storage.clear(); network.mockClear(); resetMockData(); hooks.show.length = 0;
   vi.stubGlobal('uni', { request: network, getStorageSync: (key: string) => storage.get(key) || '',
     setStorageSync: (key: string, value: unknown) => storage.set(key, value), removeStorageSync: (key: string) => storage.delete(key) });
   seedTestSession();
@@ -33,7 +34,7 @@ describe('empty vehicle calling', () => {
     expect(transport).toHaveBeenCalledOnce(); expect(flow.candidates.value).toHaveLength(3);
     flow.clear(); await finish(flow.scan('KW-CALL-LONG')); expect(flow.candidates.value).toHaveLength(225);
     const first = flow.options.value!.origins[0]; flow.openChoice(); flow.closeChoice(); expect(flow.origin.value).toBe(first);
-    expect(network).not.toHaveBeenCalled();
+    expect(network).toHaveBeenCalled();
   });
   it('switches location and associated vehicle/version together, submits once, and clears on success', async () => {
     const flow = useEmptyVehicle(); await finish(flow.scan('KW-05-01'));

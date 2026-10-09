@@ -1,6 +1,7 @@
+import { testRequest } from './helpers/testRequest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetMockData } from '../mockApi';
-import * as mock from '../mockApi';
+import { resetMockData } from './fixtures/nariBackend';
+import * as mock from './fixtures/nariBackend';
 import { seedTestSession } from './helpers/authSession';
 import { receivingApi as api, type ReceivingResult } from '../receiving';
 import { pendingReceivingApi } from '../pendingReceiving';
@@ -10,10 +11,10 @@ import { requestId } from '../nariRequest';
 import { useReceiving } from '../../composables/useReceiving';
 
 const storage = new Map<string, unknown>();
-const network = vi.fn(() => { throw new Error('Mock 不得调用真实网络'); });
+const network = vi.fn(testRequest);
 async function finish<T>(promise: Promise<T>): Promise<T> { await vi.runAllTimersAsync(); return promise; }
 beforeEach(async () => {
-  vi.stubEnv('VITE_API_MODE', 'mock'); vi.useFakeTimers(); storage.clear(); network.mockClear(); resetMockData();
+  vi.useFakeTimers(); storage.clear(); network.mockClear(); resetMockData();
   vi.stubGlobal('uni', { request: network, getStorageSync: (key: string) => storage.get(key) || '',
     setStorageSync: (key: string, value: unknown) => storage.set(key, value), removeStorageSync: (key: string) => storage.delete(key) });
   seedTestSession();
@@ -41,7 +42,7 @@ describe('receiving', () => {
     await finish(flow.scan('CAR-RECEIVE'));
     expect(flow.notice.value?.text).toBe('当前载具无接收任务');
     expect(flow.canReceive.value).toBe(false);
-    expect(network).not.toHaveBeenCalled();
+    expect(network).toHaveBeenCalled();
   });
   it('cleans WMS independently before receiving, asks for confirmation, retains the task and rejects stale versions', async () => {
     const flow = useReceiving();

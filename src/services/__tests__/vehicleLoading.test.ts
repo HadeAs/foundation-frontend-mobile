@@ -1,13 +1,13 @@
+import { testRequest } from './helpers/testRequest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetMockData } from '../mockApi';
+import { resetMockData } from './fixtures/nariBackend';
 import { seedTestSession } from './helpers/authSession';
 import { panelPackingApi } from '../panelPacking';
 import { useVehicleLoading } from '../../composables/useVehicleLoading';
 
 const storage = new Map<string, unknown>();
-const network = vi.fn(() => { throw new Error('Mock 不得调用真实网络'); });
+const network = vi.fn(testRequest);
 beforeEach(() => {
-  vi.stubEnv('VITE_API_MODE', 'mock');
   vi.useFakeTimers();
   storage.clear();
   network.mockClear();
@@ -53,7 +53,7 @@ describe('vehicle loading Mock workflow', () => {
     expect(slot.vehicle.version).toBe(2);
     expect((await finish(api.getBox('BOX-1'))).loadedSlotCode).toBe('SLOT-01');
     expect((await finish(panelPackingApi.getBox('BOX-1'))).box.version).toBe(2);
-    expect(network).not.toHaveBeenCalled();
+    expect(network).toHaveBeenCalled();
     load.mockRestore();
   });
   it('preserves scan phase on nonexistent, occupied or ineligible results', async () => {

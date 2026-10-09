@@ -1,6 +1,7 @@
+import { testRequest } from './helpers/testRequest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetMockData } from '../mockApi';
-import * as mock from '../mockApi';
+import { resetMockData } from './fixtures/nariBackend';
+import * as mock from './fixtures/nariBackend';
 import { seedTestSession } from './helpers/authSession';
 import { panelPackingApi } from '../panelPacking';
 import { vehicleLoadingApi } from '../vehicleLoading';
@@ -8,10 +9,9 @@ import { locationBindingApi as api, type LocationContainers, type ContainerCandi
 import { useLocationBinding } from '../../composables/useLocationBinding';
 
 const storage = new Map<string, unknown>();
-const network = vi.fn(() => { throw new Error('Mock 不得调用真实网络'); });
+const network = vi.fn(testRequest);
 async function finish<T>(promise: Promise<T>): Promise<T> { await vi.runAllTimersAsync(); return promise; }
 beforeEach(async () => {
-  vi.stubEnv('VITE_API_MODE', 'mock');
   vi.useFakeTimers();
   storage.clear();
   network.mockClear();
@@ -48,7 +48,7 @@ describe('location binding Mock workflow', () => {
     expect(flow.notice.value?.text).toBe('位置绑定成功');
     await finish(flow.scan('KW-03-02'));
     expect(flow.location.value).toMatchObject({ occupied: true, version: 2, container: { containerCode: 'BOX-NR-240819', version: 2 } });
-    expect(network).not.toHaveBeenCalled();
+    expect(network).toHaveBeenCalled();
   });
 
   it.each(['KW-BOUND-BOX', 'KW-BOUND-CAR'])('shows %s, blocks new scans and confirms unbind without deleting contents', async (code) => {

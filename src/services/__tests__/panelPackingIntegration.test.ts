@@ -1,39 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiRequest, isMockApi } from '../apiTransport';
-import { resetMockData } from '../mockApi';
-import { AUTH_SESSION_STORAGE_KEY, getAccessToken, getCurrentUser } from '../auth';
+import { testRequest } from './helpers/testRequest';
+import { resetMockData } from './fixtures/nariBackend';
 import { seedTestSession } from './helpers/authSession';
 import { panelPackingApi } from '../panelPacking';
 import { usePanelPacking } from '../../composables/usePanelPacking';
 
 const storage = new Map<string, unknown>();
-const network = vi.fn(() => { throw new Error('Mock 不得调用真实网络'); });
+const network = vi.fn(testRequest);
 beforeEach(() => {
-  vi.stubEnv('VITE_API_MODE', 'mock');
-  vi.useFakeTimers();
-  storage.clear();
-  network.mockClear();
-  resetMockData();
-  vi.stubGlobal('uni', {
-    request: network,
+  vi.useFakeTimers(); storage.clear(); network.mockClear(); resetMockData();
+  vi.stubGlobal('uni', { request: network,
     getStorageSync: (key: string) => storage.get(key) || '',
     setStorageSync: (key: string, value: unknown) => storage.set(key, value),
-    removeStorageSync: (key: string) => storage.delete(key)
-  });
+    removeStorageSync: (key: string) => storage.delete(key) });
 });
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 async function finish<T>(promise: Promise<T>): Promise<T> { await vi.runAllTimersAsync(); return promise; }
 
-describe('local Mock transport', () => {
-  it('uses authenticated sessions for business mocks without accepting legacy mock login sessions', () => {
-    storage.set(`${AUTH_SESSION_STORAGE_KEY}.mock`, { token: 'old-mock-session', user: { name: '旧模拟用户' } });
-    expect(getAccessToken()).toBe('');
-    expect(isMockApi()).toBe(true);
-    seedTestSession();
-    expect(getAccessToken()).toBe('test-session-token');
-    expect(getCurrentUser()).toEqual({ userId: 1, name: 'System Administrator', role: '系统管理员', account: 'admin', department: '系统管理部' });
-    expect(network).not.toHaveBeenCalled();
-  });
+describe('panel packing integration with a test backend', () => {
   it('supports nonempty box confirmation, unbind, joint candidates, bind and re-query', async () => {
     seedTestSession();
     const flow = usePanelPacking();
@@ -49,7 +33,7 @@ describe('local Mock transport', () => {
     const box = await finish(panelPackingApi.getBox('BOX-NR-240818'));
     expect(box.totalQuantity).toBe(4);
     expect(box.box.version).toBe(3);
-    expect(network).not.toHaveBeenCalled();
+    expect(network).toHaveBeenCalled();
   });
   it('keeps unknown-code failures local and does not partially bind an invalid batch', async () => {
     seedTestSession();
@@ -59,7 +43,7 @@ describe('local Mock transport', () => {
     const result = panelPackingApi.bind('BOX-1', 1, ['MU-240901-0037', 'BAD']).catch((error: Error) => error.message);
     expect(await finish(result)).toBe('物料唯一码不存在');
     expect((await finish(panelPackingApi.getBox('BOX-1'))).totalQuantity).toBe(0);
-    expect(network).not.toHaveBeenCalled();
+    expect(network).toHaveBeenCalled();
   });
   it('queries complete seed-specific joint groups without box data and returns no candidates for empty inputs', async () => {
     seedTestSession();
@@ -74,28 +58,6 @@ describe('local Mock transport', () => {
     expect(await finish(panelPackingApi.getJoint(['MU-UNLOAD-0001']))).toEqual({ candidates: [] });
     const failure = panelPackingApi.getJoint(['UNKNOWN']).catch((error: Error) => error.message);
     expect(await finish(failure)).toBe('物料唯一码不存在');
-    expect(network).not.toHaveBeenCalled();
-  });
-  it('returns no update and rejects unconfigured endpoints instead of falling through', async () => {
-    const success = vi.fn();
-    apiRequest({ url: '/api/v1/system/configs/value/foundation.app.latest-version', success });
-    await vi.runAllTimersAsync();
-    expect(success.mock.lastCall?.[0].data.data).toBe('');
-    apiRequest({ url: '/api/v1/not-configured', success });
-    await vi.runAllTimersAsync();
-    expect(success.mock.lastCall?.[0].statusCode).toBe(400);
-    expect(network).not.toHaveBeenCalled();
-  });
-  it('can abort a delayed mock response and delegates only in explicit real mode', async () => {
-    const success = vi.fn();
-    const fail = vi.fn();
-    apiRequest({ url: '/api/v1/system/configs/value/foundation.app.latest-version', success, fail }).abort();
-    await vi.runAllTimersAsync();
-    expect(success).not.toHaveBeenCalled();
-    expect(fail).toHaveBeenCalledOnce();
-    vi.stubEnv('VITE_API_MODE', 'real');
-    expect(isMockApi()).toBe(false);
-    expect(() => apiRequest({ url: '/api/v1/example' })).toThrow('Mock 不得调用真实网络');
-    expect(network).toHaveBeenCalledOnce();
+    expect(network).toHaveBeenCalled();
   });
 });

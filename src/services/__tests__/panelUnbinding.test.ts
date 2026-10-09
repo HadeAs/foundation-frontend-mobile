@@ -1,14 +1,13 @@
+import { testRequest } from './helpers/testRequest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiRequest, isMockApi } from '../apiTransport';
-import { resetMockData } from '../mockApi';
+import { resetMockData } from './fixtures/nariBackend';
 import { seedTestSession } from './helpers/authSession';
 import { panelPackingApi } from '../panelPacking';
 import { usePanelUnbinding } from '../../composables/usePanelUnbinding';
 
 const storage = new Map<string, unknown>();
-const network = vi.fn(() => { throw new Error('Mock 不得调用真实网络'); });
+const network = vi.fn(testRequest);
 beforeEach(() => {
-  vi.stubEnv('VITE_API_MODE', 'mock');
   vi.useFakeTimers();
   storage.clear();
   network.mockClear();
@@ -68,7 +67,7 @@ describe('panel unbinding Mock workflow', () => {
     const result = await finish(panelPackingApi.getBox('BOX-NR-240818'));
     expect(result.bindings).toHaveLength(2);
     expect(result.bindings.some((row) => row.id === item.id)).toBe(false);
-    expect(network).not.toHaveBeenCalled();
+    expect(network).toHaveBeenCalled();
     submit.mockRestore();
   });
   it('unbinds the entire box regardless of selection and handles empty boxes', async () => {

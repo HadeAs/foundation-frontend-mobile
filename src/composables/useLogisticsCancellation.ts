@@ -2,8 +2,6 @@ import { computed, ref } from 'vue';
 import { logisticsCancellationApi as api, type CancellationResult } from '../services/logisticsCancellation';
 import { ApiRequestError, requestId } from '../services/nariRequest';
 import { getCurrentApiBaseUrl, getCurrentUser } from '../services/auth';
-import { isMockApi } from '../services/apiTransport';
-import { getMockSessionId } from '../services/mockApi';
 import type { LogisticsTask } from '../services/logistics';
 
 interface Attempt {
@@ -27,13 +25,10 @@ export function useLogisticsCancellation() {
   const pages = ref(0);
   const hasMore = computed(() => page.value < pages.value);
   // Keep only unresolved correlation IDs, isolated by environment/account; never store tokens.
-  const storageKey = `foundation.cancellations.${isMockApi() ? 'mock' : 'real'}.${getCurrentApiBaseUrl()}.${getCurrentUser()?.account || ''}`;
-  const mockSessionId = isMockApi() ? getMockSessionId() : undefined;
+  const storageKey = `foundation.cancellations.real.${getCurrentApiBaseUrl()}.${getCurrentUser()?.account || ''}`;
   const stored: unknown = uni.getStorageSync(storageKey);
-  // Mock data resets on reload. Restore only requests from that same mock session;
-  // real-mode correlation IDs still survive reloads and must never be discarded.
-  const restored = mockSessionId === undefined ? stored : stored && typeof stored === 'object' &&
-    'sessionId' in stored && stored.sessionId === mockSessionId && 'attempts' in stored ? stored.attempts : [];
+  // Preserve the existing real-request key and pending IDs across app upgrades.
+  const restored = stored;
   if (Array.isArray(restored)) attempts.value = restored.filter((item): item is Attempt => item &&
     typeof item.taskId === 'string' && /^[1-9][0-9]{0,18}$/.test(item.taskId) && typeof item.taskNo === 'string' &&
     typeof item.requestId === 'string' && /^[0-9a-f-]{36}$/i.test(item.requestId) &&
@@ -44,8 +39,7 @@ export function useLogisticsCancellation() {
   let failedPage = 1;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const message = (text: string, failed = true) => { notice.value = { message: text, error: failed }; };
-  const save = () => uni.setStorageSync(storageKey, JSON.parse(JSON.stringify(mockSessionId === undefined
-    ? attempts.value : { sessionId: mockSessionId, attempts: attempts.value })));
+  const save = () => uni.setStorageSync(storageKey, JSON.parse(JSON.stringify(attempts.value)));
   const isPending = (taskId: string) => attempts.value.some((item) => item.taskId === taskId);
 
   async function load(target: number) {

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   checkForAppUpdate,
   compareVersions,
@@ -26,7 +26,6 @@ const update: AppUpdateInfo = {
 };
 
 describe('app update service', () => {
-  beforeEach(() => vi.stubEnv('VITE_API_MODE', 'real'));
   afterEach(() => {
     stopAppUpdatePolling();
     vi.useRealTimers();

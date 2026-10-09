@@ -1,5 +1,5 @@
 import { computed, ref, shallowRef } from 'vue';
-import { logisticsApi as api, type LogisticsOptions, type LocationCandidate, type CreateLogisticsRequest } from '../services/logistics';
+import { logisticsApi as api, type LogisticsOptions, type LocationCandidate, type CreateLogisticsRequest, type ReturnLogisticsRequest } from '../services/logistics';
 import { requestId } from '../services/nariRequest';
 
 export function useLogisticsCreation() {
@@ -11,6 +11,7 @@ export function useLogisticsCreation() {
   const disabled = computed(() => busy.value || choosing.value);
   const candidates = computed(() => options.value?.destinations.map((item) => item.location) || []);
   const canSubmit = computed(() => !disabled.value && !!options.value?.eligibility.allowed && !!destination.value);
+  const canReturn = computed(() => !disabled.value && options.value?.object.containerType === 'VEHICLE');
   let generation = 0;
   let shippingNo: string | undefined;
   function notify(text: string, error = false) { notice.value = { text, error }; }
@@ -81,5 +82,23 @@ export function useLogisticsCreation() {
       clear(); notify(`物流任务创建成功，任务编号：${result.task.taskNo}（${result.task.statusName}）`);
     });
   }
-  return { options, destination, candidates, choosing, busy, disabled, notice, canSubmit, notify, clear, scan, openChoice, closeChoice, choose, submit };
+  async function returnToWarehouse() {
+    if (!canReturn.value || !options.value) return;
+    const source = options.value;
+    const input: ReturnLogisticsRequest = { requestId: requestId(),
+      object: { containerType: source.object.containerType, containerCode: source.object.containerCode },
+      version: source.object.version, vendor: source.vendor, taskType: source.taskType,
+      originLocationCode: source.origin.locationCode, destinationMode: 'RETURN_LINE_SIDE' };
+    await run(async (current) => {
+      const result = await api.returnToWarehouse(input);
+      if (!current()) return;
+      if (!result || result.requestId !== input.requestId || !validText(result.task?.taskNo) || typeof result.task.taskId !== 'string' ||
+        !/^[1-9][0-9]{0,18}$/.test(result.task.taskId) || !validText(result.task.statusName) ||
+        result.task.container?.containerCode !== input.object.containerCode || result.task.container?.containerType !== input.object.containerType ||
+        result.task.origin?.locationCode !== input.originLocationCode || !validText(result.task.destination?.locationCode) ||
+        !validText(result.task.destination.locationName)) throw new Error('回库任务创建结果不完整，请核实后重试');
+      clear(); notify(`回库任务创建成功，任务编号：${result.task.taskNo}（${result.task.statusName}）`);
+    });
+  }
+  return { options, destination, candidates, choosing, busy, disabled, notice, canSubmit, canReturn, notify, clear, scan, openChoice, closeChoice, choose, submit, returnToWarehouse };
 }

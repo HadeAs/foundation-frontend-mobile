@@ -1,9 +1,10 @@
+import { testRequest } from './helpers/testRequest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import CancellationPage from '../../pages/logistics-cancel/index.vue';
 import ScanInput from '../../components/ScanInput.vue';
-import { resetMockData } from '../mockApi';
-import * as mock from '../mockApi';
+import { resetMockData } from './fixtures/nariBackend';
+import * as mock from './fixtures/nariBackend';
 import { seedTestSession } from './helpers/authSession';
 import { logisticsCancellationApi as api, type LogisticsTaskPage } from '../logisticsCancellation';
 import { useLogisticsCancellation } from '../../composables/useLogisticsCancellation';
@@ -14,7 +15,7 @@ import { requestId } from '../nariRequest';
 const storage = new Map<string, unknown>();
 const hooks = vi.hoisted(() => ({ show: [] as (() => void)[] }));
 vi.mock('@dcloudio/uni-app', () => ({ onShow: (callback: () => void) => hooks.show.push(callback), onHide: () => {} }));
-const network = vi.fn(() => { throw new Error('Mock 不得调用真实网络'); });
+const network = vi.fn(testRequest);
 const flows: ReturnType<typeof useLogisticsCancellation>[] = [];
 function flow() { const item = useLogisticsCancellation(); flows.push(item); return item; }
 // Complete immediate mock calls, without advancing the 3-second result poll.
@@ -24,7 +25,7 @@ async function scenario(code: string) {
   state.open(state.items.value[0]); return state;
 }
 beforeEach(async () => {
-  vi.stubEnv('VITE_API_MODE', 'mock'); vi.useFakeTimers(); storage.clear(); network.mockClear(); resetMockData();
+  vi.useFakeTimers(); storage.clear(); network.mockClear(); resetMockData();
   hooks.show.length = 0;
   vi.stubGlobal('uni', { request: network, getStorageSync: (key: string) => storage.get(key) || '',
     setStorageSync: (key: string, value: unknown) => storage.set(key, value), removeStorageSync: (key: string) => storage.delete(key) });
@@ -33,32 +34,32 @@ beforeEach(async () => {
 afterEach(() => { flows.splice(0).forEach((state) => state.pause()); vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe('logistics cancellation', () => {
-  it('drops stale mock requests only when the mock backend resets, allowing cancellation again', async () => {
+  it('preserves unresolved requests across reloads and prevents a second cancellation', async () => {
     const state = await scenario('CANCEL-ACCEPTED');
     const cancel = vi.spyOn(api, 'cancel');
     await finish(state.confirm());
     const request = state.attempts.value[0]; state.pause();
     const sameSession = flow();
     expect(sameSession.attempts.value[0].requestId).toBe(request.requestId); sameSession.pause();
-    resetMockData(); // Reload resets the in-memory server, but not uni storage.
     const restored = await scenario('CANCEL-ACCEPTED');
-    expect(restored.attempts.value).toHaveLength(0);
-    expect(restored.isPending(request.taskId)).toBe(false);
+    expect(restored.attempts.value).toHaveLength(1);
+    expect(restored.isPending(request.taskId)).toBe(true);
     await finish(restored.confirm());
-    expect(cancel).toHaveBeenCalledTimes(2);
-    expect(restored.attempts.value[0].requestId).not.toBe(request.requestId);
-    await vi.advanceTimersByTimeAsync(3500);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(restored.attempts.value[0].requestId).toBe(request.requestId);
+    await finish(restored.check(request.taskId));
     expect(restored.notice.value?.message).toContain('取消成功');
     expect(restored.attempts.value).toHaveLength(0);
   });
-  it('ignores legacy unscoped mock attempts but preserves real-mode recovery after backend mock resets', async () => {
+  it('ignores old mock records and preserves real request recovery', async () => {
     const state = await scenario('CANCEL-UNKNOWN');
     await finish(state.confirm()); state.pause();
-    const mockKey = [...storage.keys()].find((key) => key.startsWith('foundation.cancellations.mock.'))!;
+    const realKey = [...storage.keys()].find((key) => key.startsWith('foundation.cancellations.real.'))!;
+    const mockKey = realKey.replace('cancellations.real.', 'cancellations.mock.');
     storage.set(mockKey, JSON.parse(JSON.stringify(state.attempts.value)));
+    storage.delete(realKey);
     expect(flow().attempts.value).toHaveLength(0);
     const task = state.items.value[0];
-    vi.stubEnv('VITE_API_MODE', 'real');
     const real = flow();
     const cancel = vi.spyOn(api, 'cancel').mockImplementationOnce(async (taskId, input) => ({
       taskId, taskNo: task.taskNo, requestId: input.requestId, cancelStatus: 'UNKNOWN', reason: '结果未知', processedTime: new Date().toISOString()
@@ -106,7 +107,7 @@ describe('logistics cancellation', () => {
     state.keyword.value = '  agv-001  '; await finish(state.query());
     expect(state.items.value).toHaveLength(1); expect(transport.mock.lastCall?.[0].data).toEqual({ keyword: 'agv-001', page: 1, size: 20 });
     state.keyword.value = '不存在'; await finish(state.query()); expect(state.items.value).toHaveLength(0);
-    expect(network).not.toHaveBeenCalled();
+    expect(network).toHaveBeenCalled();
   });
   it('keeps loaded data and cursor when next page fails, then retries that page', async () => {
     const state = flow(); state.keyword.value = '分页测试车'; await finish(state.query());

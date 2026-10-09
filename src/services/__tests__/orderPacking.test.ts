@@ -1,14 +1,13 @@
+import { testRequest } from './helpers/testRequest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiRequest, isMockApi } from '../apiTransport';
-import { resetMockData } from '../mockApi';
+import { resetMockData } from './fixtures/nariBackend';
 import { seedTestSession } from './helpers/authSession';
 import { panelPackingApi } from '../panelPacking';
 import { useOrderPacking } from '../../composables/useOrderPacking';
 
 const storage = new Map<string, unknown>();
-const network = vi.fn(() => { throw new Error('Mock 不得调用真实网络'); });
+const network = vi.fn(testRequest);
 beforeEach(() => {
-  vi.stubEnv('VITE_API_MODE', 'mock');
   vi.useFakeTimers();
   storage.clear();
   network.mockClear();
@@ -54,7 +53,7 @@ describe('order packing Mock workflow', () => {
     expect(result.totalQuantity).toBe(12);
     expect(result.bindings[0].bindingMode).toBe('BY_ORDER');
     expect(result.bindings[0].panelCode).toBeUndefined();
-    expect(network).not.toHaveBeenCalled();
+    expect(network).toHaveBeenCalled();
   });
   it('validates quantities, preserves failed input, and accepts a corrected manual order', async () => {
     const flow = useOrderPacking();

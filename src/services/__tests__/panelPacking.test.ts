@@ -16,7 +16,7 @@ function respond(data: unknown, statusCode = 200, code = 0, message = 'ok') {
 }
 function receipt(version = 3) { return { requestId: 'r1', operationNo: 'OP1', affectedCount: 1, processedTime: '2026-09-16T00:00:00Z', box: { boxCode: 'BOX-1', version, materialQuantity: 0 } }; }
 
-beforeEach(() => { request.mockReset(); vi.stubGlobal('uni', { request }); vi.unstubAllEnvs(); vi.stubEnv('VITE_API_MODE', 'real'); });
+beforeEach(() => { request.mockReset(); vi.stubGlobal('uni', { request }); vi.unstubAllEnvs(); });
 
 describe('板件扫码绑箱', () => {
   it('uses real URLs, token and the H5 proxy', async () => {

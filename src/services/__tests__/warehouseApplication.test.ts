@@ -1,16 +1,16 @@
+import { testRequest } from './helpers/testRequest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetMockData } from '../mockApi';
-import * as mock from '../mockApi';
+import { resetMockData } from './fixtures/nariBackend';
+import * as mock from './fixtures/nariBackend';
 import { seedTestSession } from './helpers/authSession';
 import { panelPackingApi } from '../panelPacking';
 import { warehouseApplicationApi as api, type ApplicationObject, type ApplicationReceipt } from '../warehouseApplication';
 import { useWarehouseApplication } from '../../composables/useWarehouseApplication';
 
 const storage = new Map<string, unknown>();
-const network = vi.fn(() => { throw new Error('Mock 不得调用真实网络'); });
+const network = vi.fn(testRequest);
 async function finish<T>(promise: Promise<T>): Promise<T> { await vi.runAllTimersAsync(); return promise; }
 beforeEach(async () => {
-  vi.stubEnv('VITE_API_MODE', 'mock');
   vi.useFakeTimers();
   storage.clear(); network.mockClear(); resetMockData();
   vi.stubGlobal('uni', { request: network,
@@ -40,7 +40,7 @@ describe('warehouse application', () => {
     expect(flow.object.value).toBeNull();
     expect(flow.notice.value?.text).toContain('缴库申请成功，缴库单号：SAP-MOCK-');
     expect((await finish(api.getObject('CAR-APPLY'))).totalMaterialQuantity).toBe(8);
-    expect(network).not.toHaveBeenCalled();
+    expect(network).toHaveBeenCalled();
   });
   it('replaces scans directly and rejects the removed demo code without retaining old data', async () => {
     const flow = useWarehouseApplication();

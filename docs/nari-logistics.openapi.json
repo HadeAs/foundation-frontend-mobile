@@ -1,14 +1,24 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "南瑞物流 App API（基座适配候选稿）",
+    "title": "南瑞物流 App API（前端交付整合稿）",
     "version": "development",
-    "description": "从业务清单补充形成的设计候选，不是运行时导出，不代表已实现或双方冻结。原有 37 项能力逐项保留。URL、ApiResult、认证与错误码按基座源码；所有新增业务 DTO、权限、版本、防重和数量约束为待评审提案。无真实服务器地址，不可直接联调。\n\n操作人由 Bearer 会话取得，操作时间由服务端生成。查询无副作用；所有业务写入重新校验状态、关系与权限。关系清理不得删除追溯记录。\n\n争议条目见 x-review-issues 和 README.md；没有把附件内的处理建议视为用户授权的新业务规则。\n\n本轮采纳前端评审第 1、2、3、4、6、7、9 项及附加澄清；第 5 项箱/车扫码匹配按全量明细解决，第 8 项按单容器单个当前接收任务解决；拼板候选及当前位置候选已改为全量；接口评审通过与实际实现/联调状态分开记录。原 37 项保留，新增 1 项取消结果查询。空载具扫描目标位置、选择起始位置；未满载立即发送已取消。",
-    "x-design-revision": "2026-09-18.1",
+    "description": "完整接口整合稿：原有 38 项接口全部保留，合入订单叫料 3 项新增接口，更新位置绑定及创建物流任务 2 项既有接口，共 41 项接口。前端接收此文件即可，无需再导入增量文件。新增业务和拟修改规则仍为待评审草案，合并不代表冻结、实现或可联调；待确认项见 R01～R05。导入 Apifox 时请核对同方法同路径的覆盖范围。\n\n以下为原候选的设计背景与历史记录：\n从业务清单补充形成的设计候选，不是运行时导出，不代表已实现或双方冻结。原有 37 项能力逐项保留。URL、ApiResult、认证与错误码按基座源码；所有新增业务 DTO、权限、版本、防重和数量约束为待评审提案。无真实服务器地址，不可直接联调。\n\n操作人由 Bearer 会话取得，操作时间由服务端生成。查询无副作用；所有业务写入重新校验状态、关系与权限。关系清理不得删除追溯记录。\n\n争议条目见 x-review-issues 和 README.md；没有把附件内的处理建议视为用户授权的新业务规则。\n\n本轮采纳前端评审第 1、2、3、4、6、7、9 项及附加澄清；第 5 项箱/车扫码匹配按全量明细解决，第 8 项按单容器单个当前接收任务解决；拼板候选及当前位置候选已改为全量；接口评审通过与实际实现/联调状态分开记录。原 37 项保留，新增 1 项取消结果查询。空载具扫描目标位置、选择起始位置；未满载立即发送已取消。",
+    "x-design-revision": "2026-10-09.2",
     "x-source-file": "南瑞物流-App-OpenAPI-草案.json",
     "x-source-sha256": "e1ed085f505b738db17ff9971c9fc8c21e85d8c18bd4231e1e651088f2ae265e",
     "x-foundation-head": "fd1381b628ffd5f3faae113006216db9dc18a5d5",
-    "x-origin": "design-only-not-runtime"
+    "x-origin": "design-only-not-runtime",
+    "x-merged-sources": [
+      {
+        "file": "nari-logistics.candidate.openapi.json",
+        "revision": "2026-09-18.1"
+      },
+      {
+        "file": "nari-logistics.order-call-return.draft.openapi.json",
+        "revision": "2026-10-09.1"
+      }
+    ]
   },
   "servers": [
     {
@@ -66,6 +76,14 @@
     },
     {
       "name": "三、物流作业 / 交通管制"
+    },
+    {
+      "name": "四、新增业务草案 / 生产订单叫料",
+      "description": "订单叫料与绑定后去向新增草案，待评审。"
+    },
+    {
+      "name": "四、新增业务草案 / 绑定后去向",
+      "description": "订单叫料与绑定后去向新增草案，待评审。"
     }
   ],
   "paths": {
@@ -3214,10 +3232,10 @@
     "/api/v1/business/nari-logistics/locations/bind-container": {
       "post": {
         "tags": [
-          "一、常规作业 / 位置绑定"
+          "四、新增业务草案 / 绑定后去向"
         ],
         "summary": "绑定容器到库位",
-        "description": "### 位置绑定\n将载具或料箱绑定至目标库位，重新校验占用状态，并按后端规则触发后续流程。\n\n后续自动触发不等于本接口返回时搬运完成；触发失败处置另行确认。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n写入候选防重约定：requestId 标识一次业务意图，同一次网络重发复用 ID 和相同内容；同 ID 不同内容拒绝。该能力需业务模块实现，并非基座默认中间件。操作者/时间由服务端确定。\n\n页面先查询位置，再以单个 scanCode 识别容器，最后提交本接口。请求携带第一步的位置编码/版本及第二步的容器类型/编码/版本；服务端最终校验位置存在且为空、容器自身状态、双方绑定规则、当前关系及版本。不能将扫码识别时的 allowed=true 视为目标位置校验已通过。",
+        "description": "人工位置绑定后去向场景：先完成位置与容器绑定，再由前端提示回线边库、指定其他位置或暂不运输。绑定成功不表示运输任务已创建；选择运输后调用 POST /logistics/tasks。\n待评审 R04：旧描述及铆接/治具场景存在绑定后自动回库。本草案仅提出人工弹窗流程绑定不自动派单；自动业务入口的适用范围与互斥须先确认，不能直接取消所有自动回库，也不能让两条路径重复创建运输。绑定接口请求及成功回执结构不变。\n绑定改变容器版本。选择运输后先使用 GET /logistics/options?scanCode=<绑定位置码> 重新查询对象、当前版本、起始位置及后端确定的 vendor/taskType，再提交创建请求，不沿用绑定前版本。指定其他位置使用其候选位置；回线边库不要求员工选目标。回库资格不能仅由普通运输的候选列表是否为空判断，该查询对回库资格的兼容说明列入 R03 评审。",
         "operationId": "nari_locations_bind_container",
         "parameters": [],
         "responses": {
@@ -3382,7 +3400,7 @@
             }
           }
         },
-        "x-design-status": "candidate-not-implemented",
+        "x-design-status": "PROPOSED_NOT_FROZEN",
         "x-source-path": "/draft/mobile/locations/bind-container",
         "x-source-method": "POST",
         "x-source-operation-id": "locations_bind_container",
@@ -5863,11 +5881,10 @@
     "/api/v1/business/nari-logistics/logistics/tasks": {
       "post": {
         "tags": [
-          "二、库房作业 / 成品发货",
-          "三、物流作业 / 发起物流任务"
+          "四、新增业务草案 / 绑定后去向"
         ],
         "summary": "创建物流任务",
-        "description": "### 成品发货\n复用现有任务创建能力，员工选择目标位置后创建任务；后续取消创建或创建失败不撤销已完成发货。\n\n### 发起物流任务\n按确认的运输对象、起始位置及目标位置创建任务，返回创建结果、任务编号及当前状态。\n\n员工选择目标位置后提交；任务类型由后端业务规则确定，海康仅支持 GENERAL。前端原样回传物流发起查询返回的 vendor/taskType，服务端重新按当前规则校验，不接受客户端自行决定任务类型。位置统一称为起始位置、目标位置。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n写入候选防重约定：requestId 标识一次业务意图，同一次网络重发复用 ID 和相同内容；同 ID 不同内容拒绝。该能力需业务模块实现，并非基座默认中间件。操作者/时间由服务端确定。",
+        "description": "### 成品发货\n复用现有任务创建能力，员工选择目标位置后创建任务；后续取消创建或创建失败不撤销已完成发货。\n\n### 发起物流任务\n按确认的运输对象、起始位置及目标位置创建任务，返回创建结果、任务编号及当前状态。\n\n员工选择目标位置后提交；任务类型由后端业务规则确定，海康仅支持 GENERAL。前端原样回传物流发起查询返回的 vendor/taskType，服务端重新按当前规则校验，不接受客户端自行决定任务类型。位置统一称为起始位置、目标位置。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n写入候选防重约定：requestId 标识一次业务意图，同一次网络重发复用 ID 和相同内容；同 ID 不同内容拒绝。该能力需业务模块实现，并非基座默认中间件。操作者/时间由服务端确定。\n\n本增量提案：destinationMode=RETURN_LINE_SIDE 表示回线边库，不传目标位置；SPECIFIED 或省略时沿用员工指定目标。返回 task.destination 为实际分配的具体位置。失败不撤销先前已成功的绑定。不得另建回库按钮专用运输创建接口。后端统一检查是否已有进行中或结果未知的运输，防止人工弹窗与自动监控重复派单。",
         "operationId": "nari_logistics_tasks_create",
         "parameters": [],
         "responses": {
@@ -6053,7 +6070,7 @@
             }
           }
         },
-        "x-design-status": "candidate-not-implemented",
+        "x-design-status": "PROPOSED_NOT_FROZEN",
         "x-source-path": "/draft/mobile/logistics/tasks/create",
         "x-source-method": "POST",
         "x-source-operation-id": "logistics_tasks_create",
@@ -6077,17 +6094,38 @@
               "schema": {
                 "$ref": "#/components/schemas/CreateLogisticsRequest"
               },
-              "example": {
-                "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
-                "object": {
-                  "containerType": "VEHICLE",
-                  "containerCode": "CODE-001"
+              "examples": {
+                "specified": {
+                  "summary": "指定其他位置",
+                  "value": {
+                    "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                    "object": {
+                      "containerType": "VEHICLE",
+                      "containerCode": "CODE-001"
+                    },
+                    "version": 1,
+                    "vendor": "STANDARD",
+                    "taskType": "GENERAL",
+                    "originLocationCode": "CODE-001",
+                    "destinationLocationCode": "DEST-001",
+                    "destinationMode": "SPECIFIED"
+                  }
                 },
-                "version": 1,
-                "vendor": "STANDARD",
-                "taskType": "GENERAL",
-                "originLocationCode": "CODE-001",
-                "destinationLocationCode": "CODE-001"
+                "returnLineSide": {
+                  "summary": "回线边库（目标由后端分配）",
+                  "value": {
+                    "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                    "object": {
+                      "containerType": "VEHICLE",
+                      "containerCode": "CODE-001"
+                    },
+                    "version": 1,
+                    "vendor": "STANDARD",
+                    "taskType": "GENERAL",
+                    "originLocationCode": "CODE-001",
+                    "destinationMode": "RETURN_LINE_SIDE"
+                  }
+                }
               }
             }
           }
@@ -8391,6 +8429,666 @@
           "B09"
         ],
         "x-design-addition": "补齐已受理取消的最终结果查询，不是原稿新增运输业务。"
+      }
+    },
+    "/api/v1/business/nari-logistics/order-calls/candidates": {
+      "get": {
+        "tags": [
+          "四、新增业务草案 / 生产订单叫料"
+        ],
+        "summary": "按生产订单查询叫料候选箱",
+        "description": "按箱关联的生产订单匹配；目标位置决定合法取料范围和业务条件，不能仅按全库同订单箱返回。铆接场景须符合未铆接要求；焊接场景不把铆接状态作为通用过滤条件。返回完整候选供多选，不自动选全、不创建任务、不占用箱。目标位置当前有箱不等于可立即送料；可排队，不能占用时强行送入。无订单/位置返回 404；订单存在但无匹配箱返回空数组及不可操作原因。已分配或占用的箱通过 eligibility 解释。具体配置关联、容量上限待评审。",
+        "operationId": "nari_order_calls_candidates_query",
+        "responses": {
+          "200": {
+            "description": "本接口动作成功；见 data 明确语义，不代表后续物流执行完成。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "基座 ApiResult<T>，只包装一层。",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "format": "int32",
+                      "description": "基座业务码，0 表示成功。",
+                      "example": 0
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "可直接展示的处理信息。",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/OrderCallCandidatesResponse"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "ISO 8601 UTC 时间；客户端按本地时区展示。",
+                      "example": "2026-09-14T02:00:00Z"
+                    },
+                    "traceId": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "服务端链路标识，供问题定位。",
+                      "example": "trace-example"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "timestamp",
+                    "traceId"
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "orderNo": "MO-001",
+                    "destination": {
+                      "locationCode": "DEST-001",
+                      "locationName": "产线接驳位置",
+                      "floorCode": "2F",
+                      "floorName": "二楼",
+                      "areaCode": "WELD",
+                      "areaName": "焊接区"
+                    },
+                    "destinationVersion": 1,
+                    "boxes": [
+                      {
+                        "boxCode": "BOX-001",
+                        "version": 1,
+                        "orderNo": "MO-001",
+                        "origin": {
+                          "locationCode": "SLOT-001",
+                          "locationName": "线边库库位001"
+                        },
+                        "materialQuantity": 1,
+                        "eligibility": {
+                          "allowed": true
+                        }
+                      },
+                      {
+                        "boxCode": "BOX-002",
+                        "version": 1,
+                        "orderNo": "MO-001",
+                        "origin": {
+                          "locationCode": "SLOT-002",
+                          "locationName": "线边库库位002"
+                        },
+                        "materialQuantity": 1,
+                        "eligibility": {
+                          "allowed": true
+                        }
+                      }
+                    ],
+                    "eligibility": {
+                      "allowed": true
+                    }
+                  },
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效 400/40001；业务不满足 40000。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 40001,
+                  "message": "参数无效 400/40001；业务不满足 40000。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录 401、Token 无效 40102 或过期 40103。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 401,
+                  "message": "未登录 401、Token 无效 40102 或过期 40103。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无页面权限。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 403,
+                  "message": "无页面权限。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标资源不存在。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 404,
+                  "message": "目标资源不存在。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "资源版本冲突 40900 或唯一键冲突 40002。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 40900,
+                  "message": "数据已被其他操作修改或删除，请刷新后重试",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务端错误；外部结果可能未知，不可据此自动创建新业务请求。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 500,
+                  "message": "服务端错误；外部结果可能未知，不可据此自动创建新业务请求。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          }
+        },
+        "x-design-status": "PROPOSED_NOT_FROZEN",
+        "parameters": [
+          {
+            "name": "destinationLocationCode",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "description": "员工扫描的目标库位码。",
+              "example": "DEST-001"
+            },
+            "description": "员工扫描的目标库位码。"
+          },
+          {
+            "name": "orderNo",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "description": "员工输入的生产订单号。",
+              "example": "MO-001"
+            },
+            "description": "员工输入的生产订单号。"
+          }
+        ]
+      }
+    },
+    "/api/v1/business/nari-logistics/order-calls": {
+      "post": {
+        "tags": [
+          "四、新增业务草案 / 生产订单叫料"
+        ],
+        "summary": "确认按订单叫料",
+        "description": "员工选择一个或多个可替代箱，不输入数量；每箱创建一个业务运输任务，同订单允许多次叫料。\n草案提案（待评审）：服务端先整体校验所选箱订单归属、资格、位置及版本，原子预留箱并创建本地业务任务；任一箱已分配/占用或版本冲突返回 409/40900，message 明确箱码及原因，整批不创建。与自动配送入口共用箱预留及防重，禁止绕过其他进行中/未知任务。\n目标位置一次只容纳一箱：所有入口共享同一位置的串行调度约束。先前运输完成不等于目标位置已释放；必须获得可信的空位确认才可放行下一箱，未知占用不放行。释放信号和排序规则为 R01 未决，禁止据此直接实现自动放行。\n受理成功只表示本批本地业务任务已创建；外部调用通过任务状态推进，已创建任务不因其他任务失败被抹去。相同 requestId/相同内容返回同一批及当前状态，不同内容返回 409；网络未知不换 ID 重发，查询本次结果。预留释放、幂等保留期限及失败恢复策略为 R02 未决。",
+        "operationId": "nari_order_calls_submit",
+        "responses": {
+          "200": {
+            "description": "本接口动作成功；见 data 明确语义，不代表后续物流执行完成。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "基座 ApiResult<T>，只包装一层。",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "format": "int32",
+                      "description": "基座业务码，0 表示成功。",
+                      "example": 0
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "可直接展示的处理信息。",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/OrderCallResponse"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "ISO 8601 UTC 时间；客户端按本地时区展示。",
+                      "example": "2026-09-14T02:00:00Z"
+                    },
+                    "traceId": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "服务端链路标识，供问题定位。",
+                      "example": "trace-example"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "timestamp",
+                    "traceId"
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                    "callNo": "CALL-001",
+                    "orderNo": "MO-001",
+                    "destination": {
+                      "locationCode": "DEST-001",
+                      "locationName": "产线接驳位置"
+                    },
+                    "tasks": [
+                      {
+                        "boxCode": "BOX-001",
+                        "taskId": "10001",
+                        "taskNo": "TASK-001",
+                        "dispatchState": "QUEUED"
+                      },
+                      {
+                        "boxCode": "BOX-002",
+                        "taskId": "10002",
+                        "taskNo": "TASK-002",
+                        "dispatchState": "QUEUED"
+                      }
+                    ],
+                    "createdTime": "2026-09-14T02:00:00Z"
+                  },
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效 400/40001；业务不满足 40000。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 40001,
+                  "message": "参数无效 400/40001；业务不满足 40000。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录 401、Token 无效 40102 或过期 40103。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 401,
+                  "message": "未登录 401、Token 无效 40102 或过期 40103。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无页面权限。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 403,
+                  "message": "无页面权限。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标资源不存在。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 404,
+                  "message": "目标资源不存在。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "资源版本冲突 40900 或唯一键冲突 40002。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 40900,
+                  "message": "数据已被其他操作修改或删除，请刷新后重试",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务端错误；外部结果可能未知，不可据此自动创建新业务请求。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 500,
+                  "message": "服务端错误；外部结果可能未知，不可据此自动创建新业务请求。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          }
+        },
+        "x-design-status": "PROPOSED_NOT_FROZEN",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderCallRequest"
+              },
+              "example": {
+                "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                "orderNo": "MO-001",
+                "destinationLocationCode": "DEST-001",
+                "destinationVersion": 1,
+                "boxes": [
+                  {
+                    "boxCode": "BOX-001",
+                    "version": 1
+                  },
+                  {
+                    "boxCode": "BOX-002",
+                    "version": 1
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/business/nari-logistics/order-calls/{requestId}": {
+      "get": {
+        "tags": [
+          "四、新增业务草案 / 生产订单叫料"
+        ],
+        "summary": "查询本次订单叫料结果",
+        "description": "按当前用户有权访问的 requestId 查询同一次叫料结果，包括逐箱任务当前状态。任务/箱不再出现在候选中不代表运输完成。未找到受理记录返回 404，但超时后的短暂未找到不能证明原提交未执行；前端不得更换 requestId 自动再次提交。FAILED/UNKNOWN 显示原因，不由前端盲目续传箱列表。查询间隔、恢复及保留期限待 R02 评审。",
+        "operationId": "nari_order_calls_result",
+        "responses": {
+          "200": {
+            "description": "本接口动作成功；见 data 明确语义，不代表后续物流执行完成。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "基座 ApiResult<T>，只包装一层。",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "format": "int32",
+                      "description": "基座业务码，0 表示成功。",
+                      "example": 0
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "可直接展示的处理信息。",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/OrderCallResponse"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "ISO 8601 UTC 时间；客户端按本地时区展示。",
+                      "example": "2026-09-14T02:00:00Z"
+                    },
+                    "traceId": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "服务端链路标识，供问题定位。",
+                      "example": "trace-example"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "timestamp",
+                    "traceId"
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                    "callNo": "CALL-001",
+                    "orderNo": "MO-001",
+                    "destination": {
+                      "locationCode": "DEST-001",
+                      "locationName": "产线接驳位置"
+                    },
+                    "tasks": [
+                      {
+                        "boxCode": "BOX-001",
+                        "taskId": "10001",
+                        "taskNo": "TASK-001",
+                        "dispatchState": "QUEUED"
+                      },
+                      {
+                        "boxCode": "BOX-002",
+                        "taskId": "10002",
+                        "taskNo": "TASK-002",
+                        "dispatchState": "QUEUED"
+                      }
+                    ],
+                    "createdTime": "2026-09-14T02:00:00Z"
+                  },
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效 400/40001；业务不满足 40000。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 40001,
+                  "message": "参数无效 400/40001；业务不满足 40000。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录 401、Token 无效 40102 或过期 40103。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 401,
+                  "message": "未登录 401、Token 无效 40102 或过期 40103。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无页面权限。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 403,
+                  "message": "无页面权限。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标资源不存在。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 404,
+                  "message": "目标资源不存在。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "资源版本冲突 40900 或唯一键冲突 40002。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 40900,
+                  "message": "数据已被其他操作修改或删除，请刷新后重试",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务端错误；外部结果可能未知，不可据此自动创建新业务请求。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 500,
+                  "message": "服务端错误；外部结果可能未知，不可据此自动创建新业务请求。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          }
+        },
+        "x-design-status": "PROPOSED_NOT_FROZEN",
+        "parameters": [
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "前端为一次业务提交生成的 UUID；同一次网络重发复用同一值及内容，用于防重与结果关联，不是登录令牌。 原样返回本次业务请求标识。",
+              "example": "47ab7945-b324-4ed4-a10a-af734b83de07"
+            },
+            "description": "本次提交使用的请求 UUID。"
+          }
+        ]
       }
     }
   },
@@ -10969,7 +11667,7 @@
       "CreateLogisticsRequest": {
         "title": "CreateLogisticsRequest",
         "type": "object",
-        "description": "创建普通物流任务请求。回传查询确定的对象、版本、品牌、类型和起始位置，携带员工选定目标位置；后端重新校验全部组合。\n\n关联字段说明：\nobject：扫描或查询解析出的实际业务容器，结构见 ContainerRef。",
+        "description": "创建物流任务请求。回传重新查询确定的对象、当前版本、品牌、类型和起始位置；指定位置时提交目标，回线边库时由后端分配目标，后端重新校验全部组合。\n\n关联字段说明：\nobject：扫描或查询解析出的实际业务容器，结构见 ContainerRef。\n本增量提案通过 destinationMode 复用创建入口。RETURN_LINE_SIDE 依据当前业务位置的 BOX_TARGET/FIXTURE_TARGET 及容器用途选择目标存储区并分配空闲兼容库位；关联模型仍为待确认设计，不新增默认硬编码位置。vendor/taskType 保留原契约回传，后端必须重算并校验；品牌与任务类型的新模型差异仍待统一。无配置、无可用库位或关系不一致时明确失败，不能默认为普通任务。",
         "properties": {
           "requestId": {
             "type": "string",
@@ -11021,7 +11719,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 128,
-            "description": "目标位置码。",
+            "description": "SPECIFIED 或省略 destinationMode 时必填；RETURN_LINE_SIDE 禁止提交，由后端分配。",
             "example": "CODE-001"
           },
           "shippingNo": {
@@ -11030,6 +11728,16 @@
             "maxLength": 128,
             "description": "成品发货后创建时返回的发货编号；普通任务省略。",
             "example": "CODE-001"
+          },
+          "destinationMode": {
+            "type": "string",
+            "enum": [
+              "SPECIFIED",
+              "RETURN_LINE_SIDE"
+            ],
+            "description": "SPECIFIED＝员工指定目标位置；RETURN_LINE_SIDE＝返回线边库，由后端分配目标库位。省略时按 SPECIFIED，兼容旧请求。",
+            "example": "SPECIFIED",
+            "default": "SPECIFIED"
           }
         },
         "required": [
@@ -11038,8 +11746,47 @@
           "version",
           "vendor",
           "taskType",
-          "originLocationCode",
-          "destinationLocationCode"
+          "originLocationCode"
+        ],
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "destinationMode": {
+                "enum": [
+                  "SPECIFIED"
+                ]
+              },
+              "destinationLocationCode": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "description": "SPECIFIED 或省略 destinationMode 时必填；RETURN_LINE_SIDE 禁止提交，由后端分配。",
+                "example": "CODE-001"
+              }
+            },
+            "required": [
+              "destinationLocationCode"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "destinationMode": {
+                "enum": [
+                  "RETURN_LINE_SIDE"
+                ]
+              }
+            },
+            "required": [
+              "destinationMode"
+            ],
+            "not": {
+              "required": [
+                "destinationLocationCode"
+              ]
+            }
+          }
         ]
       },
       "CancelTaskRequest": {
@@ -11736,6 +12483,317 @@
           "boxes",
           "totalMaterialQuantity"
         ]
+      },
+      "OrderCallBoxCandidate": {
+        "title": "OrderCallBoxCandidate",
+        "type": "object",
+        "description": "生产订单匹配箱。箱与订单的关联由后端查询，不能用前端选择替代匹配校验。候选允许互相替代，不默认全选。",
+        "properties": {
+          "boxCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "候选料箱编码。",
+            "example": "BOX-001"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "LES 容器业务聚合版本：容器主数据、业务位置、装载关系及箱内板件绑定变化均递增。BOX 覆盖本箱绑定；VEHICLE 覆盖载具装载及所装箱的板件关系，所属箱变化须同步递增载具版本。服务端原子校验与更新相关聚合，不覆盖 WMS 外部状态；提交涉及外部数据时必须另行复核。查询版本原样回传，冲突返回 409/40900。",
+            "example": 1
+          },
+          "orderNo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "箱当前关联的生产订单号。",
+            "example": "MO-001"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/LocationSummary"
+          },
+          "materialQuantity": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "该箱物料数量。",
+            "example": 1
+          },
+          "eligibility": {
+            "$ref": "#/components/schemas/Eligibility"
+          }
+        },
+        "required": [
+          "boxCode",
+          "version",
+          "orderNo",
+          "origin",
+          "materialQuantity",
+          "eligibility"
+        ]
+      },
+      "OrderCallCandidatesResponse": {
+        "title": "OrderCallCandidatesResponse",
+        "type": "object",
+        "description": "当前订单及目标位置范围的完整候选；只查询、不占用、不创建运输任务。无可用箱时明确展示原因。",
+        "properties": {
+          "orderNo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "查询生产订单。",
+            "example": "MO-001"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/LocationCandidate"
+          },
+          "destinationVersion": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "目标位置运行状态版本，用于提交时重新校验，不是静态位置资料版本。",
+            "example": 1
+          },
+          "boxes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderCallBoxCandidate"
+            },
+            "description": "完整候选，按箱码稳定排序；已占用箱可展示为不可选并给出原因。不分页、不截断；无匹配返回 []。"
+          },
+          "eligibility": {
+            "$ref": "#/components/schemas/Eligibility"
+          }
+        },
+        "required": [
+          "orderNo",
+          "destination",
+          "destinationVersion",
+          "boxes",
+          "eligibility"
+        ]
+      },
+      "OrderCallSelectedBox": {
+        "title": "OrderCallSelectedBox",
+        "type": "object",
+        "description": "员工选中的一个订单箱。仅提交箱码和查询版本，无数量和类型字段。",
+        "properties": {
+          "boxCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "选择的箱码，后端唯一识别。",
+            "example": "BOX-001"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "LES 容器业务聚合版本：容器主数据、业务位置、装载关系及箱内板件绑定变化均递增。BOX 覆盖本箱绑定；VEHICLE 覆盖载具装载及所装箱的板件关系，所属箱变化须同步递增载具版本。服务端原子校验与更新相关聚合，不覆盖 WMS 外部状态；提交涉及外部数据时必须另行复核。查询版本原样回传，冲突返回 409/40900。",
+            "example": 1
+          }
+        },
+        "required": [
+          "boxCode",
+          "version"
+        ]
+      },
+      "OrderCallRequest": {
+        "title": "OrderCallRequest",
+        "type": "object",
+        "description": "确认订单叫料。允许同订单多次发起，每次选择当前可用箱；不输入数量。一箱创建一个业务运输任务。",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "前端为一次业务提交生成的 UUID；同一次网络重发复用同一值及内容，用于防重与结果关联，不是登录令牌。 原样返回本次业务请求标识。",
+            "example": "47ab7945-b324-4ed4-a10a-af734b83de07"
+          },
+          "orderNo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "本次生产订单号。",
+            "example": "MO-001"
+          },
+          "destinationLocationCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "最初扫描的接收位置编码。",
+            "example": "DEST-001"
+          },
+          "destinationVersion": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "候选查询返回的目标位置运行版本。",
+            "example": 1
+          },
+          "boxes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/OrderCallSelectedBox"
+            },
+            "description": "所选箱集合；boxCode 不可重复，由服务端跨元素校验。上限 1000 沿用候选技术批次限制，仍待容量评审；不是位置容量。"
+          }
+        },
+        "required": [
+          "requestId",
+          "orderNo",
+          "destinationLocationCode",
+          "destinationVersion",
+          "boxes"
+        ]
+      },
+      "OrderCallTaskItem": {
+        "title": "OrderCallTaskItem",
+        "type": "object",
+        "description": "一个箱的业务运输任务。QUEUED 是已创建并等待调度，不代表尚未创建；DISPATCHED 也不代表物料到达。",
+        "properties": {
+          "boxCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "运输的订单箱。",
+            "example": "BOX-001"
+          },
+          "taskId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "description": "任务持久标识，以字符串传输；用于接口定位任务，不是面向员工的任务编号。 标识以字符串传输，避免 JavaScript 大整数精度损失。",
+            "example": "10001",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "taskNo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "一箱对应的业务运输任务号。",
+            "example": "TASK-001"
+          },
+          "dispatchState": {
+            "type": "string",
+            "enum": [
+              "QUEUED",
+              "DISPATCHED",
+              "FAILED",
+              "UNKNOWN",
+              "COMPLETED"
+            ],
+            "description": "QUEUED＝等待派送；DISPATCHED＝调度已受理；FAILED＝已确认派送失败；UNKNOWN＝外部受理结果未知；COMPLETED＝本箱运输完成。",
+            "example": "QUEUED"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "FAILED/UNKNOWN 时必须返回可展示原因；不可把 UNKNOWN 当成未执行。",
+            "example": "等待核实调度受理结果"
+          }
+        },
+        "required": [
+          "boxCode",
+          "taskId",
+          "taskNo",
+          "dispatchState"
+        ],
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "dispatchState": {
+                "enum": [
+                  "QUEUED",
+                  "DISPATCHED",
+                  "COMPLETED"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "dispatchState": {
+                "enum": [
+                  "FAILED",
+                  "UNKNOWN"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "description": "失败或未知的说明，不得为空。",
+                "example": "调度受理结果待核实"
+              }
+            },
+            "required": [
+              "reason"
+            ]
+          }
+        ]
+      },
+      "OrderCallResponse": {
+        "title": "OrderCallResponse",
+        "type": "object",
+        "description": "订单叫料受理及后续查询结果。成功表示本批每箱业务任务已创建，不表示所有调度调用成功或物料到达。",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "前端为一次业务提交生成的 UUID；同一次网络重发复用同一值及内容，用于防重与结果关联，不是登录令牌。 原样返回本次业务请求标识。",
+            "example": "47ab7945-b324-4ed4-a10a-af734b83de07"
+          },
+          "callNo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "本次叫料业务编号，区分同订单的多次叫料。",
+            "example": "CALL-001"
+          },
+          "orderNo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "生产订单号。",
+            "example": "MO-001"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/LocationSummary"
+          },
+          "tasks": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/OrderCallTaskItem"
+            },
+            "description": "每个已选箱恰好对应一个业务运输任务，完整返回，不以当前页代替本批。"
+          },
+          "createdTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "该任务在服务端的创建时间。 ISO 8601 UTC 时间；客户端按本地时区展示。",
+            "example": "2026-09-14T02:00:00Z"
+          }
+        },
+        "required": [
+          "requestId",
+          "callNo",
+          "orderNo",
+          "destination",
+          "tasks",
+          "createdTime"
+        ]
       }
     }
   },
@@ -11774,6 +12832,26 @@
       "id": "B10",
       "title": "位置含义",
       "detail": "装车 slotCode 为载具上的库位；locationCode 为业务位置。位置绑定与物流目的地是否同义、源位置扫描解析哪个载具，必须由实际流程确认，不自动改写当前物理位置。"
+    },
+    {
+      "id": "R01",
+      "detail": "单位置串行进入已确认；空位释放的可信来源、跨批次/自动任务队列排序及暂停恢复未确认。"
+    },
+    {
+      "id": "R02",
+      "detail": "整体校验/预留/本地多任务受理、结果查询为草案方案。预留生命周期、外部失败恢复、幂等保存期限及批次上限待确认。"
+    },
+    {
+      "id": "R03",
+      "detail": "按位置业务库关联分配回库目标为草案依据；多库排序、空位分配、箱/载具回库适用范围及品牌/任务类型规则需与对象设计共同确认。 既有 logistics/options 查询如何提供回库所需上下文及独立资格（普通目标为空时仍可回库），需同步评审。"
+    },
+    {
+      "id": "R04",
+      "detail": "人工弹窗与铆接/治具自动回库触发存在范围重叠，须确认入口适用范围并共享防重，不直接修改自动业务实现。"
+    },
+    {
+      "id": "R05",
+      "detail": "新叫料页面权限标识、岗位授权及审计接入待评审；不能因复用 Bearer 认证而默认全部用户可叫料。"
     }
   ]
 }
