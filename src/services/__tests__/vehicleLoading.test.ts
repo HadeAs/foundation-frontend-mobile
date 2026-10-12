@@ -44,7 +44,7 @@ describe('vehicle loading Mock workflow', () => {
     expect(load).toHaveBeenCalledWith([
       { slotCode: 'SLOT-01', slotVersion: 1, boxCode: 'BOX-1', boxVersion: 1 },
       { slotCode: 'SLOT-07', slotVersion: 1, boxCode: 'BOX-NR-240819', boxVersion: 1 }
-    ]);
+    ], expect.any(String));
     expect(flow.pairs.value).toEqual([]);
     expect(flow.notice.value?.text).toBe('装载成功');
     const slot = await finish(api.getSlot('SLOT-01'));
@@ -117,7 +117,7 @@ describe('vehicle loading Mock workflow', () => {
     await finish(flow.scan('BOX-1'));
     await finish(flow.scan('SLOT-02'));
     await finish(flow.scan('BOX-NR-240819'));
-    await finish(panelPackingApi.bindByOrder('BOX-NR-240819', 1, 'SO-20260901-018', 2));
+    await finish(panelPackingApi.bindByOrder('BOX-NR-240819', 1, 'SO-20260901-018', 2, '123456789ABC000001ABCDEFG00001234'));
     await finish(flow.submit());
     expect(flow.notice.value?.text).toContain('信息已变化');
     expect((await finish(api.getSlot('SLOT-01'))).version).toBe(1);

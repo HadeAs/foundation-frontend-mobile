@@ -60,7 +60,7 @@ describe('panel unbinding Mock workflow', () => {
     flow.requestUnbind('selected');
     await finish(Promise.all([flow.submit(), flow.submit()]));
     expect(submit).toHaveBeenCalledTimes(1);
-    expect(submit).toHaveBeenCalledWith('BOX-NR-240818', 1, [{ id: item.id, version: item.version }]);
+    expect(submit).toHaveBeenCalledWith('BOX-NR-240818', 1, [{ id: item.id, version: item.version }], expect.any(String));
     expect(flow.box.value).toBeNull();
     expect(flow.selected.value).toEqual([]);
     expect(flow.notice.value?.text).toBe('解绑成功');
@@ -82,7 +82,7 @@ describe('panel unbinding Mock workflow', () => {
     expect(flow.confirmation.value).toBeNull();
   });
   it('handles BY_ORDER as a whole row without inventing a unique panel code', async () => {
-    await finish(panelPackingApi.bindByOrder('BOX-1', 1, 'SO-20260901-018', 12));
+    await finish(panelPackingApi.bindByOrder('BOX-1', 1, 'SO-20260901-018', 12, '123456789ABC000001ABCDEFG00001234'));
     const flow = usePanelUnbinding();
     await finish(flow.scan('BOX-1'));
     await flow.scan('MU-240901-0034');

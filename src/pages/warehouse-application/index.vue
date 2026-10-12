@@ -8,7 +8,8 @@ import { usePdaScanner } from '../../composables/usePdaScanner';
 import { useWarehouseApplication } from '../../composables/useWarehouseApplication';
 import MaterialRows from '../../components/MaterialRows.vue';
 
-const { object, materials, detail, busy, disabled, canSubmit, notice, notify, clear, scan, openMaterials, closeMaterials, submit } = useWarehouseApplication();
+const { object, materials, detail, busy, disabled, canSubmit, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, submit } = useWarehouseApplication();
+const contentStateNames = { UNKNOWN: '未确认', EMPTY: '已确认空载', LOADED: '已确认非空' };
 const input = ref('');
 let active = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -19,11 +20,12 @@ async function handleScan(value: string) {
 }
 usePdaScanner(handleScan);
 const { reset: resetKeyboard } = useKeyboardScanner(handleScan, disabled);
-function clearPage() { if (!busy.value) { clear(); input.value = ''; resetKeyboard(); } }
+function clearPage() { if (!disabled.value) { clear(); input.value = ''; resetKeyboard(); } }
 function goBack() { if (!busy.value) uni.navigateBack(); }
-onShow(() => { active = true; });
+onShow(() => { active = true; resume(); });
 onHide(() => {
   active = false;
+  pause(); input.value = '';
   resetKeyboard();
 });
 watch(notice, (value) => {
@@ -33,7 +35,7 @@ watch(notice, (value) => {
 onUnmounted(() => {
   active = false;
   clearTimeout(noticeTimer);
-  clear();
+  pause();
 });
 </script>
 
@@ -52,6 +54,7 @@ onUnmounted(() => {
         <view class="info"><text>扫描编码</text><text>{{ object.scanCode }}</text></view>
         <view class="info"><text>容器编号</text><text>{{ object.object.containerCode }}</text></view>
         <view class="info"><text>当前位置</text><text>{{ object.object.location ? object.object.location.locationCode + ' · ' + object.object.location.locationName : '—' }}</text></view>
+        <view class="info"><text>实际内容</text><text>{{ contentStateNames[object.object.contentState || 'UNKNOWN'] }}</text></view>
         <view class="info"><text>关联物料</text><text>{{ object.totalMaterialQuantity }} 件</text></view>
       </view>
       <view v-if="busy" class="processing" role="status">处理中…</view>
@@ -68,7 +71,7 @@ onUnmounted(() => {
               <text class="box-action">查看物料 ›</text>
             </button>
           </view>
-          <MaterialRows v-else :materials="materials" />
+          <MaterialRows v-else :materials="materials" show-batch />
         </scroll-view>
       </view>
     </view>
@@ -80,7 +83,7 @@ onUnmounted(() => {
       <view class="modal detail-modal" role="dialog" aria-modal="true" aria-label="箱内物料">
         <view class="detail-heading"><text class="modal-title">箱内物料</text><text class="detail-summary">{{ detail.box.containerCode }} · {{ detail.totalQuantity }} 件</text></view>
         <view class="detail-scroll">
-          <MaterialRows v-if="detail.materials.length" :materials="detail.materials" />
+          <MaterialRows v-if="detail.materials.length" :materials="detail.materials" show-batch />
           <view v-else class="empty">当前箱子暂无物料</view>
         </view>
         <view class="detail-footer"><button @tap="closeMaterials">关闭</button></view>

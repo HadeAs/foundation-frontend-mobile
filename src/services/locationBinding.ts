@@ -15,12 +15,22 @@ export interface LocationContainer extends Omit<PackingBox, 'containerType'> {
   location?: LocationSummary;
 }
 export type ContainerRef = Pick<LocationContainer, 'containerType' | 'containerCode'>;
+export interface RelatedTransportTask {
+  taskId: string;
+  taskNo: string;
+  version: number;
+  status: 'QUEUED' | 'DISPATCHING' | 'ACCEPTED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'UNKNOWN';
+  settled: boolean;
+  cancellationEligibility: Eligibility;
+}
 export interface LocationContainers {
   location: LocationSummary;
   version: number;
   occupied: boolean;
   container?: LocationContainer;
   eligibility: Eligibility;
+  relatedTasks: RelatedTransportTask[];
+  unbindEligibility: Eligibility;
 }
 export interface ContainerCandidate { container: LocationContainer; eligibility: Eligibility }
 export interface LocationOperation {
@@ -33,6 +43,6 @@ interface OperationReceipt { requestId: string; operationNo: string; affectedCou
 export const locationBindingApi = {
   getLocation: (locationCode: string) => request<LocationContainers>('/locations/containers', 'GET', { locationCode }),
   getContainer: (scanCode: string) => request<ContainerCandidate>('/locations/container-candidates', 'GET', { scanCode }),
-  bind: (data: LocationOperation) => request<OperationReceipt>('/locations/bind-container', 'POST', { ...data, requestId: requestId() }),
-  unbind: (data: LocationOperation) => request<OperationReceipt>('/locations/unbind-container', 'POST', { ...data, requestId: requestId() })
+  bind: (data: LocationOperation, id = requestId()) => request<OperationReceipt>('/locations/bind-container', 'POST', { ...data, requestId: id }),
+  unbind: (data: LocationOperation, id = requestId()) => request<OperationReceipt>('/locations/unbind-container', 'POST', { ...data, requestId: id })
 };

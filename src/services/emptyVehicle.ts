@@ -3,7 +3,7 @@ import type { LocationCandidate, TaskCreationResponse } from './logistics';
 import type { LocationSummary } from './locationBinding';
 import type { Vehicle } from './vehicleLoading';
 
-export interface EmptyVehicleOrigin { origin: LocationCandidate; vehicle: Vehicle }
+export interface EmptyVehicleOrigin { origin: LocationCandidate; vehicle: Vehicle & { location?: LocationSummary } }
 export interface EmptyVehicleOptions { destination: LocationSummary; origins: EmptyVehicleOrigin[] }
 export interface CallEmptyVehicleRequest {
   requestId: string; originLocationCode: string; destinationLocationCode: string; vehicleCode: string; version: number;

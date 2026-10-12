@@ -82,7 +82,8 @@ async function handleLogin() {
       />
 
       <view class="login-row" @tap="rememberAccount = !rememberAccount">
-        <text>{{ rememberAccount ? "☑" : "☐" }} 记住账号</text>
+        <text>{{ rememberAccount ? "☑" : "☐" }}</text>
+        <text>记住账号</text>
       </view>
 
       <button
@@ -173,7 +174,7 @@ async function handleLogin() {
 
 .login-row {
   display: flex;
-  justify-content: space-between;
+  gap: 12px;
   align-items: center;
   color: #64748b;
   font-size: 24rpx;

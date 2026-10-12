@@ -2,6 +2,7 @@ import { computed, ref, shallowRef } from 'vue';
 import { warehouseApplicationApi as api, type ApplicationObject, type BoxMaterials } from '../services/warehouseApplication';
 import type { MaterialLine } from '../services/vehicleLoading';
 import type { LocationContainer } from '../services/locationBinding';
+import { ApiRequestError, requestId } from '../services/nariRequest';
 
 export function useWarehouseApplication() {
   const object = shallowRef<ApplicationObject | null>(null);
@@ -12,29 +13,40 @@ export function useWarehouseApplication() {
   const canSubmit = computed(() => !disabled.value && !!object.value?.eligibility.allowed && object.value.totalMaterialQuantity > 0);
   const materials = computed(() => object.value?.object.containerType === 'BOX' ? object.value.boxes.flatMap((box) => box.materials) : []);
   let generation = 0;
+  let active = true;
+  let attempt: { id: string; fingerprint: string; target: Pick<LocationContainer, 'containerCode' | 'containerType'>; version: number } | null = null;
   function notify(text: string, error = false) { notice.value = { text, error }; }
-  function clear() { generation++; object.value = null; detail.value = null; busy.value = false; notice.value = null; }
+  function clear() { generation++; object.value = null; detail.value = null; busy.value = false; notice.value = null; attempt = null; }
+  function pause() { active = false; clear(); }
+  function resume() { active = true; }
   async function run(action: (current: () => boolean) => Promise<void>) {
-    if (busy.value) return;
+    if (busy.value || !active) return;
     const id = generation;
     busy.value = true;
     notice.value = null;
-    try { await action(() => id === generation); }
-    catch (error) { if (id === generation) notify(error instanceof Error ? error.message : '请求失败，请重试', true); }
+    try { await action(() => active && id === generation); }
+    catch (error) { if (active && id === generation) notify(error instanceof Error ? error.message : '请求失败，请重试', true); }
     finally { if (id === generation) busy.value = false; }
   }
-  function text(value: unknown) { return typeof value === 'string' && !!value.trim() && value.length <= 128; }
+  function text(value: unknown, max = 128): value is string { return typeof value === 'string' && !!value.trim() && value.length <= max; }
+  function optionalText(value: unknown) { return value === undefined || text(value); }
   function integer(value: unknown, min = 1) { return typeof value === 'number' && Number.isInteger(value) && value >= min && value <= 2147483647; }
   function validContainer(value: LocationContainer | undefined) {
-    return !!value && ['BOX', 'VEHICLE'].includes(value.containerType) && text(value.containerCode) && integer(value.version);
+    return !!value && ['BOX', 'VEHICLE'].includes(value.containerType) && text(value.containerCode) && integer(value.version) && optionalText(value.containerName) &&
+      (value.contentState === undefined || ['UNKNOWN', 'EMPTY', 'LOADED'].includes(value.contentState)) &&
+      (value.runtimeUsage === undefined || ['MATERIAL', 'FIXTURE'].includes(value.runtimeUsage)) &&
+      (value.location === undefined || value.location && text(value.location.locationCode) && text(value.location.locationName) &&
+        [value.location.locationType, value.location.floorCode, value.location.floorName, value.location.areaCode, value.location.areaName].every(optionalText));
   }
   function validMaterials(rows: MaterialLine[], total: number) {
-    return Array.isArray(rows) && integer(total, 0) && rows.every((row) => row && text(row.orderNo) && text(row.materialCode) && text(row.materialName) &&
-      text(row.unit) && integer(row.quantity) && (row.lineType === 'PANEL' ? text(row.panelCode) : row.lineType === 'QUANTITY' && row.panelCode === undefined)) &&
+    return Array.isArray(rows) && integer(total, 0) && rows.every((row) => row && text(row.orderNo) && text(row.materialCode) &&
+      [row.materialName, row.unit, row.materialBatch, row.orderLineNo].every(optionalText) &&
+      (row.lineType === 'PANEL' ? text(row.panelCode) && row.quantity === 1 : row.lineType === 'QUANTITY' && row.panelCode === undefined && integer(row.quantity))) &&
+      new Set(rows.filter(row => row.lineType === 'PANEL').map(row => row.panelCode)).size === rows.filter(row => row.lineType === 'PANEL').length &&
       rows.reduce((sum, row) => sum + row.quantity, 0) === total;
   }
   async function scan(raw: string) {
-    if (disabled.value) return;
+    if (disabled.value || !active) return;
     clear();
     const code = raw.trim();
     if (!text(code)) { notify('请输入有效编码（最多128个字符）', true); return; }
@@ -43,9 +55,11 @@ export function useWarehouseApplication() {
       if (!current()) return;
       if (!result || !validContainer(result.object) || !['BOX', 'VEHICLE'].includes(result.scanType) || result.scanCode !== code ||
         result.scanType !== result.object.containerType || !Array.isArray(result.boxes) || !integer(result.totalMaterialQuantity, 0) ||
-        typeof result.eligibility?.allowed !== 'boolean' || (!result.eligibility.allowed && !result.eligibility.reason?.trim()) ||
+        typeof result.eligibility?.allowed !== 'boolean' || (!result.eligibility.allowed && !text(result.eligibility.reason, 500)) ||
         result.boxes.some((box) => !box || !text(box.boxCode) || !integer(box.version) || !validMaterials(box.materials, box.materialQuantity)) ||
         new Set(result.boxes.map((box) => box.boxCode)).size !== result.boxes.length ||
+        new Set(result.boxes.flatMap(box => box.materials.filter(row => row.lineType === 'PANEL').map(row => row.panelCode))).size !==
+          result.boxes.reduce((sum, box) => sum + box.materials.filter(row => row.lineType === 'PANEL').length, 0) ||
         result.boxes.reduce((sum, box) => sum + box.materialQuantity, 0) !== result.totalMaterialQuantity ||
         (result.object.containerType === 'BOX' && (result.boxes.length > 1 || result.boxes.some((box) => box.boxCode !== result.object.containerCode || box.version !== result.object.version)))) {
         throw new Error('对象或物料信息不完整，请重新扫描');
@@ -56,7 +70,7 @@ export function useWarehouseApplication() {
     });
   }
   async function openMaterials(boxCode: string) {
-    if (disabled.value || object.value?.object.containerType !== 'VEHICLE' || !object.value.boxes.some((box) => box.boxCode === boxCode)) return;
+    if (disabled.value || !active || object.value?.object.containerType !== 'VEHICLE' || !object.value.boxes.some((box) => box.boxCode === boxCode)) return;
     const selected = object.value;
     await run(async (current) => {
       const result = await api.getMaterials(boxCode);
@@ -69,17 +83,26 @@ export function useWarehouseApplication() {
   }
   function closeMaterials() { if (!busy.value) detail.value = null; }
   async function submit() {
-    if (!canSubmit.value || !object.value) return;
-    const target = object.value.object;
+    if (!canSubmit.value || !active || !object.value) return;
+    const value = object.value.object;
+    const target = { containerType: value.containerType, containerCode: value.containerCode };
+    const fingerprint = JSON.stringify({ target, version: value.version });
+    const input = attempt?.fingerprint === fingerprint ? attempt : { id: requestId(), fingerprint, target, version: value.version };
+    attempt = input;
     await run(async (current) => {
-      const result = await api.submit({ containerType: target.containerType, containerCode: target.containerCode }, target.version);
+      let result;
+      try { result = await api.submit(input.target, input.version, input.id); }
+      catch (error) {
+        if (attempt === input && error instanceof ApiRequestError && error.statusCode >= 400 && error.statusCode < 500 && error.statusCode !== 408) attempt = null;
+        throw error;
+      }
       if (!current()) return;
-      if (!result || result.wmsPendingCreated !== true || !text(result.applicationNo) || !Array.isArray(result.sapDocumentNos) ||
-        !result.sapDocumentNos.length || result.sapDocumentNos.length > 1000 || !result.sapDocumentNos.every(text) || !text(result.requestId) ||
+      if (!result || typeof result !== 'object' || 'resultType' in result || result.requestId !== input.id || result.wmsPendingCreated !== true || !text(result.applicationNo) || !Array.isArray(result.sapDocumentNos) ||
+        !result.sapDocumentNos.length || result.sapDocumentNos.length > 1000 || !result.sapDocumentNos.every(no => text(no)) ||
         !text(result.processedTime) || !Number.isFinite(Date.parse(result.processedTime))) throw new Error('申请结果不完整，未能确认全部处理成功，请核实后重试');
       clear();
       notify(`缴库申请成功，缴库单号：${result.sapDocumentNos.join('、')}`);
     });
   }
-  return { object, materials, detail, busy, disabled, canSubmit, notice, notify, clear, scan, openMaterials, closeMaterials, submit };
+  return { object, materials, detail, busy, disabled, canSubmit, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, submit };
 }

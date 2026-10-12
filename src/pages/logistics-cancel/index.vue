@@ -10,9 +10,9 @@ import { displayTaskTime } from '../../services/pendingReceiving';
 import { triggerModeName } from '../../services/logisticsCancellation';
 
 const flow = useLogisticsCancellation();
-const { keyword, items, loading, refreshing, error, notice, hasMore, selected, submitting, checking, attempts } = flow;
+const { keyword, items, loading, refreshing, error, notice, hasMore, selected, submitting, checking, attempts, storageError } = flow;
 const scrollTop = ref(0);
-const scanDisabled = computed(() => loading.value || !!selected.value || !!submitting.value);
+const scanDisabled = computed(() => flow.disabled.value);
 let active = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 watch(notice, (value) => {
@@ -54,10 +54,11 @@ function goBack() { uni.navigateBack({ delta: 1 }); }
       <scroll-view class="list-scroll" scroll-y refresher-enabled :refresher-triggered="refreshing" :scroll-top="scrollTop"
         :lower-threshold="60" @scrolltolower="flow.loadMore" @refresherrefresh="flow.refresh">
         <view class="rows">
+          <view v-if="storageError" class="result-card" role="status">取消请求记录暂不可用，请重新进入页面核实原请求，勿重复取消。</view>
           <view v-for="attempt in attempts" :key="attempt.requestId" class="result-card" role="status">
             <view class="task-number">{{ attempt.taskNo }}</view>
             <view class="result-message">{{ attempt.reason }}</view>
-            <button class="query-button small" :disabled="checking.includes(attempt.taskId) || submitting === attempt.taskId" @tap="flow.check(attempt.taskId)">
+            <button class="query-button small" :disabled="scanDisabled || storageError" @tap="flow.check(attempt.taskId)">
               {{ checking.includes(attempt.taskId) ? '查询中…' : '刷新取消结果' }}
             </button>
           </view>
@@ -73,14 +74,14 @@ function goBack() { uni.navigateBack({ delta: 1 }); }
                   <text>当前状态</text><text>{{ task.statusName }}</text>
                   <text>发起方式</text><text>{{ triggerModeName(task.triggerMode) }}</text>
                 </view>
-                <button class="danger small" :disabled="!!submitting || flow.isPending(task.taskId)" @tap="flow.open(task)">取消任务</button>
+                <button class="danger small" :disabled="scanDisabled || storageError || flow.isPending(task.taskId)" @tap="flow.open(task)">取消任务</button>
               </view>
               <text class="label">发起时间</text><text>{{ displayTaskTime(task.createdTime) }}</text>
             </view>
           </view>
           <view class="list-status" role="status">
             <text v-if="loading">{{ refreshing ? '刷新中…' : '加载中…' }}</text>
-            <button v-else-if="error" class="retry" @tap="flow.retry">加载失败，点击重试</button>
+            <button v-else-if="error" class="retry" :disabled="scanDisabled" @tap="flow.retry">加载失败，点击重试</button>
             <text v-else-if="!items.length">暂无可取消任务</text>
             <text v-else>{{ hasMore ? '上滑加载更多' : '已加载全部任务' }}</text>
           </view>
@@ -123,13 +124,13 @@ button:focus-visible { outline: 2px solid #0d9496; outline-offset: 2px; }
 .status-actions button { flex-shrink: 0; }
 .small { height: 60rpx; line-height: 60rpx; font-size: 24rpx; }
 .danger { color: #bc3535; border-color: #d44242; }
-.result-card { border-color: #b8d3d6; }
+.result-card { border-color: #b8d3d6; font-size: 24rpx; line-height: 1.5; }
 .result-message { margin: 10rpx 0; font-size: 24rpx; line-height: 1.5; }
 .list-status { padding: 24rpx 0; text-align: center; font-size: 24rpx; color: #748d93; }
 .retry { display: inline-block; }
 .modal-mask { position: fixed; inset: 0; z-index: 20; background: #163e4970; display: flex; align-items: center; justify-content: center; padding: 24rpx; }
-.modal { width: 100%; max-height: 80vh; overflow-y: auto; border-radius: 16rpx; background: white; padding: 20rpx; }
-.modal-title { font-size: 30rpx; font-weight: 600; }
-.modal-body { margin: 24rpx 0; font-size: 28rpx; line-height: 1.6; overflow-wrap: anywhere; }
-.modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12rpx; }
+.modal { width: 100%; max-height: 80vh; max-height: 80dvh; display: flex; flex-direction: column; overflow: hidden; border-radius: 16rpx; background: white; padding: 20rpx; }
+.modal-title { font-size: 30rpx; font-weight: 600; flex-shrink: 0; }
+.modal-body { margin: 24rpx 0; min-height: 0; overflow-y: auto; font-size: 28rpx; line-height: 1.6; overflow-wrap: anywhere; }
+.modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12rpx; flex-shrink: 0; }
 </style>

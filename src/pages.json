@@ -76,6 +76,14 @@
       "style": { "navigationStyle": "custom", "disableScroll": true }
     },
     {
+      "path": "pages/box-vehicle-binding/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
+      "path": "pages/box-vehicle-unbinding/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
       "path": "pages/material-call/index",
       "style": { "navigationStyle": "custom", "disableScroll": true }
     },

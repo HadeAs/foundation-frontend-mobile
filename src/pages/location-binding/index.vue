@@ -7,9 +7,13 @@ import { useKeyboardScanner } from '../../composables/useKeyboardScanner';
 import { usePdaScanner } from '../../composables/usePdaScanner';
 import { useLocationBinding } from '../../composables/useLocationBinding';
 
-const { location, container, confirmation, busy, disabled, scanDisabled, canBind, canUnbind, notice, notify, clear, scan, requestUnbind, cancel, submit } = useLocationBinding();
+const { location, container, confirmation, confirmingTasks, busy, disabled, scanDisabled, canBind, canRequestUnbind, canCancelTasks,
+  relatedTasks, cancellationRecords, notice, notify, clear, pause, resume, scan, requestUnbind, cancel, submit, verifyAndRefresh } = useLocationBinding();
 const input = ref('');
 const placeholder = computed(() => location.value?.occupied ? '请先解绑当前容器' : location.value ? '扫描或输入载具/箱子编码' : '扫描或输入库位编码');
+const locationTypeNames: Record<string, string> = { STORAGE_SLOT: '存储库位', DOCK_POSITION: '接驳位', MACHINE_INLET: '机台入口', MACHINE_OUTLET: '机台出口', CARRIER_PARKING: '载具停放位' };
+const taskStatusNames = { QUEUED: '待派送', DISPATCHING: '派送中', ACCEPTED: '调度已受理', RUNNING: '执行中', COMPLETED: '运输已完成', FAILED: '运输失败', CANCELLED: '运输已取消', UNKNOWN: '运输结果未知' };
+const cancelStatusNames = { ACCEPTED: '取消已受理', CANCELLED: '取消成功', FAILED: '取消失败', UNKNOWN: '取消结果未知' };
 let active = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 async function handleScan(value: string) {
@@ -19,11 +23,12 @@ async function handleScan(value: string) {
 }
 usePdaScanner(handleScan);
 const { reset: resetKeyboard } = useKeyboardScanner(handleScan, scanDisabled);
-function clearPage() { if (!busy.value) { clear(); input.value = ''; resetKeyboard(); } }
+function clearPage() { if (!disabled.value) { clear(); input.value = ''; resetKeyboard(); } }
 function goBack() { if (!busy.value) uni.navigateBack(); }
-onShow(() => { active = true; });
+onShow(() => { active = true; resume(); });
 onHide(() => {
   active = false;
+  pause(); input.value = '';
   resetKeyboard();
 });
 watch(notice, (value) => {
@@ -33,7 +38,7 @@ watch(notice, (value) => {
 onUnmounted(() => {
   active = false;
   clearTimeout(noticeTimer);
-  clear();
+  pause();
 });
 </script>
 
@@ -49,7 +54,7 @@ onUnmounted(() => {
         @scan="handleScan" @error="notify($event, true)" />
       <view v-if="busy" class="processing" role="status">处理中…</view>
     </view>
-    <scroll-view class="content" scroll-y :show-scrollbar="true">
+    <scroll-view class="content" :scroll-y="!!location" :show-scrollbar="true">
       <view class="content-inner">
         <view v-if="!location" class="card empty">请先扫描库位<view class="empty-hint">查询库位及已绑定容器；空闲库位可绑定载具或箱子</view></view>
         <template v-else>
@@ -57,29 +62,48 @@ onUnmounted(() => {
             <view class="card-heading"><text>库位信息</text><text class="tag">{{ location.occupied ? '已占用' : '空闲' }}</text></view>
             <view class="info"><text>库位编号</text><text>{{ location.location.locationCode }}</text></view>
             <view class="info"><text>库位名称</text><text>{{ location.location.locationName }}</text></view>
-            <view class="info"><text>库位类型</text><text>{{ location.location.locationType || '—' }}</text></view>
+            <view class="info"><text>库位类型</text><text>{{ locationTypeNames[location.location.locationType || ''] || location.location.locationType || '—' }}</text></view>
           </view>
           <view v-if="container" class="card">
             <view class="card-heading"><text>容器信息</text><text class="tag" :class="{ 'tag--bound': location.occupied }">{{ location.occupied ? '已绑定' : '待绑定' }}</text></view>
             <view class="info"><text>容器编号</text><text>{{ container.containerCode }}</text></view>
             <view class="info"><text>容器类型</text><text>{{ container.containerType === 'VEHICLE' ? '载具' : '箱子' }}</text></view>
+            <view v-if="location.occupied" class="info"><text>解绑条件</text><text>{{ location.unbindEligibility.allowed ? '当前允许解绑' : '当前不可解绑' }}</text></view>
           </view>
           <view v-else class="card empty">当前库位无绑定容器<view class="empty-hint">{{ location.eligibility.allowed ? '继续扫描载具或箱子进行绑定' : '当前库位不可操作，请清空后重新扫描' }}</view></view>
+          <view v-if="location.occupied" class="card task-card">
+            <view class="card-heading"><text>阻塞任务 · {{ relatedTasks.length }} 个</text><button class="refresh" :disabled="disabled" @tap="verifyAndRefresh">核实并刷新</button></view>
+            <view v-for="task in relatedTasks" :key="task.taskId" class="task-row">
+              <view class="task-code">{{ task.taskNo }}</view>
+              <view class="secondary">{{ taskStatusNames[task.status] }} · {{ task.settled ? '实物已结算' : '实物未结算' }}</view>
+              <view v-if="!task.cancellationEligibility.allowed" class="secondary">{{ task.cancellationEligibility.reason }}</view>
+            </view>
+            <view v-for="record in cancellationRecords" :key="record.input.requestId" class="task-row">
+              <view class="task-code">{{ record.taskNo }} · {{ cancelStatusNames[record.status] }}</view>
+              <view class="secondary">{{ record.reason }}</view>
+            </view>
+            <view class="task-hint">取消成功不代表实物已结算或位置已解绑；核实最新资格后再确认解绑。</view>
+          </view>
         </template>
       </view>
     </scroll-view>
     <view class="footer">
       <button :disabled="disabled" @tap="clearPage">清空页面</button>
-      <button v-if="location?.occupied" class="danger" :disabled="!canUnbind" @tap="requestUnbind">解绑容器</button>
+      <button v-if="location?.occupied" class="danger" :disabled="!canRequestUnbind" @tap="requestUnbind">解绑容器</button>
       <button v-else class="primary" :disabled="!canBind" @tap="submit">确认绑定</button>
     </view>
     <view v-if="confirmation" class="modal-mask">
-      <view class="modal" role="dialog" aria-modal="true" aria-label="确认解绑容器">
-        <view class="modal-title">确认解绑容器</view>
-        <view class="modal-content">将解除库位 {{ location?.location.locationCode }} 与{{ container?.containerType === 'VEHICLE' ? '载具' : '箱子' }} {{ container?.containerCode }} 的绑定关系，保留容器内部装载、板件及历史操作记录。</view>
+      <view class="modal" role="dialog" aria-modal="true" :aria-label="confirmingTasks ? '确认取消阻塞任务' : '确认解绑容器'">
+        <view class="modal-title">{{ confirmingTasks ? '确认取消阻塞任务' : '确认解绑容器' }}</view>
+        <view class="modal-content">
+          <template v-if="confirmingTasks">当前有 {{ relatedTasks.length }} 个阻塞任务。先取消后端允许取消的任务；最终结果、实物及最新解绑资格核实通过后，再确认解绑。
+            <view v-for="task in relatedTasks" :key="task.taskId" class="secondary">{{ task.taskNo }} · {{ task.cancellationEligibility.allowed ? '可申请取消' : '暂不可取消' }}</view>
+          </template>
+          <template v-else>将解除库位 {{ location?.location.locationCode }} 与{{ container?.containerType === 'VEHICLE' ? '载具' : '箱子' }} {{ container?.containerCode }} 的绑定关系，保留容器内部装载、板件及历史操作记录。</template>
+        </view>
         <view class="modal-actions">
           <button :disabled="busy" @tap="cancel">取消</button>
-          <button class="danger" :disabled="busy" @tap="submit">{{ busy ? '解绑中…' : '确认解绑' }}</button>
+          <button class="danger" :disabled="busy || (confirmingTasks && !canCancelTasks)" @tap="submit">{{ busy ? '处理中…' : confirmingTasks ? '确认取消任务' : '确认解绑' }}</button>
         </view>
       </view>
     </view>
@@ -113,8 +137,14 @@ button:focus-visible { outline: 2px solid #0d9496; outline-offset: 2px; }
 .primary { color: white; background: #0d9496; border-color: #0d9496; }
 .danger { color: #bb3535; border-color: #bb3535; }
 .modal-mask { position: fixed; inset: 0; background: #173f4866; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 24rpx; }
-.modal { background: white; border-radius: 16rpx; width: 100%; max-width: 440px; padding: 28rpx; }
+.modal { background: white; border-radius: 16rpx; width: 100%; max-width: 440px; max-height: 80dvh; padding: 28rpx; display: flex; flex-direction: column; }
 .modal-title { font-size: 30rpx; font-weight: 600; }
-.modal-content { font-size: 28rpx; margin: 24rpx 0; line-height: 1.6; word-break: break-word; }
+.modal-content { min-height: 0; overflow-y: auto; font-size: 28rpx; margin: 24rpx 0; line-height: 1.6; word-break: break-word; }
 .modal-actions { display: grid; grid-template-columns: 1fr 1.6fr; gap: 14rpx; }
+.refresh { height: 56rpx; line-height: 56rpx; font-size: 22rpx; padding: 0 12rpx; flex-shrink: 0; }
+.task-row { padding: 12rpx 16rpx; border-bottom: 1px solid #dfebed; }
+.task-code { font-size: 26rpx; font-weight: 600; word-break: break-all; }
+.secondary, .task-hint { font-size: 24rpx; color: #748d93; line-height: 1.5; word-break: break-word; }
+.secondary { margin-top: 6rpx; }
+.task-hint { padding: 12rpx 16rpx; }
 </style>

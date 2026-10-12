@@ -7,8 +7,10 @@ import { useKeyboardScanner } from '../../composables/useKeyboardScanner';
 import { usePdaScanner } from '../../composables/usePdaScanner';
 import { usePanelUnbinding } from '../../composables/usePanelUnbinding';
 
-const { box, selected, confirmation, busy, disabled, notice, confirmCount, notify, clear, scan, toggle, requestUnbind, cancel, submit } = usePanelUnbinding();
+const { box, selected, confirmation, busy, disabled, notice, canUnbindAll, canUnbindSelected, confirmCount,
+  notify, clear, pause, resume, scan, toggle, requestUnbind, cancel, submit } = usePanelUnbinding();
 const input = ref('');
+const contentStateName = { UNKNOWN: '未确认', EMPTY: '已确认空载', LOADED: '已确认非空' };
 let active = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -21,7 +23,7 @@ usePdaScanner(handleScan);
 
 const { reset: resetKeyboard } = useKeyboardScanner(handleScan, disabled);
 function clearPage() {
-  if (busy.value) return;
+  if (disabled.value) return;
   clear();
   input.value = '';
   resetKeyboard();
@@ -29,9 +31,11 @@ function clearPage() {
 function goBack() { if (!busy.value) uni.navigateBack(); }
 onShow(() => {
   active = true;
+  resume();
 });
 onHide(() => {
   active = false;
+  pause(); input.value = '';
   resetKeyboard();
 });
 watch(notice, (value) => {
@@ -41,7 +45,7 @@ watch(notice, (value) => {
 onUnmounted(() => {
   active = false;
   clearTimeout(noticeTimer);
-  clear();
+  pause();
 });
 </script>
 
@@ -58,33 +62,35 @@ onUnmounted(() => {
       <view v-if="box" class="card box-card">
         <view class="card-heading"><text>箱子信息</text><text class="tag">已识别</text></view>
         <view class="info"><text>箱子编号</text><text>{{ box.box.containerCode }}</text></view>
+        <view class="info"><text>实际内容</text><text>{{ contentStateName[box.contentState] }}</text></view>
         <view class="info"><text>已绑定物料</text><text>{{ box.totalQuantity }} 件</text></view>
       </view>
       <view v-if="busy" class="processing" role="status">处理中…</view>
       <view v-if="box" class="card-heading list-heading"><text>已绑定物料</text><text>已选 {{ selected.length }} / {{ box.bindings.length }} 条</text></view>
     </view>
-    <scroll-view class="material-list" :class="{ 'material-list--initial': !box }" scroll-y :show-scrollbar="true">
+    <scroll-view class="material-list" :class="{ 'material-list--initial': !box }" :scroll-y="!!box?.bindings.length" :show-scrollbar="true">
       <view v-if="!box" class="card empty">请先扫描箱子<view class="empty-hint">获取箱内所有已绑定物料</view></view>
       <view v-else class="card">
         <view v-if="!box.bindings.length" class="empty">该箱暂无已绑定物料</view>
         <checkbox-group v-for="item in box.bindings" :key="item.id" @change="toggle(item.id)">
           <label class="binding-row" :class="{ 'selected-row': selected.includes(item.id) }">
-            <checkbox :value="item.id" :checked="selected.includes(item.id)" :disabled="disabled" color="#0D9496" :aria-label="`选择 ${item.panelCode || item.materialCode}`" />
+            <checkbox :value="item.id" :checked="selected.includes(item.id)" :disabled="disabled || !box.eligibility.allowed" color="#0D9496" :aria-label="`选择 ${item.panelCode || item.materialCode}`" />
             <view class="binding-body">
               <view class="binding-code">{{ item.panelCode || item.materialCode }}</view>
-              <view class="secondary">{{ item.materialCode }} · {{ item.materialName }}</view>
+              <view class="secondary">{{ item.materialCode }}<text v-if="item.materialName"> · {{ item.materialName }}</text></view>
+              <view class="secondary">批次 {{ item.materialBatch }}</view>
               <view class="secondary">订单 {{ item.orderNo }}</view>
               <view v-if="item.bindingMode === 'BY_ORDER'" class="secondary">按订单数量绑定 · 整条解绑</view>
             </view>
-            <text class="binding-quantity">{{ item.quantity }} {{ item.unit }}</text>
+            <text class="binding-quantity">{{ item.quantity }}<text v-if="item.unit"> {{ item.unit }}</text></text>
           </label>
         </checkbox-group>
       </view>
     </scroll-view>
     <view class="footer">
       <button :disabled="disabled" @tap="clearPage">清空页面</button>
-      <button class="danger" :disabled="disabled || !box?.bindings.length" @tap="requestUnbind('all')">全部解绑</button>
-      <button class="primary" :disabled="disabled || !selected.length" @tap="requestUnbind('selected')">解绑所选（{{ selected.length }}）</button>
+      <button class="danger" :disabled="!canUnbindAll" @tap="requestUnbind('all')">全部解绑</button>
+      <button class="primary" :disabled="!canUnbindSelected" @tap="requestUnbind('selected')">解绑所选（{{ selected.length }}）</button>
     </view>
     <view v-if="confirmation" class="modal-mask">
       <view class="modal" role="dialog" aria-modal="true" aria-label="确认解绑">
@@ -125,19 +131,20 @@ button:focus-visible { outline: 2px solid #0d9496; outline-offset: 2px; }
 .footer { flex-shrink: 0; display: grid; grid-template-columns: 1fr 1fr 1.35fr; gap: 10rpx; padding: 14rpx 20rpx calc(14rpx + env(safe-area-inset-bottom)); }
 .primary { color: white; background: #0d9496; border-color: #0d9496; }
 .modal-mask { position: fixed; inset: 0; background: #173f4866; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 24rpx; }
-.modal { background: white; border-radius: 16rpx; width: 100%; max-width: 440px; padding: 28rpx; }
+.modal { background: white; border-radius: 16rpx; width: 100%; max-width: 440px; max-height: 80dvh; padding: 28rpx; display: flex; flex-direction: column; }
 .modal-title { font-size: 30rpx; font-weight: 600; }
-.modal-content { font-size: 28rpx; margin: 24rpx 0; line-height: 1.6; }
+.modal-content { min-height: 0; overflow-y: auto; word-break: break-word; font-size: 28rpx; margin: 24rpx 0; line-height: 1.6; }
 .modal-actions { display: grid; grid-template-columns: 1fr 1.6fr; gap: 14rpx; }
 .danger { color: #bb3535; border-color: #bb3535; }
 
 .list-heading { margin-top: 14rpx; border: 1px solid #cee1e3; border-radius: 10rpx 10rpx 0 0; background: white; }
 .list-heading text:last-child { font-size: 24rpx; font-weight: normal; }
-.binding-row { display: flex; align-items: center; gap: 12rpx; padding: 16rpx; border-bottom: 1px solid #dfebed; }
-.binding-row checkbox { flex-shrink: 0; transform: scale(0.85); }
+.binding-row { display: flex; align-items: center; gap: 12px; padding: 16rpx; border-bottom: 1px solid #dfebed; }
+.binding-row checkbox { flex-shrink: 0; margin: 0; transform: scale(0.85); transform-origin: right center; }
+.binding-row :deep(.uni-checkbox-input) { margin-right: 0; }
 .binding-body { flex: 1; min-width: 0; }
 .binding-code { font-size: 28rpx; font-weight: 600; word-break: break-all; }
 .secondary { margin-top: 6rpx; font-size: 24rpx; color: #748d93; word-break: break-word; }
-.binding-quantity { flex-shrink: 0; color: #087779; font-size: 24rpx; }
+.binding-quantity { flex-shrink: 0; max-width: 25%; color: #087779; font-size: 24rpx; word-break: break-word; text-align: right; }
 .selected-row { background: #edf9f8; }
 </style>

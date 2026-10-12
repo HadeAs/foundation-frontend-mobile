@@ -1,10 +1,11 @@
 import { request } from './nariRequest';
 import type { LogisticsTask } from './logistics';
+import type { LocationOperation } from './locationBinding';
 
 export interface LogisticsTaskPage {
   records: LogisticsTask[]; total: number; size: number; current: number; pages: number;
 }
-export interface CancelTaskRequest { requestId: string; version: number; reason?: string }
+export interface CancelTaskRequest { requestId: string; version: number; reason?: string; unbindContext?: LocationOperation }
 export interface CancellationResult {
   requestId: string; taskId: string; taskNo: string;
   cancelStatus: 'ACCEPTED' | 'CANCELLED' | 'FAILED' | 'UNKNOWN';

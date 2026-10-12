@@ -16,7 +16,7 @@ const title = computed(() => activeTab.value === 'menu' ? '首页' : '个人信�
 const groups = [
   { name: '常规作业', menus: [
     ['scan-line', '板件扫码绑箱'], ['list-plus', '板件快捷绑箱'], ['package-minus', '板件解绑'],
-    ['forklift', '装车'], ['unplug', '卸车'], ['map-pin-check', '位置绑定'], ['clipboard-check', '缴库申请']
+    ['forklift', '装车'], ['unplug', '卸车'], ['truck', '料箱绑车'], ['unplug', '料箱解绑'], ['map-pin-check', '位置绑定'], ['clipboard-check', '缴库申请']
   ] },
   { name: '库房作业', menus: [
     ['package-check', '物料接收'], ['clipboard-list', '待接收物料清单'], ['package-open', '成品发货']
@@ -37,6 +37,8 @@ onShow(() => {
   }
 });
 function openMenu(name: string) {
+  if (name === '料箱解绑') { uni.navigateTo({ url: '/pages/box-vehicle-unbinding/index' }); return; }
+  if (name === '料箱绑车') { uni.navigateTo({ url: '/pages/box-vehicle-binding/index' }); return; }
   if (name === '手动叫料') { uni.navigateTo({ url: '/pages/material-call/index' }); return; }
   if (name === '物料接收') { uni.navigateTo({ url: '/pages/receiving/index' }); return; }
   if (name === '缴库发起') { uni.navigateTo({ url: '/pages/warehouse-logistics/index' }); return; }

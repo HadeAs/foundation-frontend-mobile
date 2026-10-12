@@ -72,7 +72,7 @@ describe('location binding Mock workflow', () => {
     await finish(Promise.all([flow.submit(), flow.submit()]));
     expect(unbind).toHaveBeenCalledOnce();
     expect(unbind).toHaveBeenCalledWith({ locationCode: code, version: 1,
-      container: { containerType: target.containerType, containerCode: target.containerCode }, containerVersion: target.version });
+      container: { containerType: target.containerType, containerCode: target.containerCode }, containerVersion: target.version }, expect.any(String));
     expect(flow.confirmation.value).toBe(false);
     expect(flow.location.value).toBeNull();
     await finish(flow.scan(code));

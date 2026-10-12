@@ -21,7 +21,8 @@ export interface LoadPair {
   slotCode: string;
   slotVersion: number;
 }
-export interface MaterialLine extends Omit<Binding, 'id' | 'version' | 'bindingMode'> {
+export interface MaterialLine extends Omit<Binding, 'id' | 'version' | 'bindingMode' | 'materialBatch'> {
+  materialBatch?: string;
   lineType: 'PANEL' | 'QUANTITY';
   orderLineNo?: string;
 }
@@ -44,11 +45,11 @@ interface OperationReceipt { requestId: string; operationNo: string; affectedCou
 export const vehicleLoadingApi = {
   getSlot: (slotCode: string) => request<VehicleSlot>('/vehicle-slots', 'GET', { slotCode }),
   getBox: (boxCode: string) => request<LoadingBox>('/loading/boxes', 'GET', { boxCode }),
-  load: (items: LoadPair[]) => request<OperationReceipt>(
-    '/loading/batch-load', 'POST', { requestId: requestId(), items }),
+  load: (items: LoadPair[], id = requestId()) => request<OperationReceipt>(
+    '/loading/batch-load', 'POST', { requestId: id, items }),
   getLoads: (vehicleCode: string) => request<VehicleLoads>('/vehicles/loads', 'GET', { vehicleCode }),
-  unloadSelected: (vehicleCode: string, version: number, items: Pick<LoadedBox, 'id' | 'version'>[]) =>
-    request<OperationReceipt>('/loading/unload-selected', 'POST', { requestId: requestId(), vehicleCode, version, items }),
-  unloadAll: (vehicleCode: string, version: number) =>
-    request<OperationReceipt>('/loading/unload-all', 'POST', { requestId: requestId(), vehicleCode, version })
+  unloadSelected: (vehicleCode: string, version: number, items: Pick<LoadedBox, 'id' | 'version'>[], id = requestId()) =>
+    request<OperationReceipt>('/loading/unload-selected', 'POST', { requestId: id, vehicleCode, version, items }),
+  unloadAll: (vehicleCode: string, version: number, id = requestId()) =>
+    request<OperationReceipt>('/loading/unload-all', 'POST', { requestId: id, vehicleCode, version })
 };

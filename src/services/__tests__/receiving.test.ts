@@ -34,13 +34,15 @@ describe('receiving', () => {
     transport.mockClear();
     await finish(Promise.all([flow.submit(), flow.submit()]));
     expect(transport).toHaveBeenCalledOnce();
-    expect(transport.mock.lastCall?.[0].data).toEqual({ requestId: expect.any(String), taskId: task.taskId, version: task.version });
+    expect(transport.mock.lastCall?.[0].data).toEqual({ requestId: expect.any(String), taskId: task.taskId, version: task.version,
+      object: { containerType: 'VEHICLE', containerCode: 'CAR-RECEIVE' } });
     expect(flow.result.value).toBeNull();
     expect(flow.notice.value?.text).toContain('接收完成');
     const page = await finish(pendingReceivingApi.query({ vehicleCode: 'CAR-RECEIVE' }, 1));
     expect(page.total).toBe(0);
     await finish(flow.scan('CAR-RECEIVE'));
-    expect(flow.notice.value?.text).toBe('当前载具无接收任务');
+    expect(flow.result.value?.task?.status).toBe('RECEIVED');
+    expect(flow.canClearWms.value).toBe(true);
     expect(flow.canReceive.value).toBe(false);
     expect(network).toHaveBeenCalled();
   });
@@ -62,7 +64,8 @@ describe('receiving', () => {
       object: { containerType: 'VEHICLE', containerCode: 'CAR-RECEIVE' } });
     expect(flow.result.value).toBeNull();
     expect(flow.notice.value?.text).toContain('WMS 历史已清空');
-    const stale = api.confirm({ requestId: requestId(), taskId: before.task!.taskId, version: before.task!.version });
+    const stale = api.confirm({ requestId: requestId(), taskId: before.task!.taskId, version: before.task!.version,
+      object: { containerType: before.object.containerType, containerCode: before.object.containerCode } });
     const rejected = expect(stale).rejects.toThrow('接收任务已变化'); await finish(rejected);
     await finish(flow.scan('CAR-RECEIVE'));
     expect(flow.result.value?.task?.status).toBe('PENDING');
@@ -83,6 +86,26 @@ describe('receiving', () => {
     expect(flow.result.value?.boxes).toHaveLength(3); // task contents differ from LES's one loaded box
     await finish(flow.submit());
     expect(await finish(vehicleLoadingApi.getLoads('CAR-NR-0098'))).toEqual(loadsBefore);
+  });
+  it('shares the transport version and progress between single-box and remaining-vehicle receiving', async () => {
+    const scope = await finish(api.query('CAR-RECEIVE'));
+    const box = await finish(api.query(scope.boxes[0].boxCode));
+    expect(box.task!.taskId).toBe(scope.task!.taskId); expect(box.task!.totalBoxCount).toBe(3); expect(box.boxes).toHaveLength(1);
+    const single = await finish(api.confirm({ requestId: requestId(), taskId: box.task!.taskId, version: box.task!.version,
+      object: { containerType: 'BOX', containerCode: box.object.containerCode }, remark: '先接收单箱' }));
+    expect(single.affectedCount).toBe(1);
+    const partial = await finish(api.query('CAR-RECEIVE'));
+    expect(partial.task).toMatchObject({ version: single.version, status: 'PARTIAL', totalBoxCount: 3, receivedBoxCount: 1 });
+    expect(partial.boxes).toEqual(scope.boxes);
+    const receivedBox = await finish(api.query(box.object.containerCode));
+    expect(receivedBox.task).toMatchObject({ status: 'PARTIAL', receivedBoxCount: 1, eligibility: { allowed: false, reason: '该箱已接收' } });
+    expect((await finish(api.query(box.object.containerCode, single.taskId))).task!.eligibility.allowed).toBe(false);
+    const rest = await finish(api.confirm({ requestId: requestId(), taskId: single.taskId, version: partial.task!.version,
+      object: { containerType: 'VEHICLE', containerCode: 'CAR-RECEIVE' }, remark: '剩余整批' }));
+    expect(rest.affectedCount).toBe(2); expect(rest.version).toBe(single.version + 1);
+    const finished = await finish(api.query('CAR-RECEIVE', rest.taskId));
+    expect(finished.task).toMatchObject({ status: 'RECEIVED', receivedBoxCount: 3, version: rest.version });
+    expect(finished.boxes).toEqual(scope.boxes);
   });
   it('disables no-task results, handles errors without old context, and leaves cleanup independent of receiving eligibility', async () => {
     const flow = useReceiving();
@@ -150,7 +173,8 @@ describe('receiving', () => {
       expect(flow.result.value).toBeNull(); expect(flow.notice.value?.error).toBe(true);
     }
     query.mockRestore(); await finish(flow.scan('CAR-RECEIVE'));
-    vi.spyOn(api, 'confirm').mockResolvedValueOnce({ requestId: 'wrong', operationNo: 'OP', affectedCount: 1, processedTime: new Date().toISOString() });
+    vi.spyOn(api, 'confirm').mockResolvedValueOnce({ requestId: 'wrong', operationNo: 'OP', affectedCount: 3, processedTime: new Date().toISOString(),
+      taskId: valid.task!.taskId, object: { containerType: 'VEHICLE', containerCode: 'CAR-RECEIVE' }, version: valid.task!.version + 1 });
     await flow.submit();
     expect(flow.result.value).not.toBeNull(); expect(flow.notice.value?.text).toContain('未能确认成功');
   });
@@ -173,7 +197,7 @@ describe('receiving', () => {
     const first = await finish(api.clearWms(input));
     expect(first.affectedCount).toBe(3);
     expect(await finish(api.clearWms(input))).toEqual(first);
-    const otherAction = api.confirm({ requestId: input.requestId, taskId: input.taskId, version: input.version });
+    const otherAction = api.confirm(input);
     await finish(expect(otherAction).rejects.toThrow('相同请求标识'));
     const after = await finish(api.query('CAR-RECEIVE'));
     expect((await finish(api.clearWms({ ...input, requestId: requestId(), version: after.task!.version }))).affectedCount).toBe(0);

@@ -60,7 +60,7 @@ describe('logistics creation', () => {
     expect(network).toHaveBeenCalled();
   });
   it('replays backend vendor/type and version, submits once and clears after success', async () => {
-    for (const [code, vendor, taskType] of [['CAR-LOG-HIK', 'HIKVISION', 'GENERAL'], ['CAR-LOG-PROCESS', 'STANDARD', 'PROCESS_ROUTE']]) {
+    for (const [code, vendor, taskType] of [['CAR-LOG-HIK', 'HIKVISION', 'GENERAL'], ['CAR-LOG-PROCESS', 'STANDARD', 'GENERAL']]) {
       const flow = useLogisticsCreation();
       await finish(flow.scan(code));
       flow.openChoice(); flow.choose(flow.candidates.value[0]);

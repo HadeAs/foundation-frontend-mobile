@@ -10,7 +10,7 @@ import MaterialRows from '../../components/MaterialRows.vue';
 import LocationCascade from '../../components/LocationCascade.vue';
 import { locationPath } from '../../services/logistics';
 
-const { options, scanCode, destination, candidates, choosing, detail, busy, disabled, canSubmit, notice, notify, clear, scan, openChoice, closeChoice, choose, openMaterials, closeMaterials, submit } = useWarehouseLogistics();
+const { options, scanCode, destination, candidates, choosing, detail, busy, disabled, canSubmit, notice, notify, clear, pause, resume, scan, openChoice, closeChoice, choose, openMaterials, closeMaterials, submit } = useWarehouseLogistics();
 const input = ref('');
 let active = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -21,12 +21,12 @@ async function handleScan(value: string) {
 }
 usePdaScanner(handleScan);
 const { reset: resetKeyboard } = useKeyboardScanner(handleScan, disabled);
-function clearPage() { if (!busy.value) { clear(); input.value = ''; resetKeyboard(); } }
-function goBack() { if (!busy.value) uni.navigateBack(); }
-onShow(() => { active = true; });
+function clearPage() { if (active && !disabled.value) { clear(); input.value = ''; resetKeyboard(); } }
+function goBack() { if (active && !disabled.value) uni.navigateBack(); }
+onShow(() => { active = true; resume(); });
 onHide(() => {
   active = false;
-  clear(); input.value = ''; clearTimeout(noticeTimer);
+  pause(); input.value = ''; clearTimeout(noticeTimer);
   resetKeyboard();
 });
 watch(notice, (value) => {
@@ -36,7 +36,7 @@ watch(notice, (value) => {
 onUnmounted(() => {
   active = false;
   clearTimeout(noticeTimer);
-  clear();
+  pause();
 });
 </script>
 
@@ -54,7 +54,8 @@ onUnmounted(() => {
         <view class="card-heading"><text>对象信息</text><text class="tag">{{ options.object.containerType === 'VEHICLE' ? '载具' : '料箱' }}</text></view>
         <view class="info"><text>扫描编码</text><text>{{ scanCode }}</text></view>
         <view class="info"><text>容器编号</text><text>{{ options.object.containerCode }}</text></view>
-        <view class="info"><text>当前位置</text><text>{{ options.origin.locationCode }} · {{ options.origin.locationName }}</text></view>
+        <view class="info"><text>起始位置</text><text>{{ options.origin.locationCode }} · {{ options.origin.locationName }}</text></view>
+        <view class="info"><text>实际内容</text><text>{{ options.object.contentState === 'EMPTY' ? '已确认空载' : options.object.contentState === 'LOADED' ? '已确认非空' : '未确认' }}</text></view>
         <view class="info"><text>关联物料</text><text>{{ options.totalMaterialQuantity }} 件</text></view>
       </view>
       <view v-if="options" class="card destination-card">
@@ -90,7 +91,7 @@ onUnmounted(() => {
       <view class="modal detail-modal" role="dialog" aria-modal="true" aria-label="箱内物料">
         <view class="detail-heading"><text class="modal-title">箱内物料</text><text class="detail-summary">{{ detail.box.containerCode }} · {{ detail.totalQuantity }} 件</text></view>
         <view class="detail-scroll">
-          <MaterialRows v-if="detail.materials.length" :materials="detail.materials" />
+          <MaterialRows v-if="detail.materials.length" :materials="detail.materials" show-batch />
           <view v-else class="empty">当前箱子暂无物料</view>
         </view>
         <view class="detail-footer"><button @tap="closeMaterials">关闭</button></view>
@@ -135,11 +136,11 @@ button:focus-visible { outline: 2px solid #0d9496; outline-offset: 2px; }
 .box-body { min-width: 0; flex: 1; overflow-wrap: anywhere; }
 .secondary { font-size: 24rpx; color: #748d93; margin-top: 6rpx; }
 .box-action { flex-shrink: 0; color: #087779; font-size: 24rpx; }
-.detail-modal { display: flex; flex-direction: column; padding: 0; max-height: 80vh; overflow: hidden; }
+.detail-modal { display: flex; flex-direction: column; padding: 0; max-height: 80vh; max-height: 80dvh; overflow: hidden; }
 .detail-heading { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 16rpx; padding: 20rpx; border-bottom: 1px solid #dfebed; }
 .detail-summary { min-width: 0; font-size: 24rpx; color: #748d93; text-align: right; overflow-wrap: anywhere; }
 .detail-heading .modal-title { flex-shrink: 0; }
-.detail-scroll { max-height: 48vh; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.detail-scroll { max-height: 48vh; max-height: 48dvh; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .detail-footer { flex-shrink: 0; padding: 20rpx; }
 .choice { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; width: calc(100% - 32rpx); margin: 12rpx 16rpx; padding: 12rpx; height: auto; min-height: 76rpx; line-height: 1.4; text-align: left; color: #254b54; }
 .choice text:first-child { min-width: 0; overflow-wrap: anywhere; }

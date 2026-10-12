@@ -9,7 +9,7 @@ import { useEmptyVehicle } from '../../composables/useEmptyVehicle';
 import { locationPath } from '../../services/logistics';
 import LocationCascade from '../../components/LocationCascade.vue';
 
-const { options, origin, candidates, choosing, replacement, busy, disabled, canSubmit, notice, notify, clear, scan, openChoice, closeChoice, choose, submit, cancelReplacement, confirmReplacement } = useEmptyVehicle();
+const { options, origin, candidates, choosing, replacement, busy, disabled, canSubmit, notice, notify, clear, pause, resume, scan, openChoice, closeChoice, choose, submit, cancelReplacement, confirmReplacement } = useEmptyVehicle();
 const input = ref('');
 let active = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -20,12 +20,12 @@ async function handleScan(value: string) {
 }
 usePdaScanner(handleScan);
 const { reset: resetKeyboard } = useKeyboardScanner(handleScan, disabled);
-function clearPage() { if (!busy.value) { clear(); input.value = ''; resetKeyboard(); } }
-function goBack() { if (!busy.value) uni.navigateBack(); }
-onShow(() => { active = true; });
+function clearPage() { if (!disabled.value) { clear(); input.value = ''; resetKeyboard(); } }
+function goBack() { if (!disabled.value) uni.navigateBack(); }
+onShow(() => { active = true; resume(); });
 onHide(() => {
   active = false;
-  clear();
+  pause();
   input.value = '';
   resetKeyboard();
 });
@@ -36,7 +36,7 @@ watch(notice, (value) => {
 onUnmounted(() => {
   active = false;
   clearTimeout(noticeTimer);
-  clear();
+  pause();
 });
 </script>
 
@@ -62,7 +62,10 @@ onUnmounted(() => {
             <text>{{ origin ? locationPath(origin.origin) : '请选择起始位置' }}</text><text>{{ origin ? '切换' : '选择' }} ›</text>
           </button>
           <view v-else class="empty">暂无可用空载具</view>
-          <view v-if="origin" class="info"><text>空载具</text><text>{{ origin.vehicle.containerCode }}</text></view>
+          <template v-if="origin">
+            <view class="info"><text>载具编号</text><text>{{ origin.vehicle.containerCode }}</text></view>
+            <view class="info"><text>实际内容</text><text>{{ origin.vehicle.contentState === 'EMPTY' ? '已确认空载' : origin.vehicle.contentState === 'LOADED' ? '已确认非空' : '未确认' }}</text></view>
+          </template>
         </view>
       </template>
     </view>
@@ -107,8 +110,8 @@ button:focus-visible { outline: 2px solid #0d9496; outline-offset: 2px; }
 .content { overflow-y: auto; }
 .content > .card { flex-shrink: 0; }
 .modal-mask { position: fixed; inset: 0; z-index: 20; background: #163e4970; display: flex; align-items: center; justify-content: center; padding: 24rpx; }
-.modal { width: 100%; max-width: 440px; max-height: 80vh; overflow-y: auto; background: white; border-radius: 16rpx; padding: 24rpx; }
-.modal-title { font-size: 30rpx; font-weight: 600; }
-.modal-body { margin: 24rpx 0; font-size: 28rpx; line-height: 1.6; overflow-wrap: anywhere; }
-.modal-actions { display: grid; grid-template-columns: 1fr 1.35fr; gap: 12rpx; }
+.modal { width: 100%; max-width: 440px; max-height: 80vh; max-height: 80dvh; overflow: hidden; display: flex; flex-direction: column; background: white; border-radius: 16rpx; padding: 24rpx; }
+.modal-title { flex-shrink: 0; font-size: 30rpx; font-weight: 600; }
+.modal-body { min-height: 0; overflow-y: auto; margin: 24rpx 0; font-size: 28rpx; line-height: 1.6; overflow-wrap: anywhere; }
+.modal-actions { flex-shrink: 0; display: grid; grid-template-columns: 1fr 1.35fr; gap: 12rpx; }
 </style>

@@ -5,6 +5,8 @@ import * as mock from './fixtures/nariBackend';
 import { seedTestSession } from './helpers/authSession';
 import { pendingReceivingApi as api, displayTaskTime, type ReceivingTaskPage } from '../pendingReceiving';
 import { usePendingReceiving } from '../../composables/usePendingReceiving';
+import { receivingApi } from '../receiving';
+import { requestId } from '../nariRequest';
 
 const storage = new Map<string, unknown>();
 const network = vi.fn(testRequest);
@@ -128,5 +130,16 @@ describe('pending receiving list', () => {
     const local = new Date(2026, 8, 17, 10, 2, 3);
     expect(displayTaskTime(local.toISOString())).toBe('2026-09-17 10:02:03');
     expect(displayTaskTime('not a date')).toBe('—');
+  });
+  it('keeps a partially received transport pending and removes it only after the remaining whole scope is received', async () => {
+    const scope = await finish(receivingApi.query('CAR-RECEIVE'));
+    const single = await finish(receivingApi.confirm({ requestId: requestId(), taskId: scope.task!.taskId, version: scope.task!.version,
+      object: { containerType: 'BOX', containerCode: scope.boxes[0].boxCode } }));
+    const flow = usePendingReceiving(); flow.vehicleCode.value = 'CAR-RECEIVE'; await finish(flow.query());
+    expect(flow.total.value).toBe(1); expect(flow.items.value[0]).toMatchObject({ taskId: single.taskId, version: single.version,
+      status: 'PARTIAL', receivedBoxCount: 1, totalBoxCount: 3 });
+    await finish(receivingApi.confirm({ requestId: requestId(), taskId: single.taskId, version: single.version,
+      object: { containerType: 'VEHICLE', containerCode: 'CAR-RECEIVE' } }));
+    await finish(flow.refresh()); expect(flow.items.value).toEqual([]); expect(flow.total.value).toBe(0);
   });
 });

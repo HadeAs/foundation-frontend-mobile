@@ -13,29 +13,31 @@ const statusIndex = computed(() => statusValues.indexOf(status.value));
 const disabled = computed(() => loading.value || submitting.value || !!selected.value);
 const scrollTop = ref(0);
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+let active = false;
 watch(notice, (value) => {
   clearTimeout(noticeTimer);
   if (value) noticeTimer = setTimeout(() => { notice.value = null; }, value.error ? 6500 : 2500);
 });
 async function query() {
+  if (!active || disabled.value) return;
   scrollTop.value = 1; await nextTick(); scrollTop.value = 0;
   await flow.query();
 }
 function changeStatus(event: { detail: { value: string | number } }) {
   const value = statusValues[Number(event.detail.value)];
-  if (disabled.value || value === undefined) return;
+  if (!active || disabled.value || value === undefined) return;
   status.value = value; void query();
 }
-function pause() { flow.dispose(); clearTimeout(noticeTimer); }
-onShow(() => { void query(); });
+function pause() { active = false; flow.dispose(); clearTimeout(noticeTimer); }
+onShow(() => { active = true; flow.resume(); void query(); });
 onHide(pause);
 onUnmounted(pause);
-function goBack() { uni.navigateBack({ delta: 1 }); }
+function goBack() { if (active && !disabled.value) uni.navigateBack({ delta: 1 }); }
 </script>
 
 <template>
   <view class="app-page traffic-page">
-    <view class="app-nav"><button class="nav-back" @tap="goBack">‹ 返回</button><view class="app-nav__title">交通管制</view><view></view></view>
+    <view class="app-nav"><button class="nav-back" :disabled="disabled" @tap="goBack">‹ 返回</button><view class="app-nav__title">交通管制</view><view></view></view>
     <OperationNotice :text="notice?.message" :error="notice?.error" />
     <view class="filters">
       <view class="keyword-row">
@@ -111,8 +113,8 @@ input { min-width: 0; height: 76rpx; box-sizing: border-box; border: 1px solid #
 .list-status { padding: 24rpx 0; text-align: center; font-size: 24rpx; color: #748d93; }
 .list-status button { display: inline-block; }
 .modal-mask { position: fixed; inset: 0; z-index: 20; background: #163e4970; display: flex; align-items: center; justify-content: center; padding: 24rpx; }
-.modal { width: 100%; max-height: 80vh; overflow-y: auto; border-radius: 16rpx; background: white; padding: 20rpx; }
-.modal-title { font-size: 30rpx; font-weight: 600; }
-.modal-body { margin: 24rpx 0; font-size: 28rpx; line-height: 1.6; overflow-wrap: anywhere; }
-.modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12rpx; }
+.modal { width: 100%; max-width: 440px; max-height: 80vh; max-height: 80dvh; overflow: hidden; display: flex; flex-direction: column; border-radius: 16rpx; background: white; padding: 20rpx; }
+.modal-title { flex-shrink: 0; font-size: 30rpx; font-weight: 600; }
+.modal-body { min-height: 0; overflow-y: auto; margin: 24rpx 0; font-size: 28rpx; line-height: 1.6; overflow-wrap: anywhere; }
+.modal-actions { flex-shrink: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12rpx; }
 </style>

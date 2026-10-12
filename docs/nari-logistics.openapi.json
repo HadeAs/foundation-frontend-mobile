@@ -3,8 +3,8 @@
   "info": {
     "title": "南瑞物流 App API（前端交付整合稿）",
     "version": "development",
-    "description": "完整接口整合稿：原有 38 项接口全部保留，合入订单叫料 3 项新增接口，更新位置绑定及创建物流任务 2 项既有接口，共 41 项接口。前端接收此文件即可，无需再导入增量文件。新增业务和拟修改规则仍为待评审草案，合并不代表冻结、实现或可联调；待确认项见 R01～R05。导入 Apifox 时请核对同方法同路径的覆盖范围。\n\n以下为原候选的设计背景与历史记录：\n从业务清单补充形成的设计候选，不是运行时导出，不代表已实现或双方冻结。原有 37 项能力逐项保留。URL、ApiResult、认证与错误码按基座源码；所有新增业务 DTO、权限、版本、防重和数量约束为待评审提案。无真实服务器地址，不可直接联调。\n\n操作人由 Bearer 会话取得，操作时间由服务端生成。查询无副作用；所有业务写入重新校验状态、关系与权限。关系清理不得删除追溯记录。\n\n争议条目见 x-review-issues 和 README.md；没有把附件内的处理建议视为用户授权的新业务规则。\n\n本轮采纳前端评审第 1、2、3、4、6、7、9 项及附加澄清；第 5 项箱/车扫码匹配按全量明细解决，第 8 项按单容器单个当前接收任务解决；拼板候选及当前位置候选已改为全量；接口评审通过与实际实现/联调状态分开记录。原 37 项保留，新增 1 项取消结果查询。空载具扫描目标位置、选择起始位置；未满载立即发送已取消。",
-    "x-design-revision": "2026-10-09.2",
+    "description": "2026-10-12.1 对象模型设计后本地契约补齐：绑定行物料批次、实际内容状态及治具箱空载语义、运输状态与叫料 CANCELLED、可信当前位置及静态位置类型示例。本轮已确认混料提示后由人员决定继续，不增加用途选择；解绑复用取消接口后再提交；仅补 PDA，后台管理后续单独设计。新增 3 个交互 DTO，仍 45 项接口、84 个 Schema；联合评审及开发前冻结待完成。以本地 2026-10-10.4 为依据；原型不改，未更新 Apifox 云端、未实现、未联合评审或冻结。下文 .4 及以前仅为历史背景，当前规则以本修订与 Schema 为准。\n\n2026-10-10.4 补充确认：插单置于符合条件的当前执行／未执行计划之后，后端顺延；人工订单叫料无需生产计划，有可用同订单箱即可。既有叫料候选说明取消“订单不存在 404”，位置不存在仍 404，无匹配箱返回空候选／原因。仍 45 项接口、81 个 Schema；需求确认已记录，联合评审及开发前冻结待完成，未实现／联调，不改原型。以下 .3 及此前为历史背景，现行规则以 .4、Schema 与 x-review-issues 为准。\n\n2026-10-10.3 六批复核回答同步：删除工艺路线任务类型，计划取消保留／暂停取消，位置多用途配置，启动时选定当前合格箱创建完整待配送任务，全部完成结束；一码 1 件、MES 拼板成员、普通箱同质且缴库尾单允许混装，不混用绑定方式，治具回库可用，接收备注，WMS 清理无需先接收。45 项接口、81 个 Schema；已回答需求确认，前后端评审及开发前冻结待完成，未实现／联调。M01、U01 联动契约仍待细化；原型不修改。\n\n以下为 .2 及此前历史背景，当前规则以 .3、Schema 和 x-review-issues 为准。\n\n2026-10-10.2 用户补充确认修订：有位／无位车、存储区与后端判断、代表板件唯一码快捷绑箱、名称／单位非必返、物流送达任务复用及单箱／整车部分接收、WMS 发料清理重绑。45 项接口、81 个 Schema；需求确认已记录，前端原型仍在编写，本轮不更新；前后端评审及开发前冻结待完成，未实现、未联调。\n\n完整整合稿，共 45 项接口。新增 5 项料箱绑车/解绑接口，并补充装车查询及提交的互斥校验。新增部分是待评审草案，未冻结、未实现；需求与待确认项见 C01 和 README。\n\n以下 .1 及此前文字为历史背景，已修订规则以 .2 与当前 Schema／x-review-issues 为准。\n\n完整接口整合稿：原有 38 项接口全部保留，合入订单叫料 2 项新增接口，更新位置绑定及创建物流任务 2 项既有接口，当时共 40 项接口。前端接收此文件即可，无需再导入增量文件。新增业务和拟修改规则仍为待评审草案，合并不代表冻结、实现或可联调；待确认项见 R01～R05。导入 Apifox 时请核对同方法同路径的覆盖范围。\n\n以下为原候选的设计背景与历史记录：\n从业务清单补充形成的设计候选，不是运行时导出，不代表已实现或双方冻结。原有 37 项能力逐项保留。URL、ApiResult、认证与错误码按基座源码；所有新增业务 DTO、权限、版本、防重和数量约束为待评审提案。无真实服务器地址，不可直接联调。\n\n操作人由 Bearer 会话取得，操作时间由服务端生成。查询无副作用；所有业务写入重新校验状态、关系与权限。关系清理不得删除追溯记录。\n\n争议条目见 x-review-issues 和 README.md；没有把附件内的处理建议视为用户授权的新业务规则。\n\n本轮采纳前端评审第 1、2、3、4、6、7、9 项及附加澄清；第 5 项箱/车扫码匹配按全量明细解决，第 8 项按单容器单个当前接收任务解决；拼板候选及当前位置候选已改为全量；接口评审通过与实际实现/联调状态分开记录。原 37 项保留，新增 1 项取消结果查询。空载具扫描目标位置、选择起始位置；未满载立即发送已取消。",
+    "x-design-revision": "2026-10-12.1",
     "x-source-file": "南瑞物流-App-OpenAPI-草案.json",
     "x-source-sha256": "e1ed085f505b738db17ff9971c9fc8c21e85d8c18bd4231e1e651088f2ae265e",
     "x-foundation-head": "fd1381b628ffd5f3faae113006216db9dc18a5d5",
@@ -16,7 +16,11 @@
       },
       {
         "file": "nari-logistics.order-call-return.draft.openapi.json",
-        "revision": "2026-10-09.1"
+        "revision": "2026-10-09.3"
+      },
+      {
+        "file": "nari-logistics.container-binding.draft.openapi.json",
+        "revision": "2026-10-10.1"
       }
     ]
   },
@@ -78,12 +82,12 @@
       "name": "三、物流作业 / 交通管制"
     },
     {
-      "name": "四、新增业务草案 / 生产订单叫料",
-      "description": "订单叫料与绑定后去向新增草案，待评审。"
+      "name": "一、常规作业 / 料箱绑车与解绑",
+      "description": "App 首页常规作业新增两个独立入口：料箱绑车、料箱解绑。此处为共用接口分组，不表示合并为一个 App 入口。两个页面处理料箱与料车直接绑定，与现有装车/卸车的库位装载操作并列。"
     },
     {
-      "name": "四、新增业务草案 / 绑定后去向",
-      "description": "订单叫料与绑定后去向新增草案，待评审。"
+      "name": "三、物流作业 / 按订单叫料",
+      "description": "按生产订单查询候选料箱、确认叫料并创建运输任务。接口设计仍为待评审草案。"
     }
   ],
   "paths": {
@@ -95,7 +99,7 @@
           "一、常规作业 / 板件解绑"
         ],
         "summary": "查询料箱及已绑定板件",
-        "description": "### 板件扫码绑箱\n扫描箱码后查询料箱信息、已绑定板件及数量，用于提示是否一键解绑和展示已有明细。\n\n### 板件快捷绑箱\n判断料箱是否为空；非空箱须先一键解绑才能继续快捷绑箱。\n\n### 板件解绑\n扫描料箱后取得全部已绑定板件，供查看、勾选和扫码匹配。\n\n全部解绑按整个箱的版本与关系处理。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n指定箱或载具范围全量查询，不接受 page/size 或全量开关，不按 20/200 条截断；空集合返回 []。服务端保证一次响应的容器、装载、物料、版本和汇总属于一致读取结果；无法取得完整一致结果时返回失败，不返回部分成功。前端取得成功结果后才执行本地扫码匹配。写入仍校验最新版本。",
+        "description": "### 板件扫码绑箱\n扫描箱码后查询料箱信息、已绑定板件及数量，用于提示是否一键解绑和展示已有明细。\n\n### 板件快捷绑箱\n判断料箱是否为空；非空箱允许同绑定方式追加；逐板／数量两种方式不能在同一装箱周期混用，切换方式须先解除现有全部内容。普通生产箱保持同物料、批次、订单，仅缴库尾单允许混装。\n\n### 板件解绑\n扫描料箱后取得全部已绑定板件，供查看、勾选和扫码匹配。\n\n全部解绑按整个箱的版本与关系处理。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n指定箱或载具范围全量查询，不接受 page/size 或全量开关，不按 20/200 条截断；空集合返回 []。服务端保证一次响应的容器、装载、物料、版本和汇总属于一致读取结果；无法取得完整一致结果时返回失败，不返回部分成功。前端取得成功结果后才执行本地扫码匹配。写入仍校验最新版本。",
         "operationId": "nari_boxes_bindings_query",
         "parameters": [
           {
@@ -156,36 +160,69 @@
                     "traceId"
                   ]
                 },
-                "example": {
-                  "code": 0,
-                  "message": "ok",
-                  "data": {
-                    "box": {
-                      "containerType": "VEHICLE",
-                      "containerCode": "CODE-001",
-                      "version": 1
-                    },
-                    "empty": false,
-                    "totalQuantity": 1,
-                    "bindings": [
-                      {
-                        "id": "10001",
-                        "version": 1,
-                        "bindingMode": "BY_CODE",
-                        "panelCode": "PANEL-001",
-                        "orderNo": "CODE-001",
-                        "materialCode": "CODE-001",
-                        "materialName": "成品板件",
-                        "quantity": 1,
-                        "unit": "件"
-                      }
-                    ],
-                    "eligibility": {
-                      "allowed": true
+                "examples": {
+                  "fixtureLoaded": {
+                    "summary": "治具箱无板件绑定，但实际非空",
+                    "value": {
+                      "code": 0,
+                      "message": "ok",
+                      "data": {
+                        "box": {
+                          "containerType": "VEHICLE",
+                          "containerCode": "CODE-001",
+                          "version": 1,
+                          "contentState": "LOADED",
+                          "runtimeUsage": "FIXTURE"
+                        },
+                        "empty": false,
+                        "totalQuantity": 0,
+                        "bindings": [],
+                        "eligibility": {
+                          "allowed": true
+                        },
+                        "contentState": "LOADED",
+                        "runtimeUsage": "FIXTURE"
+                      },
+                      "timestamp": "2026-09-14T02:00:00Z",
+                      "traceId": "trace-example"
                     }
                   },
-                  "timestamp": "2026-09-14T02:00:00Z",
-                  "traceId": "trace-example"
+                  "materialBox": {
+                    "summary": "物料箱绑定查询",
+                    "value": {
+                      "code": 0,
+                      "message": "ok",
+                      "data": {
+                        "box": {
+                          "containerType": "VEHICLE",
+                          "containerCode": "CODE-001",
+                          "version": 1
+                        },
+                        "empty": false,
+                        "totalQuantity": 1,
+                        "bindings": [
+                          {
+                            "id": "10001",
+                            "version": 1,
+                            "bindingMode": "BY_CODE",
+                            "panelCode": "PANEL-001",
+                            "orderNo": "CODE-001",
+                            "materialCode": "CODE-001",
+                            "materialName": "成品板件",
+                            "quantity": 1,
+                            "unit": "件",
+                            "materialBatch": "000001"
+                          }
+                        ],
+                        "eligibility": {
+                          "allowed": true
+                        },
+                        "contentState": "LOADED"
+                      },
+                      "timestamp": "2026-09-14T02:00:00Z",
+                      "traceId": "trace-example"
+                    }
+                  }
                 }
               }
             }
@@ -527,7 +564,7 @@
           "一、常规作业 / 板件扫码绑箱"
         ],
         "summary": "获取拼板板件",
-        "description": "### 获取拼板板件\n仅根据本次 pendingPanelCodes 查询可加入的拼板板件，不传 boxCode，不查询箱内已有板件作为拼板依据，不返回箱信息或箱版本。空输入集合返回 candidates=[]。\n\ncandidates 全量返回，按 panelCode 升序去重，不分页、不截断。后端保证本次候选结果读取一致；无法取得完整结果时返回失败，不返回部分成功。\n\n前端在完整成功后按 panelCode 与当前待绑定列表去重，一次性加入；失败不修改列表。若页面已切换操作对象或待绑定输入发生变化，应丢弃过期响应，不能覆盖当前输入。超过当前绑箱提交上限时明确提示，不部分加入、不自动拆批。\n\n本接口为只读查询，不建立绑定。返回项的 eligibility 仅针对板件自身状态，不包含目标箱资格；最终绑箱时由后端校验目标箱、板件、当前关系和版本。",
+        "description": "### 获取拼板板件\n仅根据本次 pendingPanelCodes 查询可加入的拼板板件，不传 boxCode，不查询箱内已有板件作为拼板依据，不返回箱信息或箱版本。空输入集合返回 candidates=[]。\n\ncandidates 全量返回，按 panelCode 升序去重，不分页、不截断。后端保证本次候选结果读取一致；无法取得完整结果时返回失败，不返回部分成功。\n\n前端在完整成功后按 panelCode 与当前待绑定列表去重，一次性加入；失败不修改列表。若页面已切换操作对象或待绑定输入发生变化，应丢弃过期响应，不能覆盖当前输入。超过当前绑箱提交上限时明确提示，不部分加入、不自动拆批。\n\n本接口为只读查询，不建立绑定。返回项的 eligibility 仅针对板件自身状态，不包含目标箱资格；最终绑箱时由后端校验目标箱、板件、当前关系和版本。\n\n拼板成员通过 MES 接口取得；拼板内同物料、同批次、同订单。每个实际成员唯一码计 1 件，按实际码去重，不因查询一个母码又重复加 1。真实 MES 母码／成员字段及原码映射后补，不根据三项属性相同虚构成员关系。",
         "operationId": "nari_panels_joint_candidates_query",
         "parameters": [],
         "responses": {
@@ -737,12 +774,12 @@
           "一、常规作业 / 板件扫码绑箱"
         ],
         "summary": "按唯一码批量绑箱",
-        "description": "### 板件扫码绑箱\n将本次待绑定板件批量绑定至料箱；不重复提交已有绑定，不限制同一订单。\n\n允许不同订单的板件绑入同一料箱，不存在尾单概念，不执行订单混装限制。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n写入候选防重约定：requestId 标识一次业务意图，同一次网络重发复用 ID 和相同内容；同 ID 不同内容拒绝。该能力需业务模块实现，并非基座默认中间件。操作者/时间由服务端确定。\n\n箱关系操作完成回执，返回本次提交完成时的箱码、版本与物料数量；前端用返回版本继续装箱，不能自行加一。并发后续变化仍可能导致下次提交冲突。",
+        "description": "提交绑箱并执行后端校验。不增加用途选择或独立混装入口。后端解析本次各板件／代表码，并与箱内有效内容按物料编码、批次、订单三项比较；任一属性存在多个值时为混装。未确认时返回 MIXED_CONTENT 待确认结果，不写入绑定、不计数、不推进版本。人员取消则结束；人员继续则携带服务端确认凭据重新提交，后端复核箱版本及完整输入，才可执行。混装箱仅用于缴库，不参与生产自动配送或按订单叫料；同质尾单不因属于缴库而强制弹窗。原有同周期绑定方式、任务预占及缴库成功内容保护仍适用，混料确认不能绕过这些条件。\n\n200/code=0 仅表示请求正常处理，data 必须区分：有 resultType=CONFIRMATION_REQUIRED 时未绑定；BoxOperationReceipt 才是已完成绑定。客户端不得把通用成功 toast 当作已绑定。首次提示后确认继续生成新的 requestId，网络重发该次确认提交复用该 UUID 与完整原内容。失效凭据、版本冲突返回 409，刷新后重新提示，旧凭据不能确认新内容。",
         "operationId": "nari_boxes_bindings_bind_by_codes",
         "parameters": [],
         "responses": {
           "200": {
-            "description": "本接口动作成功；见 data 明确语义，不代表后续物流执行完成。",
+            "description": "请求正常处理：可能是未写入的混料待确认提示，或已完成的绑箱回执；按 data 结构区分。",
             "content": {
               "application/json": {
                 "schema": {
@@ -761,7 +798,14 @@
                       "example": "ok"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/BoxOperationReceipt"
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/BoxOperationReceipt"
+                        },
+                        {
+                          "$ref": "#/components/schemas/BoxBindingConfirmation"
+                        }
+                      ]
                     },
                     "timestamp": {
                       "type": "string",
@@ -784,22 +828,50 @@
                     "traceId"
                   ]
                 },
-                "example": {
-                  "code": 0,
-                  "message": "ok",
-                  "data": {
-                    "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
-                    "operationNo": "CODE-001",
-                    "affectedCount": 1,
-                    "processedTime": "2026-09-14T02:00:00Z",
-                    "box": {
-                      "boxCode": "CODE-001",
-                      "version": 2,
-                      "materialQuantity": 1
+                "examples": {
+                  "bound": {
+                    "summary": "绑定已完成",
+                    "value": {
+                      "code": 0,
+                      "message": "ok",
+                      "data": {
+                        "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                        "operationNo": "CODE-001",
+                        "affectedCount": 1,
+                        "processedTime": "2026-09-14T02:00:00Z",
+                        "box": {
+                          "boxCode": "CODE-001",
+                          "version": 2,
+                          "materialQuantity": 1
+                        }
+                      },
+                      "timestamp": "2026-09-14T02:00:00Z",
+                      "traceId": "trace-example"
                     }
                   },
-                  "timestamp": "2026-09-14T02:00:00Z",
-                  "traceId": "trace-example"
+                  "mixedConfirmationRequired": {
+                    "summary": "未绑定，需人员确认混料",
+                    "value": {
+                      "code": 0,
+                      "message": "需要确认混料",
+                      "data": {
+                        "resultType": "CONFIRMATION_REQUIRED",
+                        "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                        "confirmationType": "MIXED_CONTENT",
+                        "message": "将出现不同物料、批次或订单。继续后此箱仅用于缴库，是否继续？",
+                        "box": {
+                          "containerType": "BOX",
+                          "containerCode": "BOX-001",
+                          "version": 1,
+                          "contentState": "LOADED",
+                          "runtimeUsage": "MATERIAL"
+                        },
+                        "confirmationToken": "opaque-mixed-confirmation-token"
+                      },
+                      "timestamp": "2026-10-12T04:00:00Z",
+                      "traceId": "trace-example"
+                    }
+                  }
                 }
               }
             }
@@ -929,13 +1001,31 @@
               "schema": {
                 "$ref": "#/components/schemas/BoxCodesRequest"
               },
-              "example": {
-                "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
-                "boxCode": "CODE-001",
-                "version": 1,
-                "panelCodes": [
-                  "CODE-001"
-                ]
+              "examples": {
+                "confirmMixed": {
+                  "summary": "人员确认后继续绑定（新的提交 UUID）",
+                  "value": {
+                    "requestId": "8c599e22-f863-451c-a10d-f55917b33a65",
+                    "boxCode": "CODE-001",
+                    "version": 1,
+                    "panelCodes": [
+                      "CODE-001"
+                    ],
+                    "confirmMixed": true,
+                    "confirmationToken": "opaque-mixed-confirmation-token"
+                  }
+                },
+                "normal": {
+                  "summary": "普通提交；未确认混料",
+                  "value": {
+                    "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                    "boxCode": "CODE-001",
+                    "version": 1,
+                    "panelCodes": [
+                      "CODE-001"
+                    ]
+                  }
+                }
               }
             }
           }
@@ -1160,12 +1250,12 @@
           "一、常规作业 / 板件快捷绑箱"
         ],
         "summary": "按订单数量绑箱",
-        "description": "### 板件快捷绑箱\n根据选定料箱、订单及数量完成快捷绑箱，校验订单、数量及料箱当前状态。\n\n数量绑定不得虚构唯一码；订单行/物料唯一定位由后端校验。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n写入候选防重约定：requestId 标识一次业务意图，同一次网络重发复用 ID 和相同内容；同 ID 不同内容拒绝。该能力需业务模块实现，并非基座默认中间件。操作者/时间由服务端确定。\n\n客户端只需提供订单号和数量（以及箱码、查询版本和请求标识），不要求扫描板件。服务端依据订单唯一解析订单行及物料；订单不存在、没有可用物料或不能唯一解析时返回 HTTP 400 / code=40000 和明确原因，不取第一条、不新增员工选料流程。\n\n箱关系操作完成回执，返回本次提交完成时的箱码、版本与物料数量；前端用返回版本继续装箱，不能自行加一。并发后续变化仍可能导致下次提交冲突。",
+        "description": "提交绑箱并执行后端校验。不增加用途选择或独立混装入口。后端解析本次各板件／代表码，并与箱内有效内容按物料编码、批次、订单三项比较；任一属性存在多个值时为混装。未确认时返回 MIXED_CONTENT 待确认结果，不写入绑定、不计数、不推进版本。人员取消则结束；人员继续则携带服务端确认凭据重新提交，后端复核箱版本及完整输入，才可执行。混装箱仅用于缴库，不参与生产自动配送或按订单叫料；同质尾单不因属于缴库而强制弹窗。原有同周期绑定方式、任务预占及缴库成功内容保护仍适用，混料确认不能绕过这些条件。\n\n200/code=0 仅表示请求正常处理，data 必须区分：有 resultType=CONFIRMATION_REQUIRED 时未绑定；BoxOperationReceipt 才是已完成绑定。客户端不得把通用成功 toast 当作已绑定。首次提示后确认继续生成新的 requestId，网络重发该次确认提交复用该 UUID 与完整原内容。失效凭据、版本冲突返回 409，刷新后重新提示，旧凭据不能确认新内容。",
         "operationId": "nari_boxes_bindings_bind_by_order",
         "parameters": [],
         "responses": {
           "200": {
-            "description": "本接口动作成功；见 data 明确语义，不代表后续物流执行完成。",
+            "description": "请求正常处理：可能是未写入的混料待确认提示，或已完成的绑箱回执；按 data 结构区分。",
             "content": {
               "application/json": {
                 "schema": {
@@ -1184,7 +1274,14 @@
                       "example": "ok"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/BoxOperationReceipt"
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/BoxOperationReceipt"
+                        },
+                        {
+                          "$ref": "#/components/schemas/BoxBindingConfirmation"
+                        }
+                      ]
                     },
                     "timestamp": {
                       "type": "string",
@@ -1207,22 +1304,50 @@
                     "traceId"
                   ]
                 },
-                "example": {
-                  "code": 0,
-                  "message": "ok",
-                  "data": {
-                    "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
-                    "operationNo": "CODE-001",
-                    "affectedCount": 1,
-                    "processedTime": "2026-09-14T02:00:00Z",
-                    "box": {
-                      "boxCode": "CODE-001",
-                      "version": 2,
-                      "materialQuantity": 1
+                "examples": {
+                  "bound": {
+                    "summary": "绑定已完成",
+                    "value": {
+                      "code": 0,
+                      "message": "ok",
+                      "data": {
+                        "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                        "operationNo": "CODE-001",
+                        "affectedCount": 1,
+                        "processedTime": "2026-09-14T02:00:00Z",
+                        "box": {
+                          "boxCode": "CODE-001",
+                          "version": 2,
+                          "materialQuantity": 1
+                        }
+                      },
+                      "timestamp": "2026-09-14T02:00:00Z",
+                      "traceId": "trace-example"
                     }
                   },
-                  "timestamp": "2026-09-14T02:00:00Z",
-                  "traceId": "trace-example"
+                  "mixedConfirmationRequired": {
+                    "summary": "未绑定，需人员确认混料",
+                    "value": {
+                      "code": 0,
+                      "message": "需要确认混料",
+                      "data": {
+                        "resultType": "CONFIRMATION_REQUIRED",
+                        "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                        "confirmationType": "MIXED_CONTENT",
+                        "message": "将出现不同物料、批次或订单。继续后此箱仅用于缴库，是否继续？",
+                        "box": {
+                          "containerType": "BOX",
+                          "containerCode": "BOX-001",
+                          "version": 1,
+                          "contentState": "LOADED",
+                          "runtimeUsage": "MATERIAL"
+                        },
+                        "confirmationToken": "opaque-mixed-confirmation-token"
+                      },
+                      "timestamp": "2026-10-12T04:00:00Z",
+                      "traceId": "trace-example"
+                    }
+                  }
                 }
               }
             }
@@ -1352,12 +1477,31 @@
               "schema": {
                 "$ref": "#/components/schemas/BoxOrderRequest"
               },
-              "example": {
-                "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
-                "boxCode": "CODE-001",
-                "version": 1,
-                "orderNo": "CODE-001",
-                "quantity": 1
+              "examples": {
+                "confirmMixed": {
+                  "summary": "人员确认后继续绑定（新的提交 UUID）",
+                  "value": {
+                    "requestId": "8c599e22-f863-451c-a10d-f55917b33a65",
+                    "boxCode": "CODE-001",
+                    "version": 1,
+                    "orderNo": "00001234",
+                    "quantity": 1,
+                    "panelCode": "123456789ABC000001ABCDEFG00001234",
+                    "confirmMixed": true,
+                    "confirmationToken": "opaque-mixed-confirmation-token"
+                  }
+                },
+                "normal": {
+                  "summary": "普通提交；未确认混料",
+                  "value": {
+                    "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                    "boxCode": "CODE-001",
+                    "version": 1,
+                    "orderNo": "00001234",
+                    "quantity": 1,
+                    "panelCode": "123456789ABC000001ABCDEFG00001234"
+                  }
+                }
               }
             }
           }
@@ -1370,7 +1514,7 @@
           "一、常规作业 / 板件解绑"
         ],
         "summary": "解绑所选板件",
-        "description": "### 板件解绑\n解除所选一条或多条板件与料箱的关系，保留对象及历史记录。\n\nitems 取已持久化绑定记录的 id/version。局部数量解绑尚待确认。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n写入候选防重约定：requestId 标识一次业务意图，同一次网络重发复用 ID 和相同内容；同 ID 不同内容拒绝。该能力需业务模块实现，并非基座默认中间件。操作者/时间由服务端确定。\n\n箱关系操作完成回执，返回本次提交完成时的箱码、版本与物料数量；前端用返回版本继续装箱，不能自行加一。并发后续变化仍可能导致下次提交冲突。",
+        "description": "### 板件解绑\n解除所选一条或多条板件与料箱的关系，保留对象及历史记录。\n\nitems 取已持久化绑定记录的 id/version。BY_CODE 一件对应一条有效关系；BY_ORDER 只解除所选整条数量关系，不提供行内部分减量。数量变化沿解绑后重新绑定处理。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n写入候选防重约定：requestId 标识一次业务意图，同一次网络重发复用 ID 和相同内容；同 ID 不同内容拒绝。该能力需业务模块实现，并非基座默认中间件。操作者/时间由服务端确定。\n\n箱关系操作完成回执，返回本次提交完成时的箱码、版本与物料数量；前端用返回版本继续装箱，不能自行加一。并发后续变化仍可能导致下次提交冲突。",
         "operationId": "nari_boxes_bindings_unbind_selected",
         "parameters": [],
         "responses": {
@@ -1792,7 +1936,7 @@
           "一、常规作业 / 装车"
         ],
         "summary": "查询装车料箱信息",
-        "description": "### 装车\n扫描箱码后识别料箱，校验当前装载关系及是否允许装车。\n\n\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。",
+        "description": "### 装车\n扫描箱码后识别料箱，校验当前装载关系及是否允许装车。\n\n\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n新增确认规则：料箱直接绑定料车与库位装载互斥。存在有效直接关系时装车查询返回 eligibility.allowed=false 并提示；批量装车提交也必须原子复核并拒绝，不隐式解除直接关系。与直接绑定写入共用锁定及互斥规则，防止并发产生两种关系。",
         "operationId": "nari_loading_boxes_query",
         "parameters": [
           {
@@ -1987,7 +2131,9 @@
           "business:nari-loading:view"
         ],
         "x-permissions-status": "proposed-page-level-not-seeded",
-        "x-review-issues": []
+        "x-review-issues": [
+          "C01"
+        ]
       }
     },
     "/api/v1/business/nari-logistics/loading/batch-load": {
@@ -1996,7 +2142,7 @@
           "一、常规作业 / 装车"
         ],
         "summary": "批量装车",
-        "description": "### 装车\n将本次录入的多组料箱与载具库位配对批量绑定，校验重复及关系冲突。\n\n全部配对一次校验，一项不合法则本次本地绑定整批不写；成功后刷新箱/载具/库位版本。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n写入候选防重约定：requestId 标识一次业务意图，同一次网络重发复用 ID 和相同内容；同 ID 不同内容拒绝。该能力需业务模块实现，并非基座默认中间件。操作者/时间由服务端确定。",
+        "description": "### 装车\n将本次录入的多组料箱与载具库位配对批量绑定，校验重复及关系冲突。\n\n全部配对一次校验，一项不合法则本次本地绑定整批不写；成功后刷新箱/载具/库位版本。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n写入候选防重约定：requestId 标识一次业务意图，同一次网络重发复用 ID 和相同内容；同 ID 不同内容拒绝。该能力需业务模块实现，并非基座默认中间件。操作者/时间由服务端确定。\n新增确认规则：料箱直接绑定料车与库位装载互斥。存在有效直接关系时装车查询返回 eligibility.allowed=false 并提示；批量装车提交也必须原子复核并拒绝，不隐式解除直接关系。与直接绑定写入共用锁定及互斥规则，防止并发产生两种关系。",
         "operationId": "nari_loading_batch_load",
         "parameters": [],
         "responses": {
@@ -2175,7 +2321,8 @@
         "x-permissions-status": "proposed-page-level-not-seeded",
         "x-review-issues": [
           "B06",
-          "B08"
+          "B08",
+          "C01"
         ],
         "requestBody": {
           "required": true,
@@ -2824,7 +2971,7 @@
           "一、常规作业 / 位置绑定"
         ],
         "summary": "查询库位及绑定容器",
-        "description": "### 位置绑定\n扫描库位后查询库位信息和当前绑定的载具或料箱，判断能否继续绑定新容器。\n\n当前候选沿附件单容器占位语义。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。",
+        "description": "### 位置绑定\n扫描库位后查询库位信息和当前绑定的载具或料箱，判断能否继续绑定新容器。\n\n当前候选沿附件单容器占位语义。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n人员先通过既有位置查询获得 relatedTasks 及 unbindEligibility。有关联任务时提示，人员确认后逐项调用已有 taskId/cancel 接口，自动附当前 unbindContext；ACCEPTED 只表示处理中，沿已有 taskId/cancellation 按原取消 requestId 查询。FAILED／UNKNOWN 或未结算时不提交解绑。全部关联任务可信终结且实物核对允许后，重新查询当前位置、容器及最新版本，用新的解绑 requestId 提交原解绑接口。后端再次检查占用对应关系、全体阻塞及业务保护，未满足返回业务失败，版本变化返回 409；没有自动取消副作用。取消成功但尚未解绑时，保留本次对应占用关系的自动任务抑制，不以超时盲目解除；重新绑定后按新关系重新评价。取消接口权限保留，不因位置解绑权限自动获得取消权限。",
         "operationId": "nari_locations_containers_query",
         "parameters": [
           {
@@ -2885,22 +3032,73 @@
                     "traceId"
                   ]
                 },
-                "example": {
-                  "code": 0,
-                  "message": "ok",
-                  "data": {
-                    "location": {
-                      "locationCode": "CODE-001",
-                      "locationName": "一层接驳台"
-                    },
-                    "version": 1,
-                    "occupied": true,
-                    "eligibility": {
-                      "allowed": true
+                "examples": {
+                  "noBlockingTask": {
+                    "summary": "无关联任务，按资格决定是否解绑",
+                    "value": {
+                      "code": 0,
+                      "message": "ok",
+                      "data": {
+                        "location": {
+                          "locationCode": "CODE-001",
+                          "locationName": "一层接驳台"
+                        },
+                        "version": 1,
+                        "occupied": true,
+                        "eligibility": {
+                          "allowed": true
+                        },
+                        "relatedTasks": [],
+                        "unbindEligibility": {
+                          "allowed": true
+                        }
+                      },
+                      "timestamp": "2026-09-14T02:00:00Z",
+                      "traceId": "trace-example"
                     }
                   },
-                  "timestamp": "2026-09-14T02:00:00Z",
-                  "traceId": "trace-example"
+                  "cancelBeforeUnbind": {
+                    "summary": "先确认取消关联任务，再刷新并解绑",
+                    "value": {
+                      "code": 0,
+                      "message": "ok",
+                      "data": {
+                        "location": {
+                          "locationCode": "CODE-001",
+                          "locationName": "一层接驳台"
+                        },
+                        "version": 1,
+                        "occupied": true,
+                        "eligibility": {
+                          "allowed": true
+                        },
+                        "relatedTasks": [
+                          {
+                            "taskId": "10001",
+                            "taskNo": "TASK-001",
+                            "version": 3,
+                            "status": "QUEUED",
+                            "settled": false,
+                            "cancellationEligibility": {
+                              "allowed": true
+                            }
+                          }
+                        ],
+                        "unbindEligibility": {
+                          "allowed": false,
+                          "reason": "有关联运输任务，请确认取消并等待可信核对后再解绑"
+                        },
+                        "container": {
+                          "containerType": "BOX",
+                          "containerCode": "BOX-001",
+                          "version": 2,
+                          "contentState": "LOADED"
+                        }
+                      },
+                      "timestamp": "2026-09-14T02:00:00Z",
+                      "traceId": "trace-example"
+                    }
+                  }
                 }
               }
             }
@@ -3232,7 +3430,7 @@
     "/api/v1/business/nari-logistics/locations/bind-container": {
       "post": {
         "tags": [
-          "四、新增业务草案 / 绑定后去向"
+          "一、常规作业 / 位置绑定"
         ],
         "summary": "绑定容器到库位",
         "description": "人工位置绑定后去向场景：先完成位置与容器绑定，再由前端提示回线边库、指定其他位置或暂不运输。绑定成功不表示运输任务已创建；选择运输后调用 POST /logistics/tasks。\n待评审 R04：旧描述及铆接/治具场景存在绑定后自动回库。本草案仅提出人工弹窗流程绑定不自动派单；自动业务入口的适用范围与互斥须先确认，不能直接取消所有自动回库，也不能让两条路径重复创建运输。绑定接口请求及成功回执结构不变。\n绑定改变容器版本。选择运输后先使用 GET /logistics/options?scanCode=<绑定位置码> 重新查询对象、当前版本、起始位置及后端确定的 vendor/taskType，再提交创建请求，不沿用绑定前版本。指定其他位置使用其候选位置；回线边库不要求员工选目标。回库资格不能仅由普通运输的候选列表是否为空判断，该查询对回库资格的兼容说明列入 R03 评审。",
@@ -3443,7 +3641,7 @@
           "一、常规作业 / 位置绑定"
         ],
         "summary": "解绑库位容器",
-        "description": "### 位置绑定\n解除库位与当前容器的绑定关系，保留历史追溯记录。\n\n\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n写入候选防重约定：requestId 标识一次业务意图，同一次网络重发复用 ID 和相同内容；同 ID 不同内容拒绝。该能力需业务模块实现，并非基座默认中间件。操作者/时间由服务端确定。",
+        "description": "人员先通过既有位置查询获得 relatedTasks 及 unbindEligibility。有关联任务时提示，人员确认后逐项调用已有 taskId/cancel 接口，自动附当前 unbindContext；ACCEPTED 只表示处理中，沿已有 taskId/cancellation 按原取消 requestId 查询。FAILED／UNKNOWN 或未结算时不提交解绑。全部关联任务可信终结且实物核对允许后，重新查询当前位置、容器及最新版本，用新的解绑 requestId 提交原解绑接口。后端再次检查占用对应关系、全体阻塞及业务保护，未满足返回业务失败，版本变化返回 409；没有自动取消副作用。取消成功但尚未解绑时，保留本次对应占用关系的自动任务抑制，不以超时盲目解除；重新绑定后按新关系重新评价。取消接口权限保留，不因位置解绑权限自动获得取消权限。",
         "operationId": "nari_locations_unbind_container",
         "parameters": [],
         "responses": {
@@ -3867,7 +4065,7 @@
           "三、物流作业 / 缴库发起"
         ],
         "summary": "查询箱内物料明细",
-        "description": "### 缴库申请\n点击关联料箱时查询其物料明细，用于只读弹窗展示。\n\n### 物料接收\n点击载具内料箱时查询箱内物料，供弹窗展示。\n\n### 成品发货\n点击发货对象下的料箱，查询物料供只读展示，不提供部分选择。\n\n### 缴库发起\n点击关联料箱时查询物料，用于只读弹窗展示。\n\n后端根据 context 决定 LES/WMS 数据来源并返回 sourceSystem。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n指定箱或载具范围全量查询，不接受 page/size 或全量开关，不按 20/200 条截断；空集合返回 []。服务端保证一次响应的容器、装载、物料、版本和汇总属于一致读取结果；无法取得完整一致结果时返回失败，不返回部分成功。前端取得成功结果后才执行本地扫码匹配。写入仍校验最新版本。",
+        "description": "### 缴库申请\n点击关联料箱时查询其物料明细，用于只读弹窗展示。\n\n### 物料接收\n点击载具内料箱时查询箱内物料，供弹窗展示。\n\n### 成品发货\n点击发货对象下的料箱，查询物料供只读展示，不提供部分选择。\n\n### 缴库发起\n点击关联料箱时查询物料，用于只读弹窗展示。\n\n后端根据 context 决定 LES/WMS 数据来源并返回 sourceSystem。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n指定箱或载具范围全量查询，不接受 page/size 或全量开关，不按 20/200 条截断；空集合返回 []。服务端保证一次响应的容器、装载、物料、版本和汇总属于一致读取结果；无法取得完整一致结果时返回失败，不返回部分成功。前端取得成功结果后才执行本地扫码匹配。写入仍校验最新版本。\n\nSHIPPING 用途按箱号从 WMS 获取本次实际板件，不使用旧 LES 内容代替；发料提交先冻结并校验本次 WMS 范围再执行 LES 清理重绑及对应 WMS 清理。",
         "operationId": "nari_boxes_materials_query",
         "parameters": [
           {
@@ -4316,7 +4514,7 @@
           "二、库房作业 / 物料接收"
         ],
         "summary": "查询对象接收任务",
-        "description": "一个容器只对应一个当前接收任务。存在任务时返回 task；对象存在但无任务时省略 task，前端显示无接收任务并禁用确认；对象不存在返回 404。禁止任取多条中的第一条；发现多任务为数据异常，返回 409/40900，不提供任务选择或批量接收。\n\n本接口仅接收 scanCode，由后端在载具、料箱范围内唯一识别对象，不要求前端提供 scanType。无匹配对象返回 404；编码无法唯一识别时返回 HTTP 400 / code=40000 和明确原因，禁止按第一条任务或某一默认类型推断对象。识别后查询该容器的唯一当前接收任务；对象存在但无任务时仍成功返回 object 并省略 task。响应中的容器类型由服务端提供，单任务确认流程保持不变。\n\nboxes 与 totalMaterialQuantity 表示本次接收任务的业务内容，数据来源按接收场景确定，不能直接以 LES 当前装载关系替代。扫描载具时返回任务关联的全部箱及物料；扫描料箱时返回该箱及其物料。任务、容器、明细及汇总必须一致读取，无法完整获取则返回失败，不得截断后成功返回。无当前任务时省略 task，同时 boxes=[]、totalMaterialQuantity=0，前端显示无接收任务并禁止确认。存在任务但其业务明细缺失时不得伪装为无任务或已完整查询，应明确失败原因。确认接收仍提交唯一 taskId/version，后端校验任务与内容未发生变化。",
+        "description": "扫描箱／车按本次已可信送达物流任务的冻结箱范围查询，卸车后仍按原送达范围定位，不能用当前装载代替。箱返回本箱内容；车返回本次完整范围及 PENDING／PARTIAL／RECEIVED、已接收箱数和总数。存在多个未完成交付冲突返回 409，不任取第一条。无范围时省略 task，boxes=[]、总量为 0。可携带已知 taskId 查询已接收范围及清理结果，仍复核 scanCode 对象属于该固定范围；不增加员工多任务选择。对象不存在 404、编码歧义 400。查询完整一致，不分页不截断；确认提交 taskId、version、object。",
         "operationId": "nari_receiving_tasks_query",
         "parameters": [
           {
@@ -4330,6 +4528,20 @@
               "maxLength": 128,
               "description": "扫描的载具或料箱编码；后端按编码识别对象类型，前端无需提交 scanType。",
               "example": "CODE-001"
+            }
+          },
+          {
+            "name": "taskId",
+            "in": "query",
+            "required": false,
+            "description": "可选，已知本次物流运输 ID；用于确认后重新查询原范围和清理，不用于任意选任务或更换对象。",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20,
+              "description": "本次已可信到达库房的物流运输任务 ID，映射 NariLogisticsTask.id，不是独立接收对象 ID。",
+              "example": "10001",
+              "pattern": "^[1-9][0-9]{0,18}$"
             }
           }
         ],
@@ -4400,7 +4612,9 @@
                       "createdTime": "2026-09-14T02:00:00Z",
                       "eligibility": {
                         "allowed": true
-                      }
+                      },
+                      "totalBoxCount": 1,
+                      "receivedBoxCount": 0
                     },
                     "boxes": [
                       {
@@ -4554,7 +4768,7 @@
           "二、库房作业 / 物料接收"
         ],
         "summary": "确认物料接收",
-        "description": "### 物料接收\n完成当前对象的接收操作并记录接收人、时间及结果，不自动执行卸车或板件解绑。\n\n确认接收不自动卸车、不自动解绑板件。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n写入候选防重约定：requestId 标识一次业务意图，同一次网络重发复用 ID 和相同内容；同 ID 不同内容拒绝。该能力需业务模块实现，并非基座默认中间件。操作者/时间由服务端确定。\n\n提交扫描结果中唯一 task 的 taskId/version，不增加任务选择或一次确认多个任务。后端确认该任务仍属于对应容器且可接收；已完成、关系或状态变化必须拒绝重复执行。",
+        "description": "确认本次已可信送达库房运输的接收范围：taskId 是物流运输任务 ID，object 为查询识别的 BOX／VEHICLE。扫描箱只确认该箱，扫描车原子确认固定送达范围中全部尚未确认箱，已有接收记录保留。version 原样回传本次运输任务的接收范围版本，不接受容器版本替代。无需独立接收批次或多个任务选择。 同请求重放原回执；新请求重复确认已全部接收范围明确拒绝。接收不自动卸车、不解绑 LES 板件；每箱确认后才创建记录，整车提交同事务写尚未确认箱。 可选 remark 保存到本次新增的接收记录，既有单箱确认记录不覆盖；可备注清点差异，不新增实收数量或差异处理状态。",
         "operationId": "nari_receiving_confirm",
         "parameters": [],
         "responses": {
@@ -4578,7 +4792,7 @@
                       "example": "ok"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/OperationReceipt"
+                      "$ref": "#/components/schemas/ReceivingOperationReceipt"
                     },
                     "timestamp": {
                       "type": "string",
@@ -4608,7 +4822,13 @@
                     "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
                     "operationNo": "CODE-001",
                     "affectedCount": 1,
-                    "processedTime": "2026-09-14T02:00:00Z"
+                    "processedTime": "2026-09-14T02:00:00Z",
+                    "taskId": "10001",
+                    "object": {
+                      "containerType": "BOX",
+                      "containerCode": "BOX-001"
+                    },
+                    "version": 2
                   },
                   "timestamp": "2026-09-14T02:00:00Z",
                   "traceId": "trace-example"
@@ -4744,7 +4964,11 @@
               "example": {
                 "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
                 "taskId": "10001",
-                "version": 1
+                "version": 1,
+                "object": {
+                  "containerType": "BOX",
+                  "containerCode": "BOX-001"
+                }
               }
             }
           }
@@ -4757,7 +4981,7 @@
           "二、库房作业 / 物料接收"
         ],
         "summary": "清空对象 WMS 历史绑定",
-        "description": "### 物料接收\n按当前接收对象清理对应 WMS 历史绑定关系，返回处理结果；关系清理不删除历史追溯记录。\n\n独立危险业务动作；清理范围、前置状态与失败核查需确认，不作无范围 WMS 清空。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n写入候选防重约定：requestId 标识一次业务意图，同一次网络重发复用 ID 和相同内容；同 ID 不同内容拒绝。该能力需业务模块实现，并非基座默认中间件。操作者/时间由服务端确定。",
+        "description": "按本次物流运输 taskId、最新 version 和 BOX／VEHICLE 作用对象清理 WMS 本次中间表数据；不要求先确认接收，单箱接收前可清理，整车无需全部已接收。按固定运输范围与成功箱明细核实 WMS 业务键、行身份／版本及删除范围，清理元数据归成功箱明细，不依赖接收记录存在。保留 LES 板件绑定及全部历史；删除失败／超时保留本次范围核查，不把清理当作接收或未到达。",
         "operationId": "nari_receiving_clear_wms_bindings",
         "parameters": [],
         "responses": {
@@ -5088,7 +5312,9 @@
                         "createdTime": "2026-09-14T02:00:00Z",
                         "eligibility": {
                           "allowed": true
-                        }
+                        },
+                        "totalBoxCount": 1,
+                        "receivedBoxCount": 0
                       }
                     ],
                     "total": 1,
@@ -5226,7 +5452,7 @@
           "二、库房作业 / 成品发货"
         ],
         "summary": "查询成品发货对象",
-        "description": "### 成品发货\n按位置、料车或料箱识别发货对象及全部关联料箱、物料；扫描位置时按实际绑定容器识别，无容器或无物料时不能提交。\n\n关联料箱及各箱物料全量返回；发货处理整个扫描解析对象，不提供部分选择。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n指定箱或载具范围全量查询，不接受 page/size 或全量开关，不按 20/200 条截断；空集合返回 []。服务端保证一次响应的容器、装载、物料、版本和汇总属于一致读取结果；无法取得完整一致结果时返回失败，不返回部分成功。前端取得成功结果后才执行本地扫码匹配。写入仍校验最新版本。\n\n扫码对象类型由后端按 scanCode 在载具、料箱、位置范围内唯一识别，不要求前端提供 scanType。无匹配对象返回 404；编码无法唯一识别时返回 HTTP 400 / code=40000 和明确原因，不默认选择某一类型或第一条记录。识别为位置时，由后端解析该位置当前关联的实际容器；无有效关联容器时明确返回业务失败，不伪造对象。响应中的对象类型保留为服务端识别结果；查询不改变关系，后续提交仍重新校验实际对象、位置关系及版本。",
+        "description": "识别位置／车／箱并一致读取实际对象关系，按箱号从 WMS 取得本次完整发料内容；查询不执行清理或绑定。WMS 无完整本次明细时明确失败，不用旧 LES 内容冒充。对象、明细、版本和汇总一致，提交重新核对 WMS 和 LES 范围。",
         "operationId": "nari_shipping_objects_query",
         "parameters": [
           {
@@ -5441,7 +5667,7 @@
           "二、库房作业 / 成品发货"
         ],
         "summary": "提交成品发货",
-        "description": "### 成品发货\n依次清空 LES 历史绑定、新增本次 LES 绑定、清空对应 WMS 绑定，返回发货结果及相关业务单号；保留发货和绑定历史记录。\n\n先快照本次相关绑定再清理，避免清空后无法重建；编排 LES 旧关系清理 → LES 本次关系新增 → 对应 WMS 关系清理。仅本次对象范围；实际快照及失败恢复方案待确认。料车发货后可选物流任务独立提交，取消/失败不撤销已发货结果。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n写入候选防重约定：requestId 标识一次业务意图，同一次网络重发复用 ID 和相同内容；同 ID 不同内容拒绝。该能力需业务模块实现，并非基座默认中间件。操作者/时间由服务端确定。",
+        "description": "库房发料：按本次对象内各箱号从 WMS 获取实际板件唯一码及可复核业务范围，先取得完整新内容和 WMS 行身份／版本快照再清理。校验同物料、批次、订单、对象版本及全部关系，原子关闭本次旧 LES 有效板件绑定并保留历史，按 WMS 本次板件重建新 LES 绑定和摘要，同步箱／相关料车版本；不能用旧 LES 内容快照代替本次 WMS 发料内容，也不能解绑范围外板件。再调用 WMS 接口清理本次对应绑定。外部清理失败／未知保留已提交的新 LES 关系和原范围，按操作事实核查，不重复重建或扩大删除。发料后运输独立提交，4F 到达后人员解箱车关系；不建发货主表或库存／订单台账。WMS 字段和恢复协议后补。 同 requestId 同内容重放原结果，操作人和时间来自服务端。",
         "operationId": "nari_shipping_submit",
         "parameters": [],
         "responses": {
@@ -5656,7 +5882,7 @@
           "三、物流作业 / 发起物流任务"
         ],
         "summary": "查询物流发起信息及可选目标位置",
-        "description": "### 成品发货\n料车发货成功后选择创建物流任务时，复用现有物流查询能力，取得该料车起始位置及可选目标位置。\n\n### 发起物流任务\n扫描载具或起始位置，识别关联容器、当前位置及允许选择的目标位置；提供楼层、区域、库位层级信息，规则和任务类型由后端决定。\n\n支持海康容器人工发送与斯坦德通用/工艺路线。请求仅传 scanCode，不提供 vendor/taskType；后端根据解析出的起始位置配置确定唯一品牌与任务类型，并查询完整目标位置候选。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n仅返回当前扫描对象、任务类型及业务规则允许的完整候选，不是全库位置列表。候选不分页、不截断，前端用完整数组构建楼层/区域/库位三级级联；服务端按 floorCode、areaCode、locationCode 升序稳定排序，位置编码去重。一次响应内候选层级及关联对象须一致；无法完整取得时返回失败，不以部分列表成功返回。重新扫描或查询条件变化后丢弃旧响应并重置选择。提交时服务端复核位置、载具及资格，不因查询时可选而跳过校验。 发起物流任务初始不默认选中目标位置，包括返回推荐字段时；员工主动选择后才可提交。\n\n扫码对象类型由后端按 scanCode 在载具、料箱、位置范围内唯一识别，不要求前端提供 scanType。无匹配对象返回 404；编码无法唯一识别时返回 HTTP 400 / code=40000 和明确原因，不默认选择某一类型或第一条记录。识别为位置时，由后端解析该位置当前关联的实际容器；无有效关联容器时明确返回业务失败，不伪造对象。响应中的对象类型保留为服务端识别结果；查询不改变关系，后续提交仍重新校验实际对象、位置关系及版本。\n\n位置配置唯一决定 vendor + taskType。本接口在选目标位置之前调用，因此使用扫描的起始位置；扫描载具或料箱时，先解析其当前起始位置再读取配置。位置配置缺失、非唯一、品牌/类型组合不支持或无法确定起始位置时，返回 HTTP 400 / code=40000 和明确原因，不采用默认品牌或任意任务类型。成功响应返回后端确定的 vendor/taskType，目标候选按该配置及当前业务规则筛选，位置、配置与候选须一致读取。最终创建任务时后端重新校验位置配置及目标可用性。",
+        "description": "扫描载具、料箱或业务位置，由后端按 scanCode 唯一识别对象与实际起始位置，歧义或无有效关联明确失败。候选按业务基准位置的 SOURCE／TARGET 存储区关联展开其下真实 NariLocation，再按用途、产线、规格、占用／预占及业务资格筛选。回线边库采用 TARGET 和运行用途选择库类别，不使用 BOX_TARGET／FIXTURE_TARGET 或独立点对点关系。 后端按实际搬运对象和业务确定品牌：位置箱作业使用位置唯一 agvVendor，同品牌高／低车由调度选择；当前整车运输使用 STANDARD。停车点上的车与车上箱是不同搬运对象，海康取放箱不得改成斯坦德搬整车。位置配置缺失／无法识别对象或不支持组合时明确失败，不采用默认品牌。 taskType 固定 GENERAL，前端仅回传查询结果，服务端校验；已取消工艺路线任务类型，模型不保存单值类型字段。普通与附带空框仍由不同调度接口处理，dispatchMode 独立表达。 完整候选一致读取、不分页；查询不改关系，目标由员工选择，最终提交重新校验。 位置支持多用途配置，筛选后按位置去重，不重复派单。",
         "operationId": "nari_logistics_origins_and_destinations_query",
         "parameters": [
           {
@@ -5881,10 +6107,10 @@
     "/api/v1/business/nari-logistics/logistics/tasks": {
       "post": {
         "tags": [
-          "四、新增业务草案 / 绑定后去向"
+          "三、物流作业 / 发起物流任务"
         ],
         "summary": "创建物流任务",
-        "description": "### 成品发货\n复用现有任务创建能力，员工选择目标位置后创建任务；后续取消创建或创建失败不撤销已完成发货。\n\n### 发起物流任务\n按确认的运输对象、起始位置及目标位置创建任务，返回创建结果、任务编号及当前状态。\n\n员工选择目标位置后提交；任务类型由后端业务规则确定，海康仅支持 GENERAL。前端原样回传物流发起查询返回的 vendor/taskType，服务端重新按当前规则校验，不接受客户端自行决定任务类型。位置统一称为起始位置、目标位置。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n写入候选防重约定：requestId 标识一次业务意图，同一次网络重发复用 ID 和相同内容；同 ID 不同内容拒绝。该能力需业务模块实现，并非基座默认中间件。操作者/时间由服务端确定。\n\n本增量提案：destinationMode=RETURN_LINE_SIDE 表示回线边库，不传目标位置；SPECIFIED 或省略时沿用员工指定目标。返回 task.destination 为实际分配的具体位置。失败不撤销先前已成功的绑定。不得另建回库按钮专用运输创建接口。后端统一检查是否已有进行中或结果未知的运输，防止人工弹窗与自动监控重复派单。",
+        "description": "创建物流运输任务，返回真实任务身份与实际 A／B，不代表运输完成。候选按业务基准位置的 SOURCE／TARGET 存储区关联展开其下真实 NariLocation，再按用途、产线、规格、占用／预占及业务资格筛选。回线边库采用 TARGET 和运行用途选择库类别，不使用 BOX_TARGET／FIXTURE_TARGET 或独立点对点关系。 后端按实际搬运对象和业务确定品牌：位置箱作业使用位置唯一 agvVendor，同品牌高／低车由调度选择；当前整车运输使用 STANDARD。停车点上的车与车上箱是不同搬运对象，海康取放箱不得改成斯坦德搬整车。位置配置缺失／无法识别对象或不支持组合时明确失败，不采用默认品牌。 taskType 固定 GENERAL，前端仅回传查询结果，服务端校验；已取消工艺路线任务类型，模型不保存单值类型字段。普通与附带空框仍由不同调度接口处理，dispatchMode 独立表达。 destinationMode=RETURN_LINE_SIDE 由后端分配具体空闲兼容位置；SPECIFIED 按提交目标复核。同 requestId 同内容重放，人工／自动共用资源互斥；绑定成功与运输创建独立。 位置支持多用途配置，筛选后按位置去重，不重复派单。",
         "operationId": "nari_logistics_tasks_create",
         "parameters": [],
         "responses": {
@@ -5955,7 +6181,7 @@
                         "locationCode": "CODE-001",
                         "locationName": "一层接驳台"
                       },
-                      "status": "CREATED",
+                      "status": "QUEUED",
                       "statusName": "已创建",
                       "triggerMode": "MANUAL",
                       "createdTime": "2026-09-14T02:00:00Z"
@@ -6270,7 +6496,7 @@
                           "locationCode": "CODE-001",
                           "locationName": "一层接驳台"
                         },
-                        "status": "CREATED",
+                        "status": "QUEUED",
                         "statusName": "已创建",
                         "triggerMode": "MANUAL",
                         "createdTime": "2026-09-14T02:00:00Z"
@@ -6411,7 +6637,7 @@
           "三、物流作业 / 取消物流任务"
         ],
         "summary": "取消物流任务",
-        "description": "### 取消物流任务\n对员工确认的任务执行取消，再次校验当前状态，返回成功结果或不可取消原因，并记录取消操作。\n\n取消已受理与最终取消分开表达；状态刷新机制未在原稿列出，不扩展任务监控接口。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n写入候选防重约定：requestId 标识一次业务意图，同一次网络重发复用 ID 和相同内容；同 ID 不同内容拒绝。该能力需业务模块实现，并非基座默认中间件。操作者/时间由服务端确定。\n\nACCEPTED 仅显示“取消已受理”。随后 GET /api/v1/business/nari-logistics/logistics/tasks/{taskId}/cancellation?requestId=本次请求标识 查询最终结果；只有 CANCELLED 展示取消成功。网络超时或 UNKNOWN 不得换 requestId 自动重发；可手动刷新结果，页面离开停止轮询。",
+        "description": "### 取消物流任务\n对员工确认的任务执行取消，再次校验当前状态，返回成功结果或不可取消原因，并记录取消操作。\n\n取消已受理与最终取消分开表达；状态刷新机制未在原稿列出，不扩展任务监控接口。\n\n候选字段及参数约束需双方评审；全部业务规则由后端再次校验。\n\n写入候选防重约定：requestId 标识一次业务意图，同一次网络重发复用 ID 和相同内容；同 ID 不同内容拒绝。该能力需业务模块实现，并非基座默认中间件。操作者/时间由服务端确定。\n\nACCEPTED 仅显示“取消已受理”。随后 GET /api/v1/business/nari-logistics/logistics/tasks/{taskId}/cancellation?requestId=本次请求标识 查询最终结果；只有 CANCELLED 展示取消成功。网络超时或 UNKNOWN 不得换 requestId 自动重发；可手动刷新结果，页面离开停止轮询。\n\n用于位置解绑联动时传 unbindContext；普通取消不传。后端保存当前真实占用关系及取消意图，抑制该关系重复自动派单，事务保护与取消版本一致。成功取消不是已经解绑，后续刷新位置再提交解绑。",
         "operationId": "nari_logistics_tasks_cancel",
         "parameters": [
           {
@@ -6614,9 +6840,30 @@
               "schema": {
                 "$ref": "#/components/schemas/CancelTaskRequest"
               },
-              "example": {
-                "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
-                "version": 1
+              "examples": {
+                "fromLocationUnbind": {
+                  "summary": "位置解绑提示后确认取消，自动附查询上下文",
+                  "value": {
+                    "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                    "version": 1,
+                    "unbindContext": {
+                      "locationCode": "LOC-001",
+                      "version": 2,
+                      "container": {
+                        "containerType": "BOX",
+                        "containerCode": "BOX-001"
+                      },
+                      "containerVersion": 3
+                    }
+                  }
+                },
+                "normalCancellation": {
+                  "summary": "普通任务取消",
+                  "value": {
+                    "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                    "version": 1
+                  }
+                }
               }
             }
           }
@@ -6917,7 +7164,7 @@
                         "locationCode": "CODE-001",
                         "locationName": "一层接驳台"
                       },
-                      "status": "CREATED",
+                      "status": "QUEUED",
                       "statusName": "已创建",
                       "triggerMode": "MANUAL",
                       "createdTime": "2026-09-14T02:00:00Z"
@@ -8070,7 +8317,7 @@
                         "locationCode": "CODE-001",
                         "locationName": "一层接驳台"
                       },
-                      "status": "CREATED",
+                      "status": "QUEUED",
                       "statusName": "已创建",
                       "triggerMode": "MANUAL",
                       "createdTime": "2026-09-14T02:00:00Z"
@@ -8434,10 +8681,10 @@
     "/api/v1/business/nari-logistics/order-calls/candidates": {
       "get": {
         "tags": [
-          "四、新增业务草案 / 生产订单叫料"
+          "三、物流作业 / 按订单叫料"
         ],
         "summary": "按生产订单查询叫料候选箱",
-        "description": "按箱关联的生产订单匹配；目标位置决定合法取料范围和业务条件，不能仅按全库同订单箱返回。铆接场景须符合未铆接要求；焊接场景不把铆接状态作为通用过滤条件。返回完整候选供多选，不自动选全、不创建任务、不占用箱。目标位置当前有箱不等于可立即送料；可排队，不能占用时强行送入。无订单/位置返回 404；订单存在但无匹配箱返回空数组及不可操作原因。已分配或占用的箱通过 eligibility 解释。具体配置关联、容量上限待评审。",
+        "description": "按箱关联的生产订单匹配；目标位置决定合法取料范围和业务条件，不能仅按全库同订单箱返回。铆接场景须符合未铆接要求；焊接场景不把铆接状态作为通用过滤条件。返回完整候选供多选，不自动选全、不创建任务、不占用箱。目标位置当前有箱不等于可立即送料；可排队，不能占用时强行送入。人工叫料不要求生产计划或独立订单存在性校验，有该订单可用箱即可。接收位置不存在返回 404；没有匹配箱返回空候选及不可操作原因，不以“订单不存在”返回 404。已分配或占用的箱通过 eligibility 解释。具体配置关联、容量上限待评审。",
         "operationId": "nari_order_calls_candidates_query",
         "responses": {
           "200": {
@@ -8587,7 +8834,7 @@
             }
           },
           "404": {
-            "description": "目标资源不存在。",
+            "description": "接收位置不存在；不因该订单没有生产计划或匹配箱返回 404。",
             "content": {
               "application/json": {
                 "schema": {
@@ -8595,7 +8842,7 @@
                 },
                 "example": {
                   "code": 404,
-                  "message": "目标资源不存在。",
+                  "message": "接收位置不存在。",
                   "data": null,
                   "timestamp": "2026-09-14T02:00:00Z",
                   "traceId": "trace-example"
@@ -8672,10 +8919,10 @@
     "/api/v1/business/nari-logistics/order-calls": {
       "post": {
         "tags": [
-          "四、新增业务草案 / 生产订单叫料"
+          "三、物流作业 / 按订单叫料"
         ],
         "summary": "确认按订单叫料",
-        "description": "员工选择一个或多个可替代箱，不输入数量；每箱创建一个业务运输任务，同订单允许多次叫料。\n草案提案（待评审）：服务端先整体校验所选箱订单归属、资格、位置及版本，原子预留箱并创建本地业务任务；任一箱已分配/占用或版本冲突返回 409/40900，message 明确箱码及原因，整批不创建。与自动配送入口共用箱预留及防重，禁止绕过其他进行中/未知任务。\n目标位置一次只容纳一箱：所有入口共享同一位置的串行调度约束。先前运输完成不等于目标位置已释放；必须获得可信的空位确认才可放行下一箱，未知占用不放行。释放信号和排序规则为 R01 未决，禁止据此直接实现自动放行。\n受理成功只表示本批本地业务任务已创建；外部调用通过任务状态推进，已创建任务不因其他任务失败被抹去。相同 requestId/相同内容返回同一批及当前状态，不同内容返回 409；网络未知不换 ID 重发，查询本次结果。预留释放、幂等保留期限及失败恢复策略为 R02 未决。",
+        "description": "员工选择一个或多个可替代箱，不输入数量；每箱创建一个业务运输任务，同订单允许多次叫料。\n确认时服务端先整体校验所选箱订单归属、资格、位置及版本；任一箱已分配/占用、状态不允许或版本冲突，返回 409/40900，message 明确箱码及可展示原因，整批不创建任务。前端显示原因，由操作人员刷新 GET /order-calls/candidates，重新获取候选与版本后重新选择、确认。通过校验后原子预留箱并创建本地业务任务；预留实现方式仍待评审。与自动配送入口共用箱预留及防重，禁止绕过其他进行中/未知任务。\n目标位置一次只容纳一箱：所有入口共享同一位置的串行调度约束。先前运输完成不等于目标位置已释放；必须获得可信的空位确认才可放行下一箱，未知占用不放行。同目标按创建顺序排队，同请求内逐箱放行；释放信号的实际字段与可信协议仍后补，不以调度完成代替空位确认。\n受理成功只表示本批本地业务任务已创建；外部调用通过任务状态推进，已创建任务不因其他任务失败被抹去。相同 requestId/相同内容返回同一批及当前状态，不同内容返回 409；已明确拒绝后刷新并重新选择属于新的业务提交，生成新 requestId；网络超时不等于业务拒绝，同一提交如重试仍复用原 requestId 及内容，避免重复创建。本流程不提供独立叫料结果查询接口，不要求前端轮询逐箱状态。预留释放、幂等保留期限及失败恢复策略为 R02 未决。 人工按订单叫料不要求对应生产计划或查询订单主数据；仍重新校验源范围、目标、箱同质内容、当前状态、版本及预占，只有可用箱可受理。",
         "operationId": "nari_order_calls_submit",
         "responses": {
           "200": {
@@ -8831,7 +9078,7 @@
                 },
                 "example": {
                   "code": 40900,
-                  "message": "数据已被其他操作修改或删除，请刷新后重试",
+                  "message": "料箱 BOX-002 已被其他任务分配，本次叫料未创建任务，请刷新候选后重新选择。",
                   "data": null,
                   "timestamp": "2026-09-14T02:00:00Z",
                   "traceId": "trace-example"
@@ -8886,14 +9133,14 @@
         }
       }
     },
-    "/api/v1/business/nari-logistics/order-calls/{requestId}": {
+    "/api/v1/business/nari-logistics/vehicles/direct-bindings": {
       "get": {
         "tags": [
-          "四、新增业务草案 / 生产订单叫料"
+          "一、常规作业 / 料箱绑车与解绑"
         ],
-        "summary": "查询本次订单叫料结果",
-        "description": "按当前用户有权访问的 requestId 查询同一次叫料结果，包括逐箱任务当前状态。任务/箱不再出现在候选中不代表运输完成。未找到受理记录返回 404，但超时后的短暂未找到不能证明原提交未执行；前端不得更换 requestId 自动再次提交。FAILED/UNKNOWN 显示原因，不由前端盲目续传箱列表。查询间隔、恢复及保留期限待 R02 评审。",
-        "operationId": "nari_order_calls_result",
+        "summary": "查询料车及已绑料箱",
+        "description": "页面使用：常规作业 → 料箱绑车，以及常规作业 → 料箱解绑。两个独立页面共用本查询接口。\n\n扫描料车，查看这辆车已绑定的全部料箱。绑箱和解绑页面共用。\n\n查询不建立、解除或切换关系。后端根据扫描码识别类型，无需前端提交容器类型。料箱直接绑定和库位装载互斥：已库位装载的料箱不可直接绑定，不能通过换绑隐式卸车。返回编号、可展示名称、最新版本及完整直接绑定箱列表。与 /vehicles/loads 分开。绑定页有旧箱时询问是否一键解绑，选择否保留旧列表且仍允许追加；解绑页用于勾选及前端扫码匹配。\n若历史异常导致同一箱同时存在直接关系和库位装载，拒绝本次操作并提示数据冲突，不隐式清理任何另一类关系。",
+        "operationId": "nari_vehicle_direct_bindings_query",
         "responses": {
           "200": {
             "description": "本接口动作成功；见 data 明确语义，不代表后续物流执行完成。",
@@ -8915,7 +9162,7 @@
                       "example": "ok"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/OrderCallResponse"
+                      "$ref": "#/components/schemas/DirectVehicleBindingsResponse"
                     },
                     "timestamp": {
                       "type": "string",
@@ -8942,30 +9189,25 @@
                   "code": 0,
                   "message": "ok",
                   "data": {
-                    "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
-                    "callNo": "CALL-001",
-                    "orderNo": "MO-001",
-                    "destination": {
-                      "locationCode": "DEST-001",
-                      "locationName": "产线接驳位置"
+                    "vehicle": {
+                      "vehicleCode": "VEH-001",
+                      "displayName": "转运料车一号",
+                      "version": 1
                     },
-                    "tasks": [
+                    "bindings": [
                       {
-                        "boxCode": "BOX-001",
-                        "taskId": "10001",
-                        "taskNo": "TASK-001",
-                        "dispatchState": "QUEUED"
-                      },
-                      {
-                        "boxCode": "BOX-002",
-                        "taskId": "10002",
-                        "taskNo": "TASK-002",
-                        "dispatchState": "QUEUED"
+                        "bindingId": "10001",
+                        "bindingVersion": 1,
+                        "box": {
+                          "boxCode": "BOX-001",
+                          "displayName": "周转箱一号",
+                          "version": 1
+                        }
                       }
                     ],
-                    "createdTime": "2026-09-14T02:00:00Z"
+                    "bindingCount": 1
                   },
-                  "timestamp": "2026-09-14T02:00:00Z",
+                  "timestamp": "2026-10-10T02:00:00Z",
                   "traceId": "trace-example"
                 }
               }
@@ -9074,21 +9316,989 @@
             }
           }
         },
-        "x-design-status": "PROPOSED_NOT_FROZEN",
+        "x-design-status": "draft-not-frozen-not-implemented",
+        "x-review-issues": [
+          "C01"
+        ],
+        "x-permissions-status": "pending-page-permission-review",
         "parameters": [
           {
-            "name": "requestId",
-            "in": "path",
+            "name": "scanCode",
+            "in": "query",
             "required": true,
+            "description": "扫描主容器码，必须由后端识别为料车。",
             "schema": {
               "type": "string",
-              "format": "uuid",
-              "description": "前端为一次业务提交生成的 UUID；同一次网络重发复用同一值及内容，用于防重与结果关联，不是登录令牌。 原样返回本次业务请求标识。",
-              "example": "47ab7945-b324-4ed4-a10a-af734b83de07"
+              "minLength": 1,
+              "maxLength": 128,
+              "description": "扫描主容器码，必须由后端识别为料车。",
+              "example": "VEH-001"
             },
-            "description": "本次提交使用的请求 UUID。"
+            "example": "VEH-001"
           }
         ]
+      }
+    },
+    "/api/v1/business/nari-logistics/vehicles/direct-bindings/box-candidates": {
+      "get": {
+        "tags": [
+          "一、常规作业 / 料箱绑车与解绑"
+        ],
+        "summary": "查询待绑料箱及当前料车",
+        "description": "页面使用：常规作业 → 料箱绑车。扫描待绑料箱，判断是否可以加入本次待绑列表，必要时询问换车确认。\n\n扫描料箱，查看它目前绑在哪辆车上，以及能否绑到当前料车。\n\n查询不建立、解除或切换关系。后端根据扫描码识别类型，无需前端提交容器类型。料箱直接绑定和库位装载互斥：已库位装载的料箱不可直接绑定，不能通过换绑隐式卸车。vehicleCode 是先前已识别的目标料车；扫描料箱校验组合。已绑当前车返回不可操作及原因；已绑其他车且合法时返回所属车与快照，要求用户确认后再加入。已装载箱返回不可操作原因。无关系返回显式 null。\n若历史异常导致同一箱同时存在直接关系和库位装载，拒绝本次操作并提示数据冲突，不隐式清理任何另一类关系。",
+        "operationId": "nari_vehicle_direct_binding_box_candidate",
+        "responses": {
+          "200": {
+            "description": "本接口动作成功；见 data 明确语义，不代表后续物流执行完成。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "基座 ApiResult<T>，只包装一层。",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "format": "int32",
+                      "description": "基座业务码，0 表示成功。",
+                      "example": 0
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "可直接展示的处理信息。",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DirectBoxBindingCandidateResponse"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "ISO 8601 UTC 时间；客户端按本地时区展示。",
+                      "example": "2026-09-14T02:00:00Z"
+                    },
+                    "traceId": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "服务端链路标识，供问题定位。",
+                      "example": "trace-example"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "timestamp",
+                    "traceId"
+                  ]
+                },
+                "examples": {
+                  "unbound": {
+                    "summary": "无直接所属料车，可加入",
+                    "value": {
+                      "code": 0,
+                      "message": "ok",
+                      "data": {
+                        "vehicle": {
+                          "vehicleCode": "VEH-001",
+                          "displayName": "转运料车一号",
+                          "version": 1
+                        },
+                        "box": {
+                          "boxCode": "BOX-001",
+                          "displayName": "周转箱一号",
+                          "version": 1
+                        },
+                        "currentBinding": null,
+                        "currentVehicle": null,
+                        "requiresRebindConfirmation": false,
+                        "eligibility": {
+                          "allowed": true
+                        }
+                      },
+                      "timestamp": "2026-10-10T02:00:00Z",
+                      "traceId": "trace-example"
+                    }
+                  },
+                  "rebind": {
+                    "summary": "所属其他料车，须员工确认换绑",
+                    "value": {
+                      "code": 0,
+                      "message": "ok",
+                      "data": {
+                        "vehicle": {
+                          "vehicleCode": "VEH-001",
+                          "displayName": "转运料车一号",
+                          "version": 1
+                        },
+                        "box": {
+                          "boxCode": "BOX-001",
+                          "displayName": "周转箱一号",
+                          "version": 1
+                        },
+                        "currentBinding": {
+                          "bindingId": "10002",
+                          "bindingVersion": 1,
+                          "vehicleCode": "VEH-002"
+                        },
+                        "currentVehicle": {
+                          "vehicleCode": "VEH-002",
+                          "displayName": "转运料车二号",
+                          "version": 1
+                        },
+                        "requiresRebindConfirmation": true,
+                        "eligibility": {
+                          "allowed": true
+                        }
+                      },
+                      "timestamp": "2026-10-10T02:00:00Z",
+                      "traceId": "trace-example"
+                    }
+                  },
+                  "sameVehicle": {
+                    "summary": "已绑当前车，不重复加入",
+                    "value": {
+                      "code": 0,
+                      "message": "ok",
+                      "data": {
+                        "vehicle": {
+                          "vehicleCode": "VEH-001",
+                          "displayName": "转运料车一号",
+                          "version": 1
+                        },
+                        "box": {
+                          "boxCode": "BOX-001",
+                          "displayName": "周转箱一号",
+                          "version": 1
+                        },
+                        "currentBinding": {
+                          "bindingId": "10001",
+                          "bindingVersion": 1,
+                          "vehicleCode": "VEH-001"
+                        },
+                        "currentVehicle": {
+                          "vehicleCode": "VEH-001",
+                          "displayName": "转运料车一号",
+                          "version": 1
+                        },
+                        "requiresRebindConfirmation": false,
+                        "eligibility": {
+                          "allowed": false,
+                          "reason": "该箱已绑定当前料车，无需再次加入。"
+                        }
+                      },
+                      "timestamp": "2026-10-10T02:00:00Z",
+                      "traceId": "trace-example"
+                    }
+                  },
+                  "loaded": {
+                    "summary": "已存在库位装载，拒绝直接绑定",
+                    "value": {
+                      "code": 0,
+                      "message": "ok",
+                      "data": {
+                        "vehicle": {
+                          "vehicleCode": "VEH-001",
+                          "displayName": "转运料车一号",
+                          "version": 1
+                        },
+                        "box": {
+                          "boxCode": "BOX-001",
+                          "displayName": "周转箱一号",
+                          "version": 1
+                        },
+                        "currentBinding": null,
+                        "currentVehicle": null,
+                        "requiresRebindConfirmation": false,
+                        "eligibility": {
+                          "allowed": false,
+                          "reason": "该箱已装载到载具库位，请先按卸车流程处理。"
+                        }
+                      },
+                      "timestamp": "2026-10-10T02:00:00Z",
+                      "traceId": "trace-example"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效 400/40001；业务不满足 40000。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 40001,
+                  "message": "参数无效 400/40001；业务不满足 40000。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录 401、Token 无效 40102 或过期 40103。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 401,
+                  "message": "未登录 401、Token 无效 40102 或过期 40103。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无页面权限。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 403,
+                  "message": "无页面权限。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标资源不存在。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 404,
+                  "message": "目标资源不存在。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "资源版本冲突 40900 或唯一键冲突 40002。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 40900,
+                  "message": "数据已被其他操作修改或删除，请刷新后重试",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务端错误；外部结果可能未知，不可据此自动创建新业务请求。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 500,
+                  "message": "服务端错误；外部结果可能未知，不可据此自动创建新业务请求。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          }
+        },
+        "x-design-status": "draft-not-frozen-not-implemented",
+        "x-review-issues": [
+          "C01"
+        ],
+        "x-permissions-status": "pending-page-permission-review",
+        "parameters": [
+          {
+            "name": "vehicleCode",
+            "in": "query",
+            "required": true,
+            "description": "当前目标料车编码，用于校验组合。",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "description": "当前目标料车编码，用于校验组合。",
+              "example": "VEH-001"
+            },
+            "example": "VEH-001"
+          },
+          {
+            "name": "scanCode",
+            "in": "query",
+            "required": true,
+            "description": "待绑定料箱扫描码，后端识别为料箱。",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "description": "待绑定料箱扫描码，后端识别为料箱。",
+              "example": "BOX-001"
+            },
+            "example": "BOX-001"
+          }
+        ]
+      }
+    },
+    "/api/v1/business/nari-logistics/vehicles/direct-bindings/bind": {
+      "post": {
+        "tags": [
+          "一、常规作业 / 料箱绑车与解绑"
+        ],
+        "summary": "批量绑箱或换车",
+        "description": "页面使用：常规作业 → 料箱绑车。用户点击确认绑车后提交本次新增或已确认换车的料箱。\n\n把本次选中的料箱绑到当前车上；原来绑在其他车上的料箱，须经用户确认后换车。\n\n服务端复核查询后版本、状态、关系、组合资格及权限，一项失败整批不写入，返回明确对象及可展示原因。仅变更直接关系，保留容器、板件、位置、库位装载及操作历史，不执行运输或卸车。直接关系和库位装载必须共用互斥控制，不能仅靠前端检查；更新目标/旧料车及相关箱聚合版本。操作者和时间由服务端确定。同 requestId/同内容网络重发复用首次结果，不重复写入；同 ID 不同内容返回 409。已明确失败后重新查询并确认属于新提交。仅处理本次待绑定项。expectedBinding=null 必须仍无直接关系；非 null 必须完全匹配当前旧关系、所属车及版本，且 confirmRebind=true。已绑定目标车的项拒绝，不静默跳过。原子解除旧直接关系并建立目标关系。\n若历史异常导致同一箱同时存在直接关系和库位装载，拒绝本次操作并提示数据冲突，不隐式清理任何另一类关系。",
+        "operationId": "nari_vehicle_direct_bindings_bind",
+        "responses": {
+          "200": {
+            "description": "本接口动作成功；见 data 明确语义，不代表后续物流执行完成。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "基座 ApiResult<T>，只包装一层。",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "format": "int32",
+                      "description": "基座业务码，0 表示成功。",
+                      "example": 0
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "可直接展示的处理信息。",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DirectBindingMutationResponse"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "ISO 8601 UTC 时间；客户端按本地时区展示。",
+                      "example": "2026-09-14T02:00:00Z"
+                    },
+                    "traceId": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "服务端链路标识，供问题定位。",
+                      "example": "trace-example"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "timestamp",
+                    "traceId"
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                    "vehicle": {
+                      "vehicleCode": "VEH-001",
+                      "displayName": "转运料车一号",
+                      "version": 2
+                    },
+                    "bindings": [
+                      {
+                        "bindingId": "10001",
+                        "bindingVersion": 1,
+                        "box": {
+                          "boxCode": "BOX-001",
+                          "displayName": "周转箱一号",
+                          "version": 2
+                        }
+                      }
+                    ],
+                    "bindingCount": 1
+                  },
+                  "timestamp": "2026-10-10T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效 400/40001；业务不满足 40000。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 40001,
+                  "message": "参数无效 400/40001；业务不满足 40000。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录 401、Token 无效 40102 或过期 40103。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 401,
+                  "message": "未登录 401、Token 无效 40102 或过期 40103。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无页面权限。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 403,
+                  "message": "无页面权限。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标资源不存在。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 404,
+                  "message": "目标资源不存在。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "资源版本冲突 40900 或唯一键冲突 40002。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 40900,
+                  "message": "料箱 BOX-001 的状态或所属关系已变化，本次未修改任何关系，请刷新后重新选择。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务端错误；外部结果可能未知，不可据此自动创建新业务请求。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 500,
+                  "message": "服务端错误；外部结果可能未知，不可据此自动创建新业务请求。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          }
+        },
+        "x-design-status": "draft-not-frozen-not-implemented",
+        "x-review-issues": [
+          "C01"
+        ],
+        "x-permissions-status": "pending-page-permission-review",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DirectBoxBatchBindRequest"
+              },
+              "examples": {
+                "bind": {
+                  "summary": "绑定无旧关系的箱",
+                  "value": {
+                    "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                    "vehicleCode": "VEH-001",
+                    "vehicleVersion": 1,
+                    "items": [
+                      {
+                        "boxCode": "BOX-001",
+                        "boxVersion": 1,
+                        "expectedBinding": null,
+                        "confirmRebind": false
+                      }
+                    ]
+                  }
+                },
+                "rebind": {
+                  "summary": "员工确认后换绑其他车的箱",
+                  "value": {
+                    "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                    "vehicleCode": "VEH-001",
+                    "vehicleVersion": 1,
+                    "items": [
+                      {
+                        "boxCode": "BOX-001",
+                        "boxVersion": 1,
+                        "expectedBinding": {
+                          "bindingId": "10002",
+                          "bindingVersion": 1,
+                          "vehicleCode": "VEH-002"
+                        },
+                        "confirmRebind": true
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/business/nari-logistics/vehicles/direct-bindings/unbind-selected": {
+      "post": {
+        "tags": [
+          "一、常规作业 / 料箱绑车与解绑"
+        ],
+        "summary": "解绑所选料箱",
+        "description": "页面使用：常规作业 → 料箱解绑。用户勾选或扫码选中料箱后，点击解绑提交。\n\n解除所选料箱与当前车的绑定，其他料箱保持原样。\n\n服务端复核查询后版本、状态、关系、组合资格及权限，一项失败整批不写入，返回明确对象及可展示原因。仅变更直接关系，保留容器、板件、位置、库位装载及操作历史，不执行运输或卸车。直接关系和库位装载必须共用互斥控制，不能仅靠前端检查；更新目标/旧料车及相关箱聚合版本。操作者和时间由服务端确定。同 requestId/同内容网络重发复用首次结果，不重复写入；同 ID 不同内容返回 409。已明确失败后重新查询并确认属于新提交。所选关系必须仍属于当前车；任一项发生变化整批拒绝。\n若历史异常导致同一箱同时存在直接关系和库位装载，拒绝本次操作并提示数据冲突，不隐式清理任何另一类关系。",
+        "operationId": "nari_vehicle_direct_bindings_unbind_selected",
+        "responses": {
+          "200": {
+            "description": "本接口动作成功；见 data 明确语义，不代表后续物流执行完成。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "基座 ApiResult<T>，只包装一层。",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "format": "int32",
+                      "description": "基座业务码，0 表示成功。",
+                      "example": 0
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "可直接展示的处理信息。",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DirectBindingMutationResponse"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "ISO 8601 UTC 时间；客户端按本地时区展示。",
+                      "example": "2026-09-14T02:00:00Z"
+                    },
+                    "traceId": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "服务端链路标识，供问题定位。",
+                      "example": "trace-example"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "timestamp",
+                    "traceId"
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                    "vehicle": {
+                      "vehicleCode": "VEH-001",
+                      "displayName": "转运料车一号",
+                      "version": 2
+                    },
+                    "bindings": [],
+                    "bindingCount": 0
+                  },
+                  "timestamp": "2026-10-10T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效 400/40001；业务不满足 40000。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 40001,
+                  "message": "参数无效 400/40001；业务不满足 40000。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录 401、Token 无效 40102 或过期 40103。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 401,
+                  "message": "未登录 401、Token 无效 40102 或过期 40103。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无页面权限。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 403,
+                  "message": "无页面权限。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标资源不存在。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 404,
+                  "message": "目标资源不存在。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "资源版本冲突 40900 或唯一键冲突 40002。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 40900,
+                  "message": "料箱 BOX-001 的状态或所属关系已变化，本次未修改任何关系，请刷新后重新选择。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务端错误；外部结果可能未知，不可据此自动创建新业务请求。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 500,
+                  "message": "服务端错误；外部结果可能未知，不可据此自动创建新业务请求。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          }
+        },
+        "x-design-status": "draft-not-frozen-not-implemented",
+        "x-review-issues": [
+          "C01"
+        ],
+        "x-permissions-status": "pending-page-permission-review",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DirectBoxUnbindSelectedRequest"
+              },
+              "example": {
+                "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                "vehicleCode": "VEH-001",
+                "vehicleVersion": 1,
+                "items": [
+                  {
+                    "bindingId": "10001",
+                    "bindingVersion": 1,
+                    "boxCode": "BOX-001",
+                    "boxVersion": 1
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/business/nari-logistics/vehicles/direct-bindings/unbind-all": {
+      "post": {
+        "tags": [
+          "一、常规作业 / 料箱绑车与解绑"
+        ],
+        "summary": "一键解绑全部料箱",
+        "description": "页面使用：常规作业 → 料箱解绑，用户确认后解绑全部料箱；常规作业 → 料箱绑车，已有绑定时用户选择一键解绑也复用此接口。\n\n解除当前车与全部料箱的绑定，返回最新车版本，方便继续绑箱。\n\n服务端复核查询后版本、状态、关系、组合资格及权限，一项失败整批不写入，返回明确对象及可展示原因。仅变更直接关系，保留容器、板件、位置、库位装载及操作历史，不执行运输或卸车。直接关系和库位装载必须共用互斥控制，不能仅靠前端检查；更新目标/旧料车及相关箱聚合版本。操作者和时间由服务端确定。同 requestId/同内容网络重发复用首次结果，不重复写入；同 ID 不同内容返回 409。已明确失败后重新查询并确认属于新提交。处理当前车全部直接关系，不提交勾选项。通过 vehicleVersion 复核整个查询快照，直接关系集合变化时整批拒绝。成功返回最新料车版本供继续绑箱。\n若历史异常导致同一箱同时存在直接关系和库位装载，拒绝本次操作并提示数据冲突，不隐式清理任何另一类关系。",
+        "operationId": "nari_vehicle_direct_bindings_unbind_all",
+        "responses": {
+          "200": {
+            "description": "本接口动作成功；见 data 明确语义，不代表后续物流执行完成。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "基座 ApiResult<T>，只包装一层。",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "format": "int32",
+                      "description": "基座业务码，0 表示成功。",
+                      "example": 0
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "可直接展示的处理信息。",
+                      "example": "ok"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DirectBindingMutationResponse"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "ISO 8601 UTC 时间；客户端按本地时区展示。",
+                      "example": "2026-09-14T02:00:00Z"
+                    },
+                    "traceId": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "服务端链路标识，供问题定位。",
+                      "example": "trace-example"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data",
+                    "timestamp",
+                    "traceId"
+                  ]
+                },
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                    "vehicle": {
+                      "vehicleCode": "VEH-001",
+                      "displayName": "转运料车一号",
+                      "version": 2
+                    },
+                    "bindings": [],
+                    "bindingCount": 0
+                  },
+                  "timestamp": "2026-10-10T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "参数无效 400/40001；业务不满足 40000。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 40001,
+                  "message": "参数无效 400/40001；业务不满足 40000。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未登录 401、Token 无效 40102 或过期 40103。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 401,
+                  "message": "未登录 401、Token 无效 40102 或过期 40103。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "无页面权限。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 403,
+                  "message": "无页面权限。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "目标资源不存在。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 404,
+                  "message": "目标资源不存在。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "资源版本冲突 40900 或唯一键冲突 40002。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 40900,
+                  "message": "料箱 BOX-001 的状态或所属关系已变化，本次未修改任何关系，请刷新后重新选择。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务端错误；外部结果可能未知，不可据此自动创建新业务请求。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                },
+                "example": {
+                  "code": 500,
+                  "message": "服务端错误；外部结果可能未知，不可据此自动创建新业务请求。",
+                  "data": null,
+                  "timestamp": "2026-09-14T02:00:00Z",
+                  "traceId": "trace-example"
+                }
+              }
+            }
+          }
+        },
+        "x-design-status": "draft-not-frozen-not-implemented",
+        "x-review-issues": [
+          "C01"
+        ],
+        "x-permissions-status": "pending-page-permission-review",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DirectBoxUnbindAllRequest"
+              },
+              "example": {
+                "requestId": "47ab7945-b324-4ed4-a10a-af734b83de07",
+                "vehicleCode": "VEH-001",
+                "vehicleVersion": 1
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -9154,8 +10364,8 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 128,
-            "description": "位置类型，实际值由后端字典返回，未知值按原值展示。",
-            "example": "TRANSFER_STATION"
+            "description": "固定位置类型，使用物流位置字典：STORAGE_SLOT、DOCK_POSITION、MACHINE_INLET、MACHINE_OUTLET、CARRIER_PARKING。与位置多用途配置不同；未知扩展值按原值展示。",
+            "example": "DOCK_POSITION"
           },
           "floorCode": {
             "type": "string",
@@ -9230,7 +10440,27 @@
             "example": 1
           },
           "location": {
-            "$ref": "#/components/schemas/LocationSummary"
+            "$ref": "#/components/schemas/LocationSummary",
+            "description": " 仅返回查询时可信的实际位置；运输中未确认当前位置时省略，不将规划终点或已离开的旧起点当作当前位置。位置缺省不等于任务失败。"
+          },
+          "contentState": {
+            "type": "string",
+            "enum": [
+              "UNKNOWN",
+              "EMPTY",
+              "LOADED"
+            ],
+            "description": "物流已确认的实际内容状态：UNKNOWN＝未确认，EMPTY＝已确认空载，LOADED＝已确认装有内容。没有板件绑定不等于空箱，治具箱按可信治具业务判断。",
+            "example": "EMPTY"
+          },
+          "runtimeUsage": {
+            "type": "string",
+            "enum": [
+              "MATERIAL",
+              "FIXTURE"
+            ],
+            "description": "当前箱用途：MATERIAL＝板件物料，FIXTURE＝治具；不适用或未确认时省略，不以规格或零条板件绑定推定。",
+            "example": "MATERIAL"
           }
         },
         "required": [
@@ -9284,7 +10514,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 128,
-            "description": "供员工查看的物料名称，不能代替物料编码作为关联标识。 物料名称。",
+            "description": "可选显示字段；有可靠来源时返回，无来源时省略，不要求必返，也不虚构物料名称或计量单位。",
             "example": "成品板件"
           },
           "orderNo": {
@@ -9310,12 +10540,18 @@
           },
           "eligibility": {
             "$ref": "#/components/schemas/Eligibility"
+          },
+          "materialBatch": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "物料批次，按客户唯一码 substring(12,18) 解析并按文本保留前导零；绑定行保存当时快照，不查询物流物料主数据。数量绑定由代表板件码解析。 当前数据源能提供时返回；外部展示缺少批次时省略，不编造。",
+            "example": "000001"
           }
         },
         "required": [
           "panelCode",
           "materialCode",
-          "materialName",
           "orderNo",
           "eligibility"
         ]
@@ -9357,7 +10593,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 128,
-            "description": "供员工查看的物料名称，不能代替物料编码作为关联标识。 物料名称。",
+            "description": "可选显示字段；有可靠来源时返回，无来源时省略，不要求必返，也不虚构物料名称或计量单位。",
             "example": "成品板件"
           },
           "quantity": {
@@ -9365,14 +10601,14 @@
             "format": "int32",
             "minimum": 1,
             "maximum": 2147483647,
-            "description": "本行或本次操作的物料数量，沿用当前候选整数件数约定；不是明细行数。 本行数量，板件按件计的候选方案。",
+            "description": "本行整数件数；PANEL 每个实际唯一码固定为 1，QUANTITY 保存正整数汇总数量。",
             "example": 1
           },
           "unit": {
             "type": "string",
             "minLength": 1,
             "maxLength": 128,
-            "description": "物料数量的计量单位显示值，需与 quantity 对应。 计量单位。",
+            "description": "可选显示字段；有可靠来源时返回，无来源时省略，不要求必返，也不虚构物料名称或计量单位。 数量计量规则仍待确认。",
             "example": "件"
           },
           "lineType": {
@@ -9383,14 +10619,19 @@
             ],
             "description": "PANEL=唯一码明细；QUANTITY=数量汇总明细。\n\n枚举值说明：\nPANEL：具体唯一码板件明细（必须返回 panelCode）。\nQUANTITY：按数量汇总的物料明细（不虚构 panelCode）。",
             "example": "PANEL"
+          },
+          "materialBatch": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "物料批次，按客户唯一码 substring(12,18) 解析并按文本保留前导零；绑定行保存当时快照，不查询物流物料主数据。数量绑定由代表板件码解析。 当前数据源能提供时返回；外部展示缺少批次时省略，不编造。",
+            "example": "000001"
           }
         },
         "required": [
           "orderNo",
           "materialCode",
-          "materialName",
           "quantity",
-          "unit",
           "lineType"
         ],
         "allOf": [
@@ -9403,6 +10644,13 @@
                       "PANEL"
                     ],
                     "description": "枚举值说明：\nPANEL：具体唯一码板件明细（必须返回 panelCode）。"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "enum": [
+                      1
+                    ],
+                    "description": "一个实际板件唯一码固定计 1 件。"
                   }
                 },
                 "required": [
@@ -9431,14 +10679,14 @@
       "BoxBindingsResponse": {
         "title": "BoxBindingsResponse",
         "type": "object",
-        "description": "料箱绑定查询结果。包含料箱状态、是否为空、全箱数量和完整 LES 绑定关系，用于查看已有板件、扫码勾选及选择解绑；不是单纯的 WMS 库存查询。\n\n已有业务约定：指定箱或载具范围全量查询，不接受 page/size 或全量开关，不按 20/200 条截断；空集合返回 []。服务端保证一次响应的容器、装载、物料、版本和汇总属于一致读取结果；无法取得完整一致结果时返回失败，不返回部分成功。前端取得成功结果后才执行本地扫码匹配。写入仍校验最新版本。\n\n关联字段说明：\nbox：本次查询或操作的料箱，结构见 ContainerSummary。\neligibility：当前操作资格判断，结构见 Eligibility。",
+        "description": "料箱绑定查询结果。包含料箱状态、是否为空、全箱数量和完整 LES 绑定关系，用于查看已有板件、扫码勾选及选择解绑；不是单纯的 WMS 库存查询。\n\n已有业务约定：指定箱或载具范围全量查询，不接受 page/size 或全量开关，不按 20/200 条截断；空集合返回 []。服务端保证一次响应的容器、装载、物料、版本和汇总属于一致读取结果；无法取得完整一致结果时返回失败，不返回部分成功。前端取得成功结果后才执行本地扫码匹配。写入仍校验最新版本。\n\n关联字段说明：\nbox：本次查询或操作的料箱，结构见 ContainerSummary。\neligibility：当前操作资格判断，结构见 Eligibility。 contentState 与 empty 表达实际内容，bindings 与 totalQuantity 仅表达物流板件绑定。四项及箱版本一次一致读取；未知、治具箱和物料箱分别解释。",
         "properties": {
           "box": {
             "$ref": "#/components/schemas/ContainerSummary"
           },
           "empty": {
             "type": "boolean",
-            "description": "是否全箱无绑定，必须与完整 bindings 及 totalQuantity 一致。",
+            "description": "是否已确认实际空载，等价于 contentState=EMPTY；UNKNOWN 或 LOADED 均 false。不能仅依据 bindings=[] 或 totalQuantity=0 判空。治具箱无板件绑定也可以 LOADED。",
             "example": true
           },
           "totalQuantity": {
@@ -9446,7 +10694,7 @@
             "format": "int32",
             "minimum": 0,
             "maximum": 2147483647,
-            "description": "全箱总数量。",
+            "description": "有效板件绑定的整数件数合计，不是物理空满或治具数量；治具箱可为 0，但仍非空。UNKNOWN 不可按 0 推定空载。",
             "example": 1
           },
           "bindings": {
@@ -9459,6 +10707,25 @@
           },
           "eligibility": {
             "$ref": "#/components/schemas/Eligibility"
+          },
+          "contentState": {
+            "type": "string",
+            "enum": [
+              "UNKNOWN",
+              "EMPTY",
+              "LOADED"
+            ],
+            "description": "物流已确认的实际内容状态：UNKNOWN＝未确认，EMPTY＝已确认空载，LOADED＝已确认装有内容。没有板件绑定不等于空箱，治具箱按可信治具业务判断。",
+            "example": "EMPTY"
+          },
+          "runtimeUsage": {
+            "type": "string",
+            "enum": [
+              "MATERIAL",
+              "FIXTURE"
+            ],
+            "description": "当前箱用途：MATERIAL＝板件物料，FIXTURE＝治具；不适用或未确认时省略，不以规格或零条板件绑定推定。",
+            "example": "MATERIAL"
           }
         },
         "required": [
@@ -9466,7 +10733,51 @@
           "empty",
           "totalQuantity",
           "bindings",
-          "eligibility"
+          "eligibility",
+          "contentState"
+        ],
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "properties": {
+                  "contentState": {
+                    "enum": [
+                      "EMPTY"
+                    ]
+                  },
+                  "empty": {
+                    "enum": [
+                      true
+                    ]
+                  },
+                  "bindings": {
+                    "maxItems": 0
+                  },
+                  "totalQuantity": {
+                    "enum": [
+                      0
+                    ]
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "contentState": {
+                    "enum": [
+                      "UNKNOWN",
+                      "LOADED"
+                    ]
+                  },
+                  "empty": {
+                    "enum": [
+                      false
+                    ]
+                  }
+                }
+              }
+            ]
+          }
         ]
       },
       "BoxMaterialsResponse": {
@@ -9515,7 +10826,7 @@
       "JointCandidatesResponse": {
         "title": "JointCandidatesResponse",
         "type": "object",
-        "description": "本次待绑定板件对应的完整拼板候选结果。仅返回 candidates，不返回箱信息或箱版本；查询不创建绑定关系。",
+        "description": "本次待绑定板件对应的完整拼板候选结果，仅返回 candidates，不返回箱信息或箱版本；查询不创建绑定。拼板成员通过 MES 接口取得；拼板内同物料、同批次、同订单。每个实际成员唯一码计 1 件，按实际码去重，不因查询一个母码又重复加 1。真实 MES 母码／成员字段及原码映射后补，不根据三项属性相同虚构成员关系。",
         "properties": {
           "candidates": {
             "type": "array",
@@ -9533,7 +10844,7 @@
       "VehicleSlotResponse": {
         "title": "VehicleSlotResponse",
         "type": "object",
-        "description": "载具库位查询结果。slotCode 指车上的装箱位，vehicle 为所属载具，box 为已占用该位的料箱；无箱时不应构造箱数据。\n\n关联字段说明：\nvehicle：当前载具，结构见 ContainerSummary。\nbox：本次查询或操作的料箱，结构见 ContainerSummary。\neligibility：当前操作资格判断，结构见 Eligibility。",
+        "description": "载具库位查询结果。slotCode 指车上的装箱位，vehicle 为所属载具，box 为已占用该位的料箱；无箱时不应构造箱数据。\n\n关联字段说明：\nvehicle：当前载具，结构见 ContainerSummary。\nbox：本次查询或操作的料箱，结构见 ContainerSummary。\neligibility：当前操作资格判断，结构见 Eligibility。\n\n2026-10-10 已确认：部分料车有真实装载位、部分没有。有位使用 SLOT 库位装载，无位使用 DIRECT 整车绑定；两种入口与明细分别保留，不虚构空位，也不混用凭据。同箱跨两类关系互斥，关联改变同步更新箱／相关车版本，SLOT 装卸还更新真实装载位版本。",
         "properties": {
           "slotCode": {
             "type": "string",
@@ -9601,7 +10912,7 @@
       "LoadLine": {
         "title": "LoadLine",
         "type": "object",
-        "description": "载具上一个装箱库位的明细。slotCode/slotVersion 标识库位状态；id/version 标识实际装载关系；box 和 materials 表达该位料箱与箱内完整物料。\n\n已有业务约定：载具库位及装载明细。已装箱行必须有 box、id、version，并返回该箱完整 LES 物料；空库位省略 box/id/version，materials=[]。",
+        "description": "载具上一个装箱库位的明细。slotCode/slotVersion 标识库位状态；id/version 标识实际装载关系；box 和 materials 表达该位料箱与箱内完整物料。\n\n已有业务约定：载具库位及装载明细。已装箱行必须有 box、id、version，并返回该箱完整 LES 物料；空库位省略 box/id/version，materials=[]。\n\n2026-10-10 已确认：部分料车有真实装载位、部分没有。有位使用 SLOT 库位装载，无位使用 DIRECT 整车绑定；两种入口与明细分别保留，不虚构空位，也不混用凭据。同箱跨两类关系互斥，关联改变同步更新箱／相关车版本，SLOT 装卸还更新真实装载位版本。",
         "properties": {
           "id": {
             "type": "string",
@@ -9675,7 +10986,7 @@
               "location": {
                 "title": "LocationSummary",
                 "type": "object",
-                "description": "业务位置摘要。用于展示对象所在位置或任务起止位置；楼层、区域可缺省，不保证能直接构建三级级联。完整可选位置使用 LocationCandidate。\n\n已有业务约定：业务位置摘要。 候选业务 DTO，字段需双方评审。",
+                "description": "业务位置摘要。用于展示对象所在位置或任务起止位置；楼层、区域可缺省，不保证能直接构建三级级联。完整可选位置使用 LocationCandidate。\n\n已有业务约定：业务位置摘要。 候选业务 DTO，字段需双方评审。 仅返回查询时可信的实际位置；运输中未确认当前位置时省略，不将规划终点或已离开的旧起点当作当前位置。位置缺省不等于任务失败。",
                 "properties": {
                   "locationCode": {
                     "type": "string",
@@ -9695,8 +11006,8 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 128,
-                    "description": "位置类型，实际值由后端字典返回，未知值按原值展示。",
-                    "example": "TRANSFER_STATION"
+                    "description": "固定位置类型，使用物流位置字典：STORAGE_SLOT、DOCK_POSITION、MACHINE_INLET、MACHINE_OUTLET、CARRIER_PARKING。与位置多用途配置不同；未知扩展值按原值展示。",
+                    "example": "DOCK_POSITION"
                   },
                   "floorCode": {
                     "type": "string",
@@ -9731,6 +11042,25 @@
                   "locationCode",
                   "locationName"
                 ]
+              },
+              "contentState": {
+                "type": "string",
+                "enum": [
+                  "UNKNOWN",
+                  "EMPTY",
+                  "LOADED"
+                ],
+                "description": "物流已确认的实际内容状态：UNKNOWN＝未确认，EMPTY＝已确认空载，LOADED＝已确认装有内容。没有板件绑定不等于空箱，治具箱按可信治具业务判断。",
+                "example": "EMPTY"
+              },
+              "runtimeUsage": {
+                "type": "string",
+                "enum": [
+                  "MATERIAL",
+                  "FIXTURE"
+                ],
+                "description": "当前箱用途：MATERIAL＝板件物料，FIXTURE＝治具；不适用或未确认时省略，不以规格或零条板件绑定推定。",
+                "example": "MATERIAL"
               }
             },
             "required": [
@@ -9796,7 +11126,7 @@
       "VehicleLoadsResponse": {
         "title": "VehicleLoadsResponse",
         "type": "object",
-        "description": "载具完整装载查询结果。loads 包含库位及其装箱情况，用于扫码匹配和卸车；loadedBoxCount 统计已装箱数，不是库位行数，totalMaterialQuantity 为全车总件数。\n\n已有业务约定：指定箱或载具范围全量查询，不接受 page/size 或全量开关，不按 20/200 条截断；空集合返回 []。服务端保证一次响应的容器、装载、物料、版本和汇总属于一致读取结果；无法取得完整一致结果时返回失败，不返回部分成功。前端取得成功结果后才执行本地扫码匹配。写入仍校验最新版本。\n\n关联字段说明：\nvehicle：当前载具，结构见 ContainerSummary。",
+        "description": "载具完整装载查询结果。loads 包含库位及其装箱情况，用于扫码匹配和卸车；loadedBoxCount 统计已装箱数，不是库位行数，totalMaterialQuantity 为全车总件数。\n\n已有业务约定：指定箱或载具范围全量查询，不接受 page/size 或全量开关，不按 20/200 条截断；空集合返回 []。服务端保证一次响应的容器、装载、物料、版本和汇总属于一致读取结果；无法取得完整一致结果时返回失败，不返回部分成功。前端取得成功结果后才执行本地扫码匹配。写入仍校验最新版本。\n\n关联字段说明：\nvehicle：当前载具，结构见 ContainerSummary。\n\n2026-10-10 已确认：部分料车有真实装载位、部分没有。有位使用 SLOT 库位装载，无位使用 DIRECT 整车绑定；两种入口与明细分别保留，不虚构空位，也不混用凭据。同箱跨两类关系互斥，关联改变同步更新箱／相关车版本，SLOT 装卸还更新真实装载位版本。",
         "properties": {
           "vehicle": {
             "$ref": "#/components/schemas/ContainerSummary"
@@ -9836,7 +11166,7 @@
       "LocationContainersResponse": {
         "title": "LocationContainersResponse",
         "type": "object",
-        "description": "业务位置及其容器占用查询结果。与载具内部装箱库位不同；occupied 表示位置是否占用，container 为已绑定容器，version 用于后续位置关系修改。\n\n关联字段说明：\nlocation：业务位置摘要，结构见 LocationSummary。\ncontainer：关联的业务容器，结构见 ContainerSummary。\neligibility：当前操作资格判断，结构见 Eligibility。",
+        "description": "业务位置及其容器占用查询结果。与载具内部装箱库位不同；occupied 表示位置是否占用，container 为已绑定容器，version 用于后续位置关系修改。\n\n关联字段说明：\nlocation：业务位置摘要，结构见 LocationSummary。\ncontainer：关联的业务容器，结构见 ContainerSummary。\neligibility：当前操作资格判断，结构见 Eligibility。 页面用 relatedTasks 提示关联任务，用 unbindEligibility 判断当前是否允许解绑。查询不自动取消或建立任务；无任务也要检查传感器／实物及其他业务保护，不能直接认为可解绑。",
         "properties": {
           "location": {
             "$ref": "#/components/schemas/LocationSummary"
@@ -9859,13 +11189,25 @@
           },
           "eligibility": {
             "$ref": "#/components/schemas/Eligibility"
+          },
+          "relatedTasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RelatedTransportTask"
+            },
+            "description": "当前阻止解绑的全部关联任务；无阻塞返回 []。可见信息限当前位置解绑权限范围；取消仍校验原取消权限，不因查询可见而自动授权。"
+          },
+          "unbindEligibility": {
+            "$ref": "#/components/schemas/Eligibility"
           }
         },
         "required": [
           "location",
           "version",
           "occupied",
-          "eligibility"
+          "eligibility",
+          "relatedTasks",
+          "unbindEligibility"
         ]
       },
       "ContainerCandidateResponse": {
@@ -9979,13 +11321,13 @@
       "ReceivingTask": {
         "title": "ReceivingTask",
         "type": "object",
-        "description": "单个接收任务。描述应接收的容器、任务身份、状态与当前可操作性；taskId/version 是确认接收的凭据，不能用容器编码或容器版本替代。",
+        "description": "ReceivingTask 是库房送达物流任务的查询投影，不新建接收任务／批次。任务身份与版本来自本次物流运输，接收状态和箱数从固定箱范围及已确认记录派生；object 保留本次扫描对象，BOX 只确认本箱、VEHICLE 确认剩余整批。",
         "properties": {
           "taskId": {
             "type": "string",
             "minLength": 1,
             "maxLength": 20,
-            "description": "任务持久标识，以字符串传输；用于接口定位任务，不是面向员工的任务编号。 标识以字符串传输，避免 JavaScript 大整数精度损失。",
+            "description": "本次已可信到达库房的物流运输任务 ID，映射 NariLogisticsTask.id，不是独立接收对象 ID。",
             "example": "10001",
             "pattern": "^[1-9][0-9]{0,18}$"
           },
@@ -9993,7 +11335,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 128,
-            "description": "面向员工展示和业务追溯的任务编号。 接收任务号。",
+            "description": "本次库房送达物流运输任务号，映射 NariLogisticsTask.taskNo。",
             "example": "CODE-001"
           },
           "version": {
@@ -10001,7 +11343,7 @@
             "format": "int32",
             "minimum": 1,
             "maximum": 2147483647,
-            "description": "接收任务版本；任务内容（含接收箱及物料范围）、状态或所属容器关系变化递增。提交原样回传 task.version，不能用容器 version 替代；冲突返回 409/40900。",
+            "description": "对应本次库房送达物流任务的标准 version，接收事实改变待接收范围时在事务中显式递增，影响本次清理资格的变化也须传播；不另建接收任务版本或批次。查询值原样提交，冲突 409/40900。",
             "example": 1
           },
           "object": {
@@ -10045,7 +11387,7 @@
               "location": {
                 "title": "LocationSummary",
                 "type": "object",
-                "description": "业务位置摘要。用于展示对象所在位置或任务起止位置；楼层、区域可缺省，不保证能直接构建三级级联。完整可选位置使用 LocationCandidate。\n\n已有业务约定：业务位置摘要。 候选业务 DTO，字段需双方评审。",
+                "description": "业务位置摘要。用于展示对象所在位置或任务起止位置；楼层、区域可缺省，不保证能直接构建三级级联。完整可选位置使用 LocationCandidate。\n\n已有业务约定：业务位置摘要。 候选业务 DTO，字段需双方评审。 仅返回查询时可信的实际位置；运输中未确认当前位置时省略，不将规划终点或已离开的旧起点当作当前位置。位置缺省不等于任务失败。",
                 "properties": {
                   "locationCode": {
                     "type": "string",
@@ -10065,8 +11407,8 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 128,
-                    "description": "位置类型，实际值由后端字典返回，未知值按原值展示。",
-                    "example": "TRANSFER_STATION"
+                    "description": "固定位置类型，使用物流位置字典：STORAGE_SLOT、DOCK_POSITION、MACHINE_INLET、MACHINE_OUTLET、CARRIER_PARKING。与位置多用途配置不同；未知扩展值按原值展示。",
+                    "example": "DOCK_POSITION"
                   },
                   "floorCode": {
                     "type": "string",
@@ -10101,6 +11443,25 @@
                   "locationCode",
                   "locationName"
                 ]
+              },
+              "contentState": {
+                "type": "string",
+                "enum": [
+                  "UNKNOWN",
+                  "EMPTY",
+                  "LOADED"
+                ],
+                "description": "物流已确认的实际内容状态：UNKNOWN＝未确认，EMPTY＝已确认空载，LOADED＝已确认装有内容。没有板件绑定不等于空箱，治具箱按可信治具业务判断。",
+                "example": "EMPTY"
+              },
+              "runtimeUsage": {
+                "type": "string",
+                "enum": [
+                  "MATERIAL",
+                  "FIXTURE"
+                ],
+                "description": "当前箱用途：MATERIAL＝板件物料，FIXTURE＝治具；不适用或未确认时省略，不以规格或零条板件绑定推定。",
+                "example": "MATERIAL"
               }
             },
             "required": [
@@ -10132,8 +11493,8 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 128,
-                "description": "位置类型，实际值由后端字典返回，未知值按原值展示。",
-                "example": "TRANSFER_STATION"
+                "description": "固定位置类型，使用物流位置字典：STORAGE_SLOT、DOCK_POSITION、MACHINE_INLET、MACHINE_OUTLET、CARRIER_PARKING。与位置多用途配置不同；未知扩展值按原值展示。",
+                "example": "DOCK_POSITION"
               },
               "floorCode": {
                 "type": "string",
@@ -10173,7 +11534,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 128,
-            "description": "后端返回的接收状态值，未知值按原值展示。",
+            "description": "查询派生的整次运输接收状态：PENDING＝尚无确认；PARTIAL＝部分箱已确认；RECEIVED＝固定范围全部已确认。不是运输状态，不另存状态主表或字典。单箱资格单独按该箱记录判断。",
             "example": "PENDING"
           },
           "statusName": {
@@ -10210,6 +11571,18 @@
             "required": [
               "allowed"
             ]
+          },
+          "totalBoxCount": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "本次运输固定范围的箱总数，不因卸车或确认减少。",
+            "example": 1
+          },
+          "receivedBoxCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "本次运输已有接收记录的箱数，不超过 totalBoxCount。",
+            "example": 0
           }
         },
         "required": [
@@ -10220,7 +11593,9 @@
           "status",
           "statusName",
           "createdTime",
-          "eligibility"
+          "eligibility",
+          "totalBoxCount",
+          "receivedBoxCount"
         ]
       },
       "ReceivingTaskPage": {
@@ -10323,11 +11698,10 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "任务类型；海康仅支持 GENERAL。\n\n枚举值说明：\nGENERAL：通用物流任务。\nPROCESS_ROUTE：工艺路线物流任务。\n海康仅支持 GENERAL；任务类型按后端业务规则确定，不等于载具类型。",
+            "description": "taskType 固定 GENERAL，前端仅回传查询结果，服务端校验；已取消工艺路线任务类型，模型不保存单值类型字段。普通与附带空框仍由不同调度接口处理，dispatchMode 独立表达。",
             "example": "GENERAL",
             "enum": [
-              "GENERAL",
-              "PROCESS_ROUTE"
+              "GENERAL"
             ]
           },
           "container": {
@@ -10355,10 +11729,18 @@
           },
           "status": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 128,
-            "description": "实际任务状态，未冻结值域。",
-            "example": "CREATED"
+            "enum": [
+              "QUEUED",
+              "DISPATCHING",
+              "ACCEPTED",
+              "RUNNING",
+              "COMPLETED",
+              "FAILED",
+              "CANCELLED",
+              "UNKNOWN"
+            ],
+            "description": "本地物流运输状态：QUEUED 待派送；DISPATCHING 已登记发送、受理待确认；ACCEPTED 调度已受理；RUNNING 执行中；COMPLETED 可信运输完成；FAILED 已确认失败；CANCELLED 已确认取消；UNKNOWN 外部结果未知、需核查。发送、受理及取消受理不代表完成；运输终结不自动证明实物已结算或位置已空闲。厂商状态由后端映射，不直接透传。",
+            "example": "QUEUED"
           },
           "statusName": {
             "type": "string",
@@ -10475,7 +11857,7 @@
       "LogisticsOptionsResponse": {
         "title": "LogisticsOptionsResponse",
         "type": "object",
-        "description": "普通物流发起查询结果。包含运输对象、起始位置、品牌/任务类型和完整目标候选，供员工主动选择目标后创建任务。\n\n已有业务约定：仅返回当前扫描对象、任务类型及业务规则允许的完整候选，不是全库位置列表。候选不分页、不截断，前端用完整数组构建楼层/区域/库位三级级联；服务端按 floorCode、areaCode、locationCode 升序稳定排序，位置编码去重。一次响应内候选层级及关联对象须一致；无法完整取得时返回失败，不以部分列表成功返回。重新扫描或查询条件变化后丢弃旧响应并重置选择。提交时服务端复核位置、载具及资格，不因查询时可选而跳过校验。 发起物流任务初始不默认选中目标位置，包括返回推荐字段时；员工主动选择后才可提交。\n\n关联字段说明：\nobject：扫描或查询解析出的实际业务容器，结构见 ContainerSummary。\norigin：起始业务位置，结构见 LocationSummary。\nrecommendedDestination：用于页面推荐的完整目标位置，结构见 LocationCandidate。\neligibility：当前操作资格判断，结构见 Eligibility。\n\n位置配置唯一决定 vendor + taskType。本接口在选目标位置之前调用，因此使用扫描的起始位置；扫描载具或料箱时，先解析其当前起始位置再读取配置。位置配置缺失、非唯一、品牌/类型组合不支持或无法确定起始位置时，返回 HTTP 400 / code=40000 和明确原因，不采用默认品牌或任意任务类型。成功响应返回后端确定的 vendor/taskType，目标候选按该配置及当前业务规则筛选，位置、配置与候选须一致读取。最终创建任务时后端重新校验位置配置及目标可用性。",
+        "description": "普通物流发起查询，扫描码识别运输对象及当前位置，返回完整允许目标和业务确定的品牌／类型。候选按业务基准位置的 SOURCE／TARGET 存储区关联展开其下真实 NariLocation，再按用途、产线、规格、占用／预占及业务资格筛选。回线边库采用 TARGET 和运行用途选择库类别，不使用 BOX_TARGET／FIXTURE_TARGET 或独立点对点关系。 后端按实际搬运对象和业务确定品牌：位置箱作业使用位置唯一 agvVendor，同品牌高／低车由调度选择；当前整车运输使用 STANDARD。停车点上的车与车上箱是不同搬运对象，海康取放箱不得改成斯坦德搬整车。位置配置缺失／无法识别对象或不支持组合时明确失败，不采用默认品牌。 taskType 固定 GENERAL，前端仅回传查询结果，服务端校验；已取消工艺路线任务类型，模型不保存单值类型字段。普通与附带空框仍由不同调度接口处理，dispatchMode 独立表达。 查询一致读取，提交重新校验；创建不代表实物到达，候选不分页。 位置用途从 NariLocationUsage 启用集合筛选，一个位置可有多个用途，候选按实际位置去重；多用途不绕过物理占用／预占。",
         "properties": {
           "object": {
             "$ref": "#/components/schemas/ContainerSummary"
@@ -10487,7 +11869,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "AGV 品牌编码为候选映射，需对照后端实际字典。\n\n枚举值说明：\nSTANDARD：斯坦德（当前候选品牌编码，正式接入时需与后端实际字典核对）。\nHIKVISION：海康（当前候选品牌编码）。\n本查询由后端读取起始位置的唯一品牌配置返回，前端不作为查询参数提交。",
+            "description": "后端按实际搬运对象和业务确定品牌：位置箱作业使用位置唯一 agvVendor，同品牌高／低车由调度选择；当前整车运输使用 STANDARD。停车点上的车与车上箱是不同搬运对象，海康取放箱不得改成斯坦德搬整车。位置配置缺失／无法识别对象或不支持组合时明确失败，不采用默认品牌。",
             "example": "STANDARD",
             "enum": [
               "STANDARD",
@@ -10498,11 +11880,10 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "任务类型；海康仅支持 GENERAL。\n\n枚举值说明：\nGENERAL：通用物流任务。\nPROCESS_ROUTE：工艺路线物流任务。\n海康仅支持 GENERAL；任务类型按后端业务规则确定，不等于载具类型。\n本查询由后端读取起始位置的唯一任务类型配置返回，前端不作为查询参数提交。",
+            "description": "taskType 固定 GENERAL，前端仅回传查询结果，服务端校验；已取消工艺路线任务类型，模型不保存单值类型字段。普通与附带空框仍由不同调度接口处理，dispatchMode 独立表达。",
             "example": "GENERAL",
             "enum": [
-              "GENERAL",
-              "PROCESS_ROUTE"
+              "GENERAL"
             ]
           },
           "recommendedDestination": {
@@ -10639,7 +12020,7 @@
               "location": {
                 "title": "LocationSummary",
                 "type": "object",
-                "description": "业务位置摘要。用于展示对象所在位置或任务起止位置；楼层、区域可缺省，不保证能直接构建三级级联。完整可选位置使用 LocationCandidate。\n\n已有业务约定：业务位置摘要。 候选业务 DTO，字段需双方评审。",
+                "description": "业务位置摘要。用于展示对象所在位置或任务起止位置；楼层、区域可缺省，不保证能直接构建三级级联。完整可选位置使用 LocationCandidate。\n\n已有业务约定：业务位置摘要。 候选业务 DTO，字段需双方评审。 仅返回查询时可信的实际位置；运输中未确认当前位置时省略，不将规划终点或已离开的旧起点当作当前位置。位置缺省不等于任务失败。",
                 "properties": {
                   "locationCode": {
                     "type": "string",
@@ -10659,8 +12040,8 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 128,
-                    "description": "位置类型，实际值由后端字典返回，未知值按原值展示。",
-                    "example": "TRANSFER_STATION"
+                    "description": "固定位置类型，使用物流位置字典：STORAGE_SLOT、DOCK_POSITION、MACHINE_INLET、MACHINE_OUTLET、CARRIER_PARKING。与位置多用途配置不同；未知扩展值按原值展示。",
+                    "example": "DOCK_POSITION"
                   },
                   "floorCode": {
                     "type": "string",
@@ -10695,6 +12076,25 @@
                   "locationCode",
                   "locationName"
                 ]
+              },
+              "contentState": {
+                "type": "string",
+                "enum": [
+                  "UNKNOWN",
+                  "EMPTY",
+                  "LOADED"
+                ],
+                "description": "物流已确认的实际内容状态：UNKNOWN＝未确认，EMPTY＝已确认空载，LOADED＝已确认装有内容。没有板件绑定不等于空箱，治具箱按可信治具业务判断。",
+                "example": "EMPTY"
+              },
+              "runtimeUsage": {
+                "type": "string",
+                "enum": [
+                  "MATERIAL",
+                  "FIXTURE"
+                ],
+                "description": "当前箱用途：MATERIAL＝板件物料，FIXTURE＝治具；不适用或未确认时省略，不以规格或零条板件绑定推定。",
+                "example": "MATERIAL"
               }
             },
             "required": [
@@ -11029,7 +12429,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "ACCEPTED=设备已接受取消请求，尚未确认最终取消；CANCELLED=最终取消成功。\n\n枚举值说明：\nACCEPTED：取消请求已受理、处理中（不能显示为取消成功）。\nCANCELLED：已确认最终取消成功。",
+            "description": "ACCEPTED＝物流系统已受理取消，尚未取得可信最终结果；CANCELLED＝可信最终取消成功。受理不等于调度设备已经完成取消；用于解绑时仍需位置查询复核实物和全部阻塞。",
             "example": "ACCEPTED",
             "enum": [
               "ACCEPTED",
@@ -11054,12 +12454,12 @@
       "BoxCodesRequest": {
         "title": "BoxCodesRequest",
         "type": "object",
-        "description": "按板件唯一码批量绑箱请求。提交目标箱、箱版本及本次新增板件码，不重复提交箱内已有绑定；允许跨订单，无尾单参数。",
+        "description": "不增加用途选择或独立混装入口。后端解析本次各板件／代表码，并与箱内有效内容按物料编码、批次、订单三项比较；任一属性存在多个值时为混装。未确认时返回 MIXED_CONTENT 待确认结果，不写入绑定、不计数、不推进版本。人员取消则结束；人员继续则携带服务端确认凭据重新提交，后端复核箱版本及完整输入，才可执行。混装箱仅用于缴库，不参与生产自动配送或按订单叫料；同质尾单不因属于缴库而强制弹窗。原有同周期绑定方式、任务预占及缴库成功内容保护仍适用，混料确认不能绕过这些条件。 逐码模式按每个实际码计 1 件。",
         "properties": {
           "requestId": {
             "type": "string",
             "format": "uuid",
-            "description": "前端为一次业务提交生成的 UUID；同一次网络重发复用同一值及内容，用于防重与结果关联，不是登录令牌。 原样返回本次业务请求标识。",
+            "description": "前端为一次业务提交生成的 UUID；同一次网络重发复用同一值及内容，用于防重与结果关联，不是登录令牌。 原样返回本次业务请求标识。 混料提示后的确认继续属于带确认凭据的新提交，客户端生成新 UUID；首次未确认请求不复用成不同内容。网络重发确认提交仍使用同一 UUID、同一凭据和输入。",
             "example": "47ab7945-b324-4ed4-a10a-af734b83de07"
           },
           "boxCode": {
@@ -11090,6 +12490,17 @@
             "minItems": 1,
             "maxItems": 1000,
             "uniqueItems": true
+          },
+          "confirmMixed": {
+            "type": "boolean",
+            "default": false,
+            "description": "仅在人员看到本次 MIXED_CONTENT 提示并选择继续后传 true；默认 false，不增加用途选择。true 必须同时提供本次 confirmationToken。"
+          },
+          "confirmationToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "服务端签发的不透明确认凭据，绑定当前用户、箱码／版本和本次完整绑定业务内容；不能作为权限或混装申请。由客户端原样回传，不允许自行构造。"
           }
         },
         "required": [
@@ -11097,6 +12508,39 @@
           "boxCode",
           "version",
           "panelCodes"
+        ],
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "properties": {
+                  "confirmMixed": {
+                    "enum": [
+                      true
+                    ]
+                  }
+                },
+                "required": [
+                  "confirmMixed",
+                  "confirmationToken"
+                ]
+              },
+              {
+                "properties": {
+                  "confirmMixed": {
+                    "enum": [
+                      false
+                    ]
+                  }
+                },
+                "not": {
+                  "required": [
+                    "confirmationToken"
+                  ]
+                }
+              }
+            ]
+          }
         ]
       },
       "BoxAllRequest": {
@@ -11135,12 +12579,12 @@
       "BoxOrderRequest": {
         "title": "BoxOrderRequest",
         "type": "object",
-        "description": "按订单号与数量快捷绑箱请求。物料和订单行由后端唯一解析，员工无需额外扫描板件或选择物料；不能唯一解析则明确失败。\n\n已有业务约定：订单号与数量快捷绑箱。订单行和物料由服务端唯一解析，不接受客户端指定物料来绕过订单校验。",
+        "description": "不增加用途选择或独立混装入口。后端解析本次各板件／代表码，并与箱内有效内容按物料编码、批次、订单三项比较；任一属性存在多个值时为混装。未确认时返回 MIXED_CONTENT 待确认结果，不写入绑定、不计数、不推进版本。人员取消则结束；人员继续则携带服务端确认凭据重新提交，后端复核箱版本及完整输入，才可执行。混装箱仅用于缴库，不参与生产自动配送或按订单叫料；同质尾单不因属于缴库而强制弹窗。原有同周期绑定方式、任务预占及缴库成功内容保护仍适用，混料确认不能绕过这些条件。 数量模式通过实际代表码解析，代表码不作为全部板件身份。",
         "properties": {
           "requestId": {
             "type": "string",
             "format": "uuid",
-            "description": "前端为一次业务提交生成的 UUID；同一次网络重发复用同一值及内容，用于防重与结果关联，不是登录令牌。 原样返回本次业务请求标识。",
+            "description": "前端为一次业务提交生成的 UUID；同一次网络重发复用同一值及内容，用于防重与结果关联，不是登录令牌。 原样返回本次业务请求标识。 混料提示后的确认继续属于带确认凭据的新提交，客户端生成新 UUID；首次未确认请求不复用成不同内容。网络重发确认提交仍使用同一 UUID、同一凭据和输入。",
             "example": "47ab7945-b324-4ed4-a10a-af734b83de07"
           },
           "boxCode": {
@@ -11162,7 +12606,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 128,
-            "description": "所属生产订单的业务编号，不是数据库记录 ID。 订单号。",
+            "description": "从 panelCode 解析并回传的 SAP 订单号，后端必须重新解析一致性；不是员工另选订单或本地订单台账 ID。",
             "example": "CODE-001"
           },
           "quantity": {
@@ -11172,6 +12616,24 @@
             "maximum": 2147483647,
             "description": "本行或本次操作的物料数量，沿用当前候选整数件数约定；不是明细行数。 本次绑定件数。",
             "example": 1
+          },
+          "panelCode": {
+            "type": "string",
+            "minLength": 33,
+            "maxLength": 128,
+            "description": "实际扫描的代表板件唯一码，不是箱码、物料码或生产订单号；按客户 substring 规则重新解析三项内容属性。代表码不写成数量行的全部板件身份。",
+            "example": "123456789ABC000001ABCDEFG00001234"
+          },
+          "confirmMixed": {
+            "type": "boolean",
+            "default": false,
+            "description": "仅在人员看到本次 MIXED_CONTENT 提示并选择继续后传 true；默认 false，不增加用途选择。true 必须同时提供本次 confirmationToken。"
+          },
+          "confirmationToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "服务端签发的不透明确认凭据，绑定当前用户、箱码／版本和本次完整绑定业务内容；不能作为权限或混装申请。由客户端原样回传，不允许自行构造。"
           }
         },
         "required": [
@@ -11179,7 +12641,41 @@
           "boxCode",
           "version",
           "orderNo",
-          "quantity"
+          "quantity",
+          "panelCode"
+        ],
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "properties": {
+                  "confirmMixed": {
+                    "enum": [
+                      true
+                    ]
+                  }
+                },
+                "required": [
+                  "confirmMixed",
+                  "confirmationToken"
+                ]
+              },
+              {
+                "properties": {
+                  "confirmMixed": {
+                    "enum": [
+                      false
+                    ]
+                  }
+                },
+                "not": {
+                  "required": [
+                    "confirmationToken"
+                  ]
+                }
+              }
+            ]
+          }
         ]
       },
       "VersionedItem": {
@@ -11279,7 +12775,7 @@
       "LoadPair": {
         "title": "LoadPair",
         "type": "object",
-        "description": "一次装箱到载具库位的配对。箱码与箱版本校验待装箱，库位码与库位版本校验目标装箱位；不是业务仓库位置绑定。",
+        "description": "一次装箱到载具库位的配对。箱码与箱版本校验待装箱，库位码与库位版本校验目标装箱位；不是业务仓库位置绑定。\n\n2026-10-10 已确认：部分料车有真实装载位、部分没有。有位使用 SLOT 库位装载，无位使用 DIRECT 整车绑定；两种入口与明细分别保留，不虚构空位，也不混用凭据。同箱跨两类关系互斥，关联改变同步更新箱／相关车版本，SLOT 装卸还更新真实装载位版本。",
         "properties": {
           "boxCode": {
             "type": "string",
@@ -11322,7 +12818,7 @@
       "BatchLoadRequest": {
         "title": "BatchLoadRequest",
         "type": "object",
-        "description": "批量装车请求。items 中每项是一对料箱与目标载具库位；后端校验箱、库位、关系与版本后执行。",
+        "description": "批量装车请求。items 中每项是一对料箱与目标载具库位；后端校验箱、库位、关系与版本后执行。\n\n2026-10-10 已确认：部分料车有真实装载位、部分没有。有位使用 SLOT 库位装载，无位使用 DIRECT 整车绑定；两种入口与明细分别保留，不虚构空位，也不混用凭据。同箱跨两类关系互斥，关联改变同步更新箱／相关车版本，SLOT 装卸还更新真实装载位版本。",
         "properties": {
           "requestId": {
             "type": "string",
@@ -11470,7 +12966,7 @@
       "UnbindLocationRequest": {
         "title": "UnbindLocationRequest",
         "type": "object",
-        "description": "解除业务位置与容器关系的请求。校验位置和容器版本及当前对应关系，不表示清空容器内部物料。\n\n关联字段说明：\ncontainer：关联的业务容器，结构见 ContainerRef。",
+        "description": "人员先通过既有位置查询获得 relatedTasks 及 unbindEligibility。有关联任务时提示，人员确认后逐项调用已有 taskId/cancel 接口，自动附当前 unbindContext；ACCEPTED 只表示处理中，沿已有 taskId/cancellation 按原取消 requestId 查询。FAILED／UNKNOWN 或未结算时不提交解绑。全部关联任务可信终结且实物核对允许后，重新查询当前位置、容器及最新版本，用新的解绑 requestId 提交原解绑接口。后端再次检查占用对应关系、全体阻塞及业务保护，未满足返回业务失败，版本变化返回 409；没有自动取消副作用。取消成功但尚未解绑时，保留本次对应占用关系的自动任务抑制，不以超时盲目解除；重新绑定后按新关系重新评价。取消接口权限保留，不因位置解绑权限自动获得取消权限。",
         "properties": {
           "requestId": {
             "type": "string",
@@ -11545,7 +13041,7 @@
       "ShippingRequest": {
         "title": "ShippingRequest",
         "type": "object",
-        "description": "整个扫描对象的成品发货请求。原始扫描值与解析容器同时用于服务端核对实际对象关系，不能只信任客户端传入的对象。\n\n已有业务约定：位置扫描提交须再次核对位置仍对应同一 object，不得转而处理后来换入的其他容器。\n\n关联字段说明：\nobject：扫描或查询解析出的实际业务容器，结构见 ContainerRef。",
+        "description": "库房发料：按本次对象内各箱号从 WMS 获取实际板件唯一码及可复核业务范围，先取得完整新内容和 WMS 行身份／版本快照再清理。校验同物料、批次、订单、对象版本及全部关系，原子关闭本次旧 LES 有效板件绑定并保留历史，按 WMS 本次板件重建新 LES 绑定和摘要，同步箱／相关料车版本；不能用旧 LES 内容快照代替本次 WMS 发料内容，也不能解绑范围外板件。再调用 WMS 接口清理本次对应绑定。外部清理失败／未知保留已提交的新 LES 关系和原范围，按操作事实核查，不重复重建或扩大删除。发料后运输独立提交，4F 到达后人员解箱车关系；不建发货主表或库存／订单台账。WMS 字段和恢复协议后补。 请求保留原扫描值、解析对象及 version，以复核扫描后位置对应实物未被换入。",
         "properties": {
           "requestId": {
             "type": "string",
@@ -11595,7 +13091,7 @@
       "ReceivingConfirmRequest": {
         "title": "ReceivingConfirmRequest",
         "type": "object",
-        "description": "确认单个接收任务的请求。直接回传容器查询取得的唯一 taskId/version，无员工选择多个任务或批量确认流程。",
+        "description": "确认本次已可信送达库房运输的接收范围：taskId 是物流运输任务 ID，object 为查询识别的 BOX／VEHICLE。扫描箱只确认该箱，扫描车原子确认固定送达范围中全部尚未确认箱，已有接收记录保留。version 原样回传本次运输任务的接收范围版本，不接受容器版本替代。无需独立接收批次或多个任务选择。 接收允许填写可选 remark，存在清点差异可通过备注说明并确认；不修改成功缴库数量。",
         "properties": {
           "requestId": {
             "type": "string",
@@ -11616,20 +13112,30 @@
             "format": "int32",
             "minimum": 1,
             "maximum": 2147483647,
-            "description": "接收任务版本；任务内容（含接收箱及物料范围）、状态或所属容器关系变化递增。提交原样回传 task.version，不能用容器 version 替代；冲突返回 409/40900。",
+            "description": "对应本次库房送达物流任务的标准 version，接收事实改变待接收范围时在事务中显式递增，影响本次清理资格的变化也须传播；不另建接收任务版本或批次。查询值原样提交，冲突 409/40900。",
             "example": 1
+          },
+          "object": {
+            "$ref": "#/components/schemas/ContainerRef"
+          },
+          "remark": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "本次接收清点备注，可说明缺件、多件、错料等情况；单箱记录该箱，整车提交应用于本次新确认的箱，不覆盖已有记录。备注不修改缴库数量，不引入差异数量处理流程。",
+            "example": "已清点，外包装需整理"
           }
         },
         "required": [
           "requestId",
           "taskId",
-          "version"
+          "version",
+          "object"
         ]
       },
       "ClearWmsBindingsRequest": {
         "title": "ClearWmsBindingsRequest",
         "type": "object",
-        "description": "清理指定接收任务及对象的 WMS 历史绑定请求。taskId/version 校验接收任务，object 限定清理对象；清理范围及前置条件仍按业务约定确认。\n\n已有业务约定：清理范围严格限定本次接收任务与对象，不能清理无关绑定。具体 WMS 关系与前置条件待确认。\n\n关联字段说明：\nobject：扫描或查询解析出的实际业务容器，结构见 ContainerRef。",
+        "description": "按本次物流运输 taskId、最新 version 和 BOX／VEHICLE 作用对象清理 WMS 本次中间表数据；不要求先确认接收，单箱接收前可清理，整车无需全部已接收。按固定运输范围与成功箱明细核实 WMS 业务键、行身份／版本及删除范围，清理元数据归成功箱明细，不依赖接收记录存在。保留 LES 板件绑定及全部历史；删除失败／超时保留本次范围核查，不把清理当作接收或未到达。",
         "properties": {
           "requestId": {
             "type": "string",
@@ -11650,7 +13156,7 @@
             "format": "int32",
             "minimum": 1,
             "maximum": 2147483647,
-            "description": "接收任务版本；任务内容（含接收箱及物料范围）、状态或所属容器关系变化递增。提交原样回传 task.version，不能用容器 version 替代；冲突返回 409/40900。",
+            "description": "对应本次库房送达物流任务的标准 version，接收事实改变待接收范围时在事务中显式递增，影响本次清理资格的变化也须传播；不另建接收任务版本或批次。查询值原样提交，冲突 409/40900。",
             "example": 1
           },
           "object": {
@@ -11667,7 +13173,7 @@
       "CreateLogisticsRequest": {
         "title": "CreateLogisticsRequest",
         "type": "object",
-        "description": "创建物流任务请求。回传重新查询确定的对象、当前版本、品牌、类型和起始位置；指定位置时提交目标，回线边库时由后端分配目标，后端重新校验全部组合。\n\n关联字段说明：\nobject：扫描或查询解析出的实际业务容器，结构见 ContainerRef。\n本增量提案通过 destinationMode 复用创建入口。RETURN_LINE_SIDE 依据当前业务位置的 BOX_TARGET/FIXTURE_TARGET 及容器用途选择目标存储区并分配空闲兼容库位；关联模型仍为待确认设计，不新增默认硬编码位置。vendor/taskType 保留原契约回传，后端必须重算并校验；品牌与任务类型的新模型差异仍待统一。无配置、无可用库位或关系不一致时明确失败，不能默认为普通任务。",
+        "description": "回传扫描查询识别的运输对象、聚合版本、起点、品牌和任务类型；SPECIFIED 提交具体目标，RETURN_LINE_SIDE 不传目标，由后端分配实际位置。候选按业务基准位置的 SOURCE／TARGET 存储区关联展开其下真实 NariLocation，再按用途、产线、规格、占用／预占及业务资格筛选。回线边库采用 TARGET 和运行用途选择库类别，不使用 BOX_TARGET／FIXTURE_TARGET 或独立点对点关系。 后端按实际搬运对象和业务确定品牌：位置箱作业使用位置唯一 agvVendor，同品牌高／低车由调度选择；当前整车运输使用 STANDARD。停车点上的车与车上箱是不同搬运对象，海康取放箱不得改成斯坦德搬整车。位置配置缺失／无法识别对象或不支持组合时明确失败，不采用默认品牌。 taskType 固定 GENERAL，前端仅回传查询结果，服务端校验；已取消工艺路线任务类型，模型不保存单值类型字段。普通与附带空框仍由不同调度接口处理，dispatchMode 独立表达。 无配置／无空闲兼容目标明确失败，不撤销先前已成功的绑定；人工和自动共用防重与预占。 位置用途从 NariLocationUsage 启用集合筛选，一个位置可有多个用途，候选按实际位置去重；多用途不绕过物理占用／预占。",
         "properties": {
           "requestId": {
             "type": "string",
@@ -11690,7 +13196,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "AGV 品牌编码为候选映射，需对照后端实际字典。\n\n枚举值说明：\nSTANDARD：斯坦德（当前候选品牌编码，正式接入时需与后端实际字典核对）。\nHIKVISION：海康（当前候选品牌编码）。",
+            "description": "后端按实际搬运对象和业务确定品牌：位置箱作业使用位置唯一 agvVendor，同品牌高／低车由调度选择；当前整车运输使用 STANDARD。停车点上的车与车上箱是不同搬运对象，海康取放箱不得改成斯坦德搬整车。位置配置缺失／无法识别对象或不支持组合时明确失败，不采用默认品牌。",
             "example": "STANDARD",
             "enum": [
               "STANDARD",
@@ -11701,11 +13207,10 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "原样回传物流发起查询由后端规则确定的任务类型；海康仅支持 GENERAL。提交时服务端重新校验，不能由客户端自行决定。\n\n枚举值说明：\nGENERAL：通用物流任务。\nPROCESS_ROUTE：工艺路线物流任务。\n海康仅支持 GENERAL；任务类型按后端业务规则确定，不等于载具类型。",
+            "description": "taskType 固定 GENERAL，前端仅回传查询结果，服务端校验；已取消工艺路线任务类型，模型不保存单值类型字段。普通与附带空框仍由不同调度接口处理，dispatchMode 独立表达。",
             "example": "GENERAL",
             "enum": [
-              "GENERAL",
-              "PROCESS_ROUTE"
+              "GENERAL"
             ]
           },
           "originLocationCode": {
@@ -11792,7 +13297,7 @@
       "CancelTaskRequest": {
         "title": "CancelTaskRequest",
         "type": "object",
-        "description": "取消 Path 中 taskId 指定的物流任务。version 是任务版本，requestId 用于识别同一次取消意图，reason 为可选人工取消原因。",
+        "description": "取消 Path 中 taskId 指定的物流任务。version 是任务版本，requestId 用于识别同一次取消意图，reason 为可选人工取消原因。 从位置解绑页面调用时自动附 unbindContext；普通任务取消省略。后端核对当前占用关系和 taskId，复用操作记录保存该关系的取消目的，保持取消与绑定检查在事务中互斥。已取消的同一占用关系在完成解绑前不被自动监控重新派送；重新绑定形成新关系后重新评价自动业务，不按同码永久禁止。无须新增暂停状态或对象。",
         "properties": {
           "requestId": {
             "type": "string",
@@ -11814,6 +13319,9 @@
             "maxLength": 500,
             "description": "员工提交取消时填写的可选原因，用于业务追溯；与取消结果中服务端返回的失败原因不同。",
             "example": "现场作业调整"
+          },
+          "unbindContext": {
+            "$ref": "#/components/schemas/LocationUnbindContext"
           }
         },
         "required": [
@@ -12000,7 +13508,7 @@
       "BindingLine": {
         "title": "BindingLine",
         "type": "object",
-        "description": "LES 箱内持久绑定关系。BY_CODE 表示唯一码绑定，BY_ORDER 表示订单数量绑定；仅此关系的 id/version 可用于所选板件解绑，不能拿 WMS 展示明细替代。\n\n已有业务约定：LES 持久化板件绑定关系；id/version 仅用于关系校验与所选解绑。BY_CODE 必须有 panelCode；BY_ORDER 不得虚构唯一码。数量行不根据物料码推断唯一板件，不参与唯一码匹配和拼板输入；数量行部分减量仍待 B04 确认。",
+        "description": "LES 箱内持久绑定关系。BY_CODE 表示唯一码绑定，BY_ORDER 表示订单数量绑定；仅此关系的 id/version 可用于所选板件解绑，不能拿 WMS 展示明细替代。\n\n已有业务约定：LES 持久化板件绑定关系；id/version 仅用于关系校验与所选解绑。BY_CODE 必须有 panelCode；BY_ORDER 不得虚构唯一码。数量行不根据物料码推断唯一板件，不参与唯一码匹配和拼板输入；数量行不支持部分减量，调整沿整行解绑后重绑。 每条有效物流绑定均返回 materialBatch，混装按明细逐行展示，不采用箱级第一条属性代替全箱内容。",
         "properties": {
           "id": {
             "type": "string",
@@ -12061,7 +13569,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 128,
-            "description": "供员工查看的物料名称，不能代替物料编码作为关联标识。 物料名称。",
+            "description": "可选显示字段；有可靠来源时返回，无来源时省略，不要求必返，也不虚构物料名称或计量单位。",
             "example": "成品板件"
           },
           "quantity": {
@@ -12069,14 +13577,14 @@
             "format": "int32",
             "minimum": 1,
             "maximum": 2147483647,
-            "description": "本行或本次操作的物料数量，沿用当前候选整数件数约定；不是明细行数。 本行数量，板件按件计的候选方案。",
+            "description": "本行整数件数，BY_CODE 每个实际唯一码固定 1，BY_ORDER 为本次登记的正整数数量；不提供数量行部分减量。",
             "example": 1
           },
           "unit": {
             "type": "string",
             "minLength": 1,
             "maxLength": 128,
-            "description": "物料数量的计量单位显示值，需与 quantity 对应。 计量单位。",
+            "description": "可选显示字段；有可靠来源时返回，无来源时省略，不要求必返，也不虚构物料名称或计量单位。 数量计量规则仍待确认。",
             "example": "件"
           },
           "boundTime": {
@@ -12084,6 +13592,13 @@
             "format": "date-time",
             "description": "该 LES 绑定关系的建立时间。 ISO 8601 UTC 时间；客户端按本地时区展示。",
             "example": "2026-09-14T02:00:00Z"
+          },
+          "materialBatch": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "物料批次，按客户唯一码 substring(12,18) 解析并按文本保留前导零；绑定行保存当时快照，不查询物流物料主数据。数量绑定由代表板件码解析。",
+            "example": "000001"
           }
         },
         "required": [
@@ -12092,9 +13607,8 @@
           "bindingMode",
           "orderNo",
           "materialCode",
-          "materialName",
           "quantity",
-          "unit"
+          "materialBatch"
         ],
         "allOf": [
           {
@@ -12106,6 +13620,13 @@
                       "BY_CODE"
                     ],
                     "description": "枚举值说明：\nBY_CODE：按板件唯一码绑定（必须返回 panelCode）。"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "enum": [
+                      1
+                    ],
+                    "description": "一个实际板件唯一码固定计 1 件。"
                   }
                 },
                 "required": [
@@ -12221,11 +13742,10 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "任务类型；海康仅支持 GENERAL。\n\n枚举值说明：\nGENERAL：通用物流任务。\nPROCESS_ROUTE：工艺路线物流任务。\n海康仅支持 GENERAL；任务类型按后端业务规则确定，不等于载具类型。",
+            "description": "taskType 固定 GENERAL，前端仅回传查询结果，服务端校验；已取消工艺路线任务类型，模型不保存单值类型字段。普通与附带空框仍由不同调度接口处理，dispatchMode 独立表达。",
             "example": "GENERAL",
             "enum": [
-              "GENERAL",
-              "PROCESS_ROUTE"
+              "GENERAL"
             ]
           },
           "recommendedDestination": {
@@ -12313,7 +13833,12 @@
           "affectedCount",
           "processedTime",
           "box"
-        ]
+        ],
+        "not": {
+          "required": [
+            "resultType"
+          ]
+        }
       },
       "TaskCancellationStatusResponse": {
         "title": "TaskCancellationStatusResponse",
@@ -12453,7 +13978,7 @@
       "ReceivingTaskResponse": {
         "title": "ReceivingTaskResponse",
         "type": "object",
-        "description": "扫描单个容器的接收查询结果。object 为实际容器，task 为其唯一当前接收任务；无任务时省略 task，对象不存在返回 404。\n\n已有业务约定：一个容器只对应一个当前接收任务。存在任务时返回 task；对象存在但无任务时省略 task，前端显示无接收任务并禁用确认；对象不存在返回 404。禁止任取多条中的第一条；发现多任务为数据异常，返回 409/40900，不提供任务选择或批量接收。\n\n关联字段说明：\nobject：扫描或查询解析出的实际业务容器，结构见 ContainerSummary。\ntask：当前操作对应的任务，结构见 ReceivingTask。\n\nboxes 与 totalMaterialQuantity 表示本次接收任务的业务内容，数据来源按接收场景确定，不能直接以 LES 当前装载关系替代。扫描载具时返回任务关联的全部箱及物料；扫描料箱时返回该箱及其物料。任务、容器、明细及汇总必须一致读取，无法完整获取则返回失败，不得截断后成功返回。无当前任务时省略 task，同时 boxes=[]、totalMaterialQuantity=0，前端显示无接收任务并禁止确认。存在任务但其业务明细缺失时不得伪装为无任务或已完整查询，应明确失败原因。确认接收仍提交唯一 taskId/version，后端校验任务与内容未发生变化。",
+        "description": "扫描箱／车按本次已可信送达物流任务的冻结箱范围查询，卸车后仍按原送达范围定位，不能用当前装载代替。箱返回本箱内容；车返回本次完整范围及 PENDING／PARTIAL／RECEIVED、已接收箱数和总数。存在多个未完成交付冲突返回 409，不任取第一条。无范围时省略 task，boxes=[]、总量为 0。可携带已知 taskId 查询已接收范围及清理结果，仍复核 scanCode 对象属于该固定范围；不增加员工多任务选择。对象不存在 404、编码歧义 400。查询完整一致，不分页不截断；确认提交 taskId、version、object。",
         "properties": {
           "object": {
             "$ref": "#/components/schemas/ContainerSummary"
@@ -12538,7 +14063,7 @@
       "OrderCallCandidatesResponse": {
         "title": "OrderCallCandidatesResponse",
         "type": "object",
-        "description": "当前订单及目标位置范围的完整候选；只查询、不占用、不创建运输任务。无可用箱时明确展示原因。",
+        "description": "当前订单及目标位置范围的完整候选；只查询、不占用、不创建运输任务。无可用箱时明确展示原因。 人工按订单叫料不要求对应生产计划或查询订单主数据；仍重新校验源范围、目标、箱同质内容、当前状态、版本及预占，只有可用箱可受理。 无匹配箱返回空候选与原因。",
         "properties": {
           "orderNo": {
             "type": "string",
@@ -12606,7 +14131,7 @@
       "OrderCallRequest": {
         "title": "OrderCallRequest",
         "type": "object",
-        "description": "确认订单叫料。允许同订单多次发起，每次选择当前可用箱；不输入数量。一箱创建一个业务运输任务。",
+        "description": "确认订单叫料。允许同订单多次发起，每次选择当前可用箱；不输入数量。一箱创建一个业务运输任务。 人工按订单叫料不要求对应生产计划或查询订单主数据；仍重新校验源范围、目标、箱同质内容、当前状态、版本及预占，只有可用箱可受理。",
         "properties": {
           "requestId": {
             "type": "string",
@@ -12688,9 +14213,10 @@
               "DISPATCHED",
               "FAILED",
               "UNKNOWN",
-              "COMPLETED"
+              "COMPLETED",
+              "CANCELLED"
             ],
-            "description": "QUEUED＝等待派送；DISPATCHED＝调度已受理；FAILED＝已确认派送失败；UNKNOWN＝外部受理结果未知；COMPLETED＝本箱运输完成。",
+            "description": "叫料任务对外简化状态：QUEUED 对应本地 QUEUED；DISPATCHED 对应已登记发送／已受理／执行中，不代表到达；COMPLETED 为可信完成；FAILED 为明确失败；CANCELLED 为可信取消；UNKNOWN 为结果未知。FAILED／UNKNOWN 必返 reason，取消受理不得提前返回 CANCELLED。",
             "example": "QUEUED"
           },
           "reason": {
@@ -12715,7 +14241,8 @@
                 "enum": [
                   "QUEUED",
                   "DISPATCHED",
-                  "COMPLETED"
+                  "COMPLETED",
+                  "CANCELLED"
                 ]
               }
             }
@@ -12746,7 +14273,7 @@
       "OrderCallResponse": {
         "title": "OrderCallResponse",
         "type": "object",
-        "description": "订单叫料受理及后续查询结果。成功表示本批每箱业务任务已创建，不表示所有调度调用成功或物料到达。",
+        "description": "订单叫料提交回执。成功表示本批每箱业务任务已创建，不表示所有调度调用成功或物料到达；前端无需轮询本回执。",
         "properties": {
           "requestId": {
             "type": "string",
@@ -12794,6 +14321,870 @@
           "tasks",
           "createdTime"
         ]
+      },
+      "DirectBindingVehicleSummary": {
+        "title": "DirectBindingVehicleSummary",
+        "type": "object",
+        "description": "后端识别的料车摘要；本接口只接受料车，不要求前端传类型。",
+        "properties": {
+          "vehicleCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "料车业务编码。",
+            "example": "VEH-001"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "可直接展示的名称；无维护名称时由后端回退为料车编号，不返回空字符串。",
+            "example": "转运料车一号"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "料车 LES 聚合版本。直接绑定、库位装载、位置或其他聚合状态变化均递增；操作后返回最新值，提交时原子复核。",
+            "example": 1
+          }
+        },
+        "required": [
+          "vehicleCode",
+          "displayName",
+          "version"
+        ]
+      },
+      "DirectBindingBoxSummary": {
+        "title": "DirectBindingBoxSummary",
+        "type": "object",
+        "description": "后端识别的料箱摘要；不包含或虚构车上库位。",
+        "properties": {
+          "boxCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "料箱业务编码。",
+            "example": "BOX-001"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "可直接展示的名称；无维护名称时后端回退为箱码。",
+            "example": "周转箱一号"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "料箱 LES 聚合版本。直接所属料车、库位装载、位置及板件绑定变化均递增；关系解除再建立也递增，防止查询后发生变化未被发现。",
+            "example": 1
+          }
+        },
+        "required": [
+          "boxCode",
+          "displayName",
+          "version"
+        ]
+      },
+      "DirectBoxVehicleBindingSnapshot": {
+        "title": "DirectBoxVehicleBindingSnapshot",
+        "type": "object",
+        "description": "料箱查询时的直接所属关系快照，用于换绑提交复核。记录关系标识、版本和所属料车；不表示库位装载。",
+        "properties": {
+          "bindingId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "直接关系标识，以字符串传输。",
+            "example": "10001"
+          },
+          "bindingVersion": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "直接关系版本；解除/换绑不可复用原版本。",
+            "example": 1
+          },
+          "vehicleCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "当前直接所属料车编码。",
+            "example": "VEH-002"
+          }
+        },
+        "required": [
+          "bindingId",
+          "bindingVersion",
+          "vehicleCode"
+        ]
+      },
+      "DirectBoxVehicleBindingLine": {
+        "title": "DirectBoxVehicleBindingLine",
+        "type": "object",
+        "description": "当前料车直接绑定的一箱。解绑使用直接关系标识和版本，不使用装载关系。",
+        "properties": {
+          "bindingId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "直接关系标识。",
+            "example": "10001"
+          },
+          "bindingVersion": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "直接关系版本。",
+            "example": 1
+          },
+          "box": {
+            "$ref": "#/components/schemas/DirectBindingBoxSummary"
+          }
+        },
+        "required": [
+          "bindingId",
+          "bindingVersion",
+          "box"
+        ]
+      },
+      "DirectVehicleBindingsResponse": {
+        "title": "DirectVehicleBindingsResponse",
+        "type": "object",
+        "description": "料车及完整直接绑定列表；全量一致读取，按箱码排序，无关系时 bindings=[]。只统计直接关系，不能混入库位装载。\n\n2026-10-10 已确认：部分料车有真实装载位、部分没有。有位使用 SLOT 库位装载，无位使用 DIRECT 整车绑定；两种入口与明细分别保留，不虚构空位，也不混用凭据。同箱跨两类关系互斥，关联改变同步更新箱／相关车版本，SLOT 装卸还更新真实装载位版本。",
+        "properties": {
+          "vehicle": {
+            "$ref": "#/components/schemas/DirectBindingVehicleSummary"
+          },
+          "bindings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DirectBoxVehicleBindingLine"
+            },
+            "description": "完整直接绑定料箱列表，不分页、不截断。",
+            "minItems": 0
+          },
+          "bindingCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "等于完整 bindings 数组长度。",
+            "example": 1
+          }
+        },
+        "required": [
+          "vehicle",
+          "bindings",
+          "bindingCount"
+        ]
+      },
+      "DirectBindingEligibility": {
+        "title": "DirectBindingEligibility",
+        "type": "object",
+        "description": "直接绑定/换绑资格；false 必须给出可展示原因。",
+        "properties": {
+          "allowed": {
+            "type": "boolean",
+            "description": "查询时能否加入待绑定列表；提交必须重新校验。",
+            "example": true
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "不可操作的可展示原因。",
+            "example": "该箱已绑定当前料车，无需再次加入。"
+          }
+        },
+        "required": [
+          "allowed"
+        ],
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "allowed": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "allowed": {
+                "type": "boolean",
+                "enum": [
+                  false
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500,
+                "description": "不可操作的可展示原因。",
+                "example": "该箱已绑定当前料车，无需再次加入。"
+              }
+            },
+            "required": [
+              "reason"
+            ]
+          }
+        ]
+      },
+      "DirectBoxBindingCandidateResponse": {
+        "title": "DirectBoxBindingCandidateResponse",
+        "type": "object",
+        "description": "当前料车与扫描料箱的组合校验结果。已绑其他料车且可换绑时 eligibility.allowed=true、requiresRebindConfirmation=true；已绑当前料车或已库位装载时 allowed=false，不可加入。未绑定时 currentBinding=null。",
+        "properties": {
+          "vehicle": {
+            "$ref": "#/components/schemas/DirectBindingVehicleSummary"
+          },
+          "box": {
+            "$ref": "#/components/schemas/DirectBindingBoxSummary"
+          },
+          "currentBinding": {
+            "type": "object",
+            "nullable": true,
+            "description": "查询时的直接绑定关系；没有直接所属料车必须返回 null，不省略。非 null 时必须提供完整快照。",
+            "properties": {
+              "bindingId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "description": "直接关系标识，以字符串传输。",
+                "example": "10001"
+              },
+              "bindingVersion": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1,
+                "maximum": 2147483647,
+                "description": "直接关系版本；解除/换绑不可复用原版本。",
+                "example": 1
+              },
+              "vehicleCode": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "description": "当前直接所属料车编码。",
+                "example": "VEH-002"
+              }
+            },
+            "required": [
+              "bindingId",
+              "bindingVersion",
+              "vehicleCode"
+            ]
+          },
+          "currentVehicle": {
+            "type": "object",
+            "nullable": true,
+            "description": "当前直接所属料车完整摘要；无关系必须 null，与 currentBinding 一致。",
+            "properties": {
+              "vehicleCode": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "description": "料车业务编码。",
+                "example": "VEH-001"
+              },
+              "displayName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "description": "可直接展示的名称；无维护名称时由后端回退为料车编号，不返回空字符串。",
+                "example": "转运料车一号"
+              },
+              "version": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1,
+                "maximum": 2147483647,
+                "description": "料车 LES 聚合版本。直接绑定、库位装载、位置或其他聚合状态变化均递增；操作后返回最新值，提交时原子复核。",
+                "example": 1
+              }
+            },
+            "required": [
+              "vehicleCode",
+              "displayName",
+              "version"
+            ]
+          },
+          "requiresRebindConfirmation": {
+            "type": "boolean",
+            "description": "可换绑到另一辆料车时为 true，前端须询问；确认不改变关系。",
+            "example": false
+          },
+          "eligibility": {
+            "$ref": "#/components/schemas/DirectBindingEligibility"
+          }
+        },
+        "required": [
+          "vehicle",
+          "box",
+          "currentBinding",
+          "currentVehicle",
+          "requiresRebindConfirmation",
+          "eligibility"
+        ]
+      },
+      "DirectBoxBindingSubmitItem": {
+        "title": "DirectBoxBindingSubmitItem",
+        "type": "object",
+        "description": "仅本次待绑定的一箱。已绑当前料车不允许再次提交；箱码不重复。expectedBinding 原样提交查询快照，null 明确表示查询时无直接关系。",
+        "properties": {
+          "boxCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "本次待绑定箱码。",
+            "example": "BOX-001"
+          },
+          "boxVersion": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "料箱 LES 聚合版本。直接所属料车、库位装载、位置及板件绑定变化均递增；关系解除再建立也递增，防止查询后发生变化未被发现。",
+            "example": 1
+          },
+          "expectedBinding": {
+            "type": "object",
+            "nullable": true,
+            "description": "查询时的直接绑定关系；没有直接所属料车必须返回 null，不省略。非 null 时必须提供完整快照。",
+            "properties": {
+              "bindingId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "description": "直接关系标识，以字符串传输。",
+                "example": "10001"
+              },
+              "bindingVersion": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1,
+                "maximum": 2147483647,
+                "description": "直接关系版本；解除/换绑不可复用原版本。",
+                "example": 1
+              },
+              "vehicleCode": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "description": "当前直接所属料车编码。",
+                "example": "VEH-002"
+              }
+            },
+            "required": [
+              "bindingId",
+              "bindingVersion",
+              "vehicleCode"
+            ]
+          },
+          "confirmRebind": {
+            "type": "boolean",
+            "description": "无旧关系时 false；旧关系在其他料车且员工明确确认换绑时 true。不是跳过后端校验的开关。",
+            "example": false
+          }
+        },
+        "required": [
+          "boxCode",
+          "boxVersion",
+          "expectedBinding",
+          "confirmRebind"
+        ],
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "expectedBinding": {
+                "type": "object",
+                "nullable": true,
+                "enum": [
+                  null
+                ]
+              },
+              "confirmRebind": {
+                "type": "boolean",
+                "enum": [
+                  false
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "expectedBinding": {
+                "type": "object",
+                "properties": {
+                  "bindingId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "直接关系标识，以字符串传输。",
+                    "example": "10001"
+                  },
+                  "bindingVersion": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 1,
+                    "maximum": 2147483647,
+                    "description": "直接关系版本；解除/换绑不可复用原版本。",
+                    "example": 1
+                  },
+                  "vehicleCode": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "当前直接所属料车编码。",
+                    "example": "VEH-002"
+                  }
+                },
+                "required": [
+                  "bindingId",
+                  "bindingVersion",
+                  "vehicleCode"
+                ]
+              },
+              "confirmRebind": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "DirectBoxBatchBindRequest": {
+        "title": "DirectBoxBatchBindRequest",
+        "type": "object",
+        "description": "批量建立直接关系或换绑。原子复核目标料车、各箱及旧关系快照；一项不通过整批不写。\n\n2026-10-10 已确认：部分料车有真实装载位、部分没有。有位使用 SLOT 库位装载，无位使用 DIRECT 整车绑定；两种入口与明细分别保留，不虚构空位，也不混用凭据。同箱跨两类关系互斥，关联改变同步更新箱／相关车版本，SLOT 装卸还更新真实装载位版本。",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "前端为一次业务提交生成的 UUID；同一次网络重发复用同一值及内容，用于防重与结果关联，不是登录令牌。 原样返回本次业务请求标识。",
+            "example": "47ab7945-b324-4ed4-a10a-af734b83de07"
+          },
+          "vehicleCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "目标料车编码。",
+            "example": "VEH-001"
+          },
+          "vehicleVersion": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "料车 LES 聚合版本。直接绑定、库位装载、位置或其他聚合状态变化均递增；操作后返回最新值，提交时原子复核。",
+            "example": 1
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DirectBoxBindingSubmitItem"
+            },
+            "description": "仅本次新增/确认换绑项，不提交已展示的现有绑定项。后端按 boxCode 检查重复；批次上限 1000 为待评审技术限制，非料车容量。",
+            "minItems": 1,
+            "maxItems": 1000
+          }
+        },
+        "required": [
+          "requestId",
+          "vehicleCode",
+          "vehicleVersion",
+          "items"
+        ]
+      },
+      "DirectBoxUnbindSelectedItem": {
+        "title": "DirectBoxUnbindSelectedItem",
+        "type": "object",
+        "description": "所选直接关系及查询时的箱版本，后端复核关系仍属于本料车。",
+        "properties": {
+          "bindingId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "所选直接绑定关系标识。",
+            "example": "10001"
+          },
+          "bindingVersion": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "查询返回的直接关系版本。",
+            "example": 1
+          },
+          "boxCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "该关系对应箱码，用于复核及展示失败原因。",
+            "example": "BOX-001"
+          },
+          "boxVersion": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "料箱 LES 聚合版本。直接所属料车、库位装载、位置及板件绑定变化均递增；关系解除再建立也递增，防止查询后发生变化未被发现。",
+            "example": 1
+          }
+        },
+        "required": [
+          "bindingId",
+          "bindingVersion",
+          "boxCode",
+          "boxVersion"
+        ]
+      },
+      "DirectBoxUnbindSelectedRequest": {
+        "title": "DirectBoxUnbindSelectedRequest",
+        "type": "object",
+        "description": "解绑勾选料箱；车、箱或选中关系变化时整批拒绝，不清理其他关系。",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "前端为一次业务提交生成的 UUID；同一次网络重发复用同一值及内容，用于防重与结果关联，不是登录令牌。 原样返回本次业务请求标识。",
+            "example": "47ab7945-b324-4ed4-a10a-af734b83de07"
+          },
+          "vehicleCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "当前料车编码。",
+            "example": "VEH-001"
+          },
+          "vehicleVersion": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "料车 LES 聚合版本。直接绑定、库位装载、位置或其他聚合状态变化均递增；操作后返回最新值，提交时原子复核。",
+            "example": 1
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DirectBoxUnbindSelectedItem"
+            },
+            "description": "选中的直接关系；关系标识和箱码均不得重复。",
+            "minItems": 1,
+            "maxItems": 1000
+          }
+        },
+        "required": [
+          "requestId",
+          "vehicleCode",
+          "vehicleVersion",
+          "items"
+        ]
+      },
+      "DirectBoxUnbindAllRequest": {
+        "title": "DirectBoxUnbindAllRequest",
+        "type": "object",
+        "description": "解除当前料车全部直接关系，不受勾选影响。vehicleVersion 对应查询时整个料车聚合，关系集合变化必须拒绝；不存在直接关系且版本有效时成功返回空列表。",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "前端为一次业务提交生成的 UUID；同一次网络重发复用同一值及内容，用于防重与结果关联，不是登录令牌。 原样返回本次业务请求标识。",
+            "example": "47ab7945-b324-4ed4-a10a-af734b83de07"
+          },
+          "vehicleCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "当前料车编码。",
+            "example": "VEH-001"
+          },
+          "vehicleVersion": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "料车 LES 聚合版本。直接绑定、库位装载、位置或其他聚合状态变化均递增；操作后返回最新值，提交时原子复核。",
+            "example": 1
+          }
+        },
+        "required": [
+          "requestId",
+          "vehicleCode",
+          "vehicleVersion"
+        ]
+      },
+      "DirectBindingMutationResponse": {
+        "title": "DirectBindingMutationResponse",
+        "type": "object",
+        "description": "操作成功后的完整当前料车快照，包含最新版本及全部直接绑定箱。继续绑箱使用此版本；换绑同步更新旧料车和箱版本，不删除历史。bindings 不包含装载关系。",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "前端为一次业务提交生成的 UUID；同一次网络重发复用同一值及内容，用于防重与结果关联，不是登录令牌。 原样返回本次业务请求标识。",
+            "example": "47ab7945-b324-4ed4-a10a-af734b83de07"
+          },
+          "vehicle": {
+            "$ref": "#/components/schemas/DirectBindingVehicleSummary"
+          },
+          "bindings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DirectBoxVehicleBindingLine"
+            },
+            "description": "操作后的完整直接绑定列表；解绑全部后为 []。",
+            "minItems": 0
+          },
+          "bindingCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "操作后直接关系数量，与完整列表长度一致。",
+            "example": 0
+          }
+        },
+        "required": [
+          "requestId",
+          "vehicle",
+          "bindings",
+          "bindingCount"
+        ]
+      },
+      "ReceivingOperationReceipt": {
+        "title": "ReceivingOperationReceipt",
+        "type": "object",
+        "description": "本次接收成功回执，包含作用对象、本次物流任务身份和确认后最新 version。affectedCount 是此次新增接收记录数，整车确认不覆盖先前单箱确认；无需接收批次。",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "对应本次业务提交的请求 UUID，服务端原样回传，供结果关联与追踪。 原样返回本次业务请求标识。",
+            "example": "47ab7945-b324-4ed4-a10a-af734b83de07"
+          },
+          "operationNo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "本次业务操作的处理编号，用于追溯；不是物流任务编号。 本次业务处理编号；用于追溯，不是 AGV 任务号。",
+            "example": "CODE-001"
+          },
+          "affectedCount": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "实际发生变更的关系条数，不一定等于物料件数。 本次实际变更的关系数量。",
+            "example": 1
+          },
+          "processedTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "服务端记录的处理时间；取消结果查询中表示该取消状态最后更新时间。 ISO 8601 UTC 时间；客户端按本地时区展示。",
+            "example": "2026-09-14T02:00:00Z"
+          },
+          "taskId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "description": "本次已可信到达库房的物流运输任务 ID，映射 NariLogisticsTask.id，不是独立接收对象 ID。",
+            "example": "10001",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "object": {
+            "$ref": "#/components/schemas/ContainerRef"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "对应本次库房送达物流任务的标准 version，接收事实改变待接收范围时在事务中显式递增，影响本次清理资格的变化也须传播；不另建接收任务版本或批次。查询值原样提交，冲突 409/40900。",
+            "example": 1
+          }
+        },
+        "required": [
+          "requestId",
+          "operationNo",
+          "affectedCount",
+          "processedTime",
+          "taskId",
+          "object",
+          "version"
+        ]
+      },
+      "BoxBindingConfirmation": {
+        "title": "BoxBindingConfirmation",
+        "type": "object",
+        "description": "绑箱提交的待确认结果，不是绑箱成功。无关系写入、数量变化或箱版本推进，不返回操作完成编号。客户端只能展示提示，人员明确继续后再提交；不是异步任务或新增业务对象。",
+        "properties": {
+          "resultType": {
+            "type": "string",
+            "enum": [
+              "CONFIRMATION_REQUIRED"
+            ]
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "前端为一次业务提交生成的 UUID；同一次网络重发复用同一值及内容，用于防重与结果关联，不是登录令牌。 原样返回本次业务请求标识。",
+            "example": "47ab7945-b324-4ed4-a10a-af734b83de07"
+          },
+          "confirmationType": {
+            "type": "string",
+            "enum": [
+              "MIXED_CONTENT"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "服务端混料提醒，必须提示混装仅用于缴库、不参与生产配送。"
+          },
+          "box": {
+            "$ref": "#/components/schemas/ContainerSummary"
+          },
+          "confirmationToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "服务端签发的不透明确认凭据，绑定当前用户、箱码／版本和本次完整绑定业务内容；不能作为权限或混装申请。由客户端原样回传，不允许自行构造。"
+          }
+        },
+        "required": [
+          "resultType",
+          "requestId",
+          "confirmationType",
+          "message",
+          "box",
+          "confirmationToken"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "operationNo"
+              ]
+            },
+            {
+              "required": [
+                "affectedCount"
+              ]
+            }
+          ]
+        }
+      },
+      "RelatedTransportTask": {
+        "title": "RelatedTransportTask",
+        "type": "object",
+        "description": "当前阻止位置解绑的未结算运输摘要；不是 AGV 台账或额外任务对象。列出与当前位置／容器及父车／随车箱有关的全部阻塞任务，完整返回、按任务 ID 去重；已结算历史不混入。",
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "description": "任务持久标识，以字符串传输；用于接口定位任务，不是面向员工的任务编号。 标识以字符串传输，避免 JavaScript 大整数精度损失。",
+            "example": "10001",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "taskNo": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "物流系统任务号，不是调度号。"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "该物流任务的版本，任务状态或任务内容变化递增；取消提交校验此版本，不是容器版本。",
+            "example": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "QUEUED",
+              "DISPATCHING",
+              "ACCEPTED",
+              "RUNNING",
+              "COMPLETED",
+              "FAILED",
+              "CANCELLED",
+              "UNKNOWN"
+            ],
+            "description": "本地物流运输状态：QUEUED 待派送；DISPATCHING 已登记发送、受理待确认；ACCEPTED 调度已受理；RUNNING 执行中；COMPLETED 可信运输完成；FAILED 已确认失败；CANCELLED 已确认取消；UNKNOWN 外部结果未知、需核查。发送、受理及取消受理不代表完成；运输终结不自动证明实物已结算或位置已空闲。厂商状态由后端映射，不直接透传。",
+            "example": "QUEUED"
+          },
+          "settled": {
+            "type": "boolean",
+            "description": "任务的可信实物交接及资源处置是否完成；CANCELLED 不必然 settled=true。"
+          },
+          "cancellationEligibility": {
+            "$ref": "#/components/schemas/Eligibility"
+          }
+        },
+        "required": [
+          "taskId",
+          "taskNo",
+          "version",
+          "status",
+          "settled",
+          "cancellationEligibility"
+        ]
+      },
+      "LocationUnbindContext": {
+        "title": "LocationUnbindContext",
+        "type": "object",
+        "description": "人员从位置解绑提示发起取消时，由页面当前查询自动提供的上下文，不要求人员额外选择。后端校验当前绑定和任务作用关系；用于让监控知道本次取消旨在解除此关系，避免关系尚未解除时立即重建自动任务。",
+        "properties": {
+          "locationCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "业务位置编码，用于仓库位置或物流起止位置；与载具上的 slotCode 不同。 位置码。",
+            "example": "CODE-001"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "当前库位及其容器占用关系的 LES 版本；库位状态或绑定容器变化递增。提交原样回传，服务端原子校验，冲突返回 409/40900。",
+            "example": 1
+          },
+          "container": {
+            "$ref": "#/components/schemas/ContainerRef"
+          },
+          "containerVersion": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "LES 容器业务聚合版本：容器主数据、业务位置、装载关系及箱内板件绑定变化均递增。BOX 覆盖本箱绑定；VEHICLE 覆盖载具装载及所装箱的板件关系，所属箱变化须同步递增载具版本。服务端原子校验与更新相关聚合，不覆盖 WMS 外部状态；提交涉及外部数据时必须另行复核。查询版本原样回传，冲突返回 409/40900。",
+            "example": 1
+          }
+        },
+        "required": [
+          "locationCode",
+          "version",
+          "container",
+          "containerVersion"
+        ]
       }
     }
   },
@@ -12801,7 +15192,7 @@
     {
       "id": "B04",
       "title": "快捷绑箱与解绑粒度",
-      "detail": "附件要求非空箱先清空，且只列板件解绑；此前支持订单数量部分解绑。需确认是否允许追加、订单多物料如何定位、数量行部分减量；当前 selected 仅整行，不谎称覆盖减量。"
+      "detail": "同方式追加，两种方式同周期不混用，数量行不支持部分减量；混料提示由人员决定继续，确认凭据绑定箱版本及本次内容，混装仅用于缴库，不参与生产配送。"
     },
     {
       "id": "B05",
@@ -12811,17 +15202,17 @@
     {
       "id": "B06",
       "title": "容量与列表边界",
-      "detail": "箱/车明细、拼板候选及当前业务范围的位置候选均全量返回；普通任务列表仍分页。编码长度、提交批次最大 1000 和整数计量仍为候选技术边界；全量查询不意味着允许无限批次写入。"
+      "detail": "箱／车明细、MES 拼板候选及当前位置候选全量返回；普通任务列表分页。整数计量已确认；编码长度、提交批次上限和实际规模属技术后补，全量查询不等于无限写入。"
     },
     {
       "id": "B07",
       "title": "接收与清理范围",
-      "detail": "一个容器只有一个当前接收任务，查询返回单个 task，无任务省略，确认提交其 taskId/version。WMS 历史关系清理范围及是否必须先接收仍需确认；清空不删除追溯。"
+      "detail": "已确认复用库房送达 taskId/version，单箱／整车确认、派生部分接收、可选备注及最新回执版本。WMS 清理不要求先接收，结果挂成功箱明细；删除范围协议后补，保留 LES 绑定，不建立接收批次。"
     },
     {
       "id": "B08",
       "title": "权限、版本与枚举",
-      "detail": "页面权限、品牌与枚举映射仍需确认。容器聚合版本范围已写明，但尚未实现；WMS 外部数据需提交时独立校验。"
+      "detail": "本轮对齐本地运输状态及叫料 CANCELLED，位置类型采用静态模型字典，板件明细补批次；容器版本范围及岗位权限仍需联合评审。状态映射为本地业务语义，不代替调度协议核查。"
     },
     {
       "id": "B09",
@@ -12835,23 +15226,40 @@
     },
     {
       "id": "R01",
-      "detail": "单位置串行进入已确认；空位释放的可信来源、跨批次/自动任务队列排序及暂停恢复未确认。"
+      "detail": "同目标按创建顺序 FIFO 排队、同请求逐箱放行已确认；可信空位来源及实际字段／有效期按协议后补，不新增计划暂停状态。"
     },
     {
       "id": "R02",
-      "detail": "整体校验/预留/本地多任务受理、结果查询为草案方案。预留生命周期、外部失败恢复、幂等保存期限及批次上限待确认。"
+      "detail": "已确认：任一箱状态不允许或版本冲突时整批拒绝，提示箱码及原因，操作人员刷新候选后重新选择。不提供独立叫料结果查询。预留实现及生命周期、外部失败恢复、幂等保存期限及批次上限待确认。 人工叫料已确认无需计划、有可用同订单箱即可；不新增订单存在性接口。"
     },
     {
       "id": "R03",
-      "detail": "按位置业务库关联分配回库目标为草案依据；多库排序、空位分配、箱/载具回库适用范围及品牌/任务类型规则需与对象设计共同确认。 既有 logistics/options 查询如何提供回库所需上下文及独立资格（普通目标为空时仍可回库），需同步评审。"
+      "detail": "SOURCE／TARGET 存储区与后端选择已确认；位置品牌单值、位置用途多值，整车 STANDARD 与海康搬箱分开。taskType 固定 GENERAL，普通／附框接口独立；具体停车点清单及可达协议后补。"
     },
     {
       "id": "R04",
-      "detail": "人工弹窗与铆接/治具自动回库触发存在范围重叠，须确认入口适用范围并共享防重，不直接修改自动业务实现。"
+      "detail": "人员确认取消旧任务后，沿既有取消接口／结果查询，再刷新最新版本提交解绑；保留占用关系级监控抑制，重新绑定后重新评价，详见 U01。"
     },
     {
       "id": "R05",
       "detail": "新叫料页面权限标识、岗位授权及审计接入待评审；不能因复用 Bearer 认证而默认全部用户可叫料。"
+    },
+    {
+      "id": "C01",
+      "title": "料箱绑车与解绑草案待评审",
+      "detail": "已确认有位／无位两种料车，DIRECT 直接绑整车与 SLOT 库位装载保留独立入口且同箱互斥，模型共用明确分类的箱车关系与真实槽位定义。前端正在编写，本轮不审查原型缺漏；字段方案、岗位权限、组合资格、批次与防重保存期限仍待评审。"
+    },
+    {
+      "id": "M01",
+      "title": "缴库尾单混装上下文",
+      "detail": "2026-10-12 已确认不增加用途选择；混料提示后人员决定是否继续，使用 confirmMixed 及服务端确认凭据，提示回执无写入。混装箱不参与生产配送／叫料；外部 MES／SAP／WMS 多组内容协议继续后补。",
+      "status": "BUSINESS_CONFIRMED_CONTRACT_DRAFT"
+    },
+    {
+      "id": "U01",
+      "title": "解绑确认取消联动契约",
+      "detail": "2026-10-12 已确认复用已有取消接口，再提交解绑。位置查询补关联任务与解绑资格，取消附自动上下文；可信取消／实物核对后刷新最新版本解绑。监控按当前真实占用关系抑制自动重建，不引入新对象或永久按码屏蔽；权限及真实交接协议联合评审。",
+      "status": "BUSINESS_CONFIRMED_CONTRACT_DRAFT"
     }
   ]
 }

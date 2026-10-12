@@ -63,7 +63,7 @@ describe('vehicle unloading Mock workflow', () => {
     expect(flow.confirmCount.value).toBe(1);
     await finish(Promise.all([flow.submit(), flow.submit()]));
     expect(unload).toHaveBeenCalledOnce();
-    expect(unload).toHaveBeenCalledWith('CAR-UNLOAD', 1, [{ id: selected.id, version: selected.version }]);
+    expect(unload).toHaveBeenCalledWith('CAR-UNLOAD', 1, [{ id: selected.id, version: selected.version }], expect.any(String));
     expect(flow.vehicle.value).toBeNull();
     expect(flow.selected.value).toEqual([]);
     expect(flow.confirmation.value).toBeNull();

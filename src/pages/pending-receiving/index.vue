@@ -19,7 +19,7 @@ async function query() {
   scrollTop.value = 0;
   await flow.query();
 }
-onShow(() => { void query(); });
+onShow(() => { flow.resume(); void query(); });
 onHide(() => { flow.dispose(); clearTimeout(noticeTimer); });
 onUnmounted(() => { flow.dispose(); clearTimeout(noticeTimer); });
 function goBack() { uni.navigateBack({ delta: 1 }); }
@@ -48,6 +48,7 @@ function goBack() { uni.navigateBack({ delta: 1 }); }
               <view class="task-number">任务号 {{ task.taskNo }}</view>
               <view class="record-meta">{{ task.object.containerType === 'BOX' ? '箱号' : '载具号' }} {{ task.object.containerCode }}</view>
               <view class="record-meta">库位号 {{ task.location?.locationCode || '—' }}</view>
+              <view class="record-meta">接收状态 <text class="receiving-progress">{{ task.statusName }} · {{ task.receivedBoxCount }}/{{ task.totalBoxCount }} 箱</text></view>
               <view class="record-meta">创建时间 {{ displayTaskTime(task.createdTime) }}</view>
             </view>
             <view class="list-status" role="status">
@@ -84,6 +85,7 @@ input { min-width: 0; height: 76rpx; box-sizing: border-box; border: 1px solid #
 .task-record { padding: 18rpx 0; border-bottom: 1px solid #dfebed; overflow-wrap: anywhere; }
 .task-number { font-size: 28rpx; font-weight: 600; }
 .record-meta { margin-top: 6rpx; font-size: 24rpx; color: #748d93; line-height: 1.5; }
+.receiving-progress { color: #254b54; }
 .list-status { padding: 24rpx 0; text-align: center; font-size: 24rpx; color: #748d93; }
 .retry { display: inline-block; padding: 0 20rpx; }
 </style>

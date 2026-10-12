@@ -28,6 +28,6 @@ export interface ApplicationReceipt {
 export const warehouseApplicationApi = {
   getObject: (scanCode: string) => request<ApplicationObject>('/warehouse-applications/objects', 'GET', { scanCode }),
   getMaterials: (boxCode: string) => request<BoxMaterials>('/boxes/materials', 'GET', { boxCode, context: 'WAREHOUSE_APPLICATION' }),
-  submit: (object: ContainerRef, version: number) =>
-    request<ApplicationReceipt>('/warehouse-applications/submit', 'POST', { requestId: requestId(), object, version })
+  submit: (object: ContainerRef, version: number, id = requestId()) =>
+    request<ApplicationReceipt>('/warehouse-applications/submit', 'POST', { requestId: id, object, version })
 };

@@ -22,7 +22,7 @@ export interface MaterialCallRequest {
 }
 export interface MaterialCallTask {
   boxCode: string; taskId: string; taskNo: string;
-  dispatchState: 'QUEUED' | 'DISPATCHED' | 'FAILED' | 'UNKNOWN' | 'COMPLETED'; reason?: string;
+  dispatchState: 'QUEUED' | 'DISPATCHED' | 'FAILED' | 'UNKNOWN' | 'COMPLETED' | 'CANCELLED'; reason?: string;
 }
 export interface MaterialCallReceipt {
   requestId: string; callNo: string; orderNo: string; destination: LocationSummary;
@@ -31,6 +31,5 @@ export interface MaterialCallReceipt {
 export const materialCallApi = {
   getLocation: (locationCode: string) => locationBindingApi.getLocation(locationCode),
   getBoxes: (destinationLocationCode: string, orderNo: string) => request<MaterialCallBoxes>('/order-calls/candidates', 'GET', { destinationLocationCode, orderNo }),
-  submit: (data: MaterialCallRequest) => request<MaterialCallReceipt>('/order-calls', 'POST', { ...data }),
-  getResult: (requestId: string) => request<MaterialCallReceipt>(`/order-calls/${encodeURIComponent(requestId)}`, 'GET', {})
+  submit: (data: MaterialCallRequest) => request<MaterialCallReceipt>('/order-calls', 'POST', { ...data })
 };

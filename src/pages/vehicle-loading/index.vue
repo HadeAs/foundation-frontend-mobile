@@ -7,8 +7,9 @@ import { useKeyboardScanner } from '../../composables/useKeyboardScanner';
 import { usePdaScanner } from '../../composables/usePdaScanner';
 import { useVehicleLoading } from '../../composables/useVehicleLoading';
 
-const { pairs, pending, completeCount, busy, notice, canSubmit, notify, clear, scan, remove, submit } = useVehicleLoading();
+const { pairs, pending, completeCount, busy, notice, canSubmit, notify, clear, pause, resume, scan, remove, submit } = useVehicleLoading();
 const input = ref('');
+const contentStateName = { UNKNOWN: '未确认', EMPTY: '已确认空载', LOADED: '已确认非空' };
 const disabled = busy;
 let active = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -30,9 +31,11 @@ function clearPage() {
 function goBack() { if (!busy.value) uni.navigateBack(); }
 onShow(() => {
   active = true;
+  resume();
 });
 onHide(() => {
   active = false;
+  pause(); input.value = '';
   resetKeyboard();
 });
 watch(notice, (value) => {
@@ -42,7 +45,7 @@ watch(notice, (value) => {
 onUnmounted(() => {
   active = false;
   clearTimeout(noticeTimer);
-  clear();
+  pause();
 });
 </script>
 
@@ -59,7 +62,7 @@ onUnmounted(() => {
       <view class="pair-count">已完成 {{ completeCount }} 对<text v-if="pending"> · 1 对待补充箱子</text></view>
       <view v-if="busy" class="processing" role="status">处理中…</view>
     </view>
-    <scroll-view class="material-list" scroll-y :show-scrollbar="true">
+    <scroll-view class="material-list" :scroll-y="pairs.length > 0" :show-scrollbar="true">
       <view v-if="!pairs.length" class="card empty">请先扫描载具库位号<view class="empty-hint">载具库位 → 箱子，按此顺序连续录入</view></view>
       <view v-else class="pair-list">
         <view v-for="(pair, index) in pairs" :key="pair.slot.slotCode" class="card">
@@ -75,6 +78,7 @@ onUnmounted(() => {
           <view class="info"><text>载具库位号</text><text>{{ pair.slot.slotCode }}</text></view>
           <view class="info"><text>载具编号</text><text>{{ pair.slot.vehicle.containerCode }}</text></view>
           <view class="info"><text>箱子编号</text><text>{{ pair.box?.box.containerCode || '—' }}</text></view>
+          <view class="info"><text>实际内容</text><text>{{ pair.box ? contentStateName[pair.box.box.contentState || 'UNKNOWN'] : '—' }}</text></view>
         </view>
       </view>
     </scroll-view>

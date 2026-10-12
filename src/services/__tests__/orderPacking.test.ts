@@ -7,6 +7,7 @@ import { useOrderPacking } from '../../composables/useOrderPacking';
 
 const storage = new Map<string, unknown>();
 const network = vi.fn(testRequest);
+const representativeCode = '123456789ABC000001ABCDEFG00001234';
 beforeEach(() => {
   vi.useFakeTimers();
   storage.clear();
@@ -38,10 +39,10 @@ describe('order packing Mock workflow', () => {
     expect(flow.box.value?.box.version).toBe(2);
     expect(flow.review.value).toBeNull();
   });
-  it('looks up an already bound panel order and submits only order quantity, then resets', async () => {
+  it('looks up a representative panel and submits code, order and quantity, then resets', async () => {
     const flow = useOrderPacking();
     await finish(flow.scan(' BOX-1 '));
-    await finish(flow.scan('MU-240901-0034'));
+    await finish(flow.scan(representativeCode));
     expect(flow.order.value).toBe('SO-20260901-018');
     flow.quantity.value = '12';
     await finish(flow.submit());
@@ -53,12 +54,15 @@ describe('order packing Mock workflow', () => {
     expect(result.totalQuantity).toBe(12);
     expect(result.bindings[0].bindingMode).toBe('BY_ORDER');
     expect(result.bindings[0].panelCode).toBeUndefined();
+    const submit = network.mock.calls.find(([input]) => input.url.endsWith('/bind-by-order'))![0];
+    expect(submit.data).toMatchObject({ panelCode: representativeCode, orderNo: 'SO-20260901-018', quantity: 12 });
     expect(network).toHaveBeenCalled();
   });
-  it('validates quantities, preserves failed input, and accepts a corrected manual order', async () => {
+  it('requires a representative, validates quantities and derives a read-only order', async () => {
     const flow = useOrderPacking();
     await finish(flow.scan('BOX-1'));
-    flow.order.value = 'UNKNOWN';
+    flow.quantity.value = '2'; expect(flow.canSubmit.value).toBe(false);
+    await finish(flow.scan(representativeCode));
     for (const value of ['', '0', '-1', '1.5', '1e2', '2147483648']) {
       flow.quantity.value = value;
       expect(flow.canSubmit.value).toBe(false);
@@ -66,13 +70,22 @@ describe('order packing Mock workflow', () => {
     flow.quantity.value = '2147483647';
     expect(flow.canSubmit.value).toBe(true);
     flow.quantity.value = '2';
-    await finish(flow.submit());
-    expect(flow.notice.value?.text).toBe('订单不存在或无法唯一解析物料');
-    expect(flow.order.value).toBe('UNKNOWN');
-    expect(flow.box.value).not.toBeNull();
-    flow.order.value = ' SO-20260901-019 ';
+    expect(flow.order.value).toBe('SO-20260901-018');
+    await finish(flow.scan('123456789ABC000002ABCDEFG00001235'));
+    expect(flow.order.value).toBe('SO-20260901-019');
     await finish(flow.submit());
     expect(flow.box.value).toBeNull();
+  });
+  it('appends in the same quantity-binding cycle and preserves existing quantity rows', async () => {
+    const flow = useOrderPacking();
+    await finish(flow.scan('BOX-1')); await finish(flow.scan(representativeCode)); flow.quantity.value = '2'; await finish(flow.submit());
+    await finish(flow.scan('BOX-1'));
+    expect(flow.review.value).toBeNull(); expect(flow.box.value?.totalQuantity).toBe(2);
+    await finish(flow.scan(representativeCode)); flow.quantity.value = '3'; await finish(flow.submit());
+    const result = await finish(panelPackingApi.getBox('BOX-1'));
+    expect(result.totalQuantity).toBe(5); expect(result.bindings).toHaveLength(2);
+    expect(result.bindings.every(item => item.bindingMode === 'BY_ORDER' && item.panelCode === undefined && item.materialBatch === '000001')).toBe(true);
+    expect(network.mock.calls.some(([input]) => input.url.endsWith('/unbind-all'))).toBe(false);
   });
   it('ignores late responses after reset and prevents duplicate submissions', async () => {
     const flow = useOrderPacking();
@@ -81,7 +94,7 @@ describe('order packing Mock workflow', () => {
     await finish(scanning);
     expect(flow.box.value).toBeNull();
     await finish(flow.scan('BOX-1'));
-    flow.order.value = 'SO-20260901-018';
+    await finish(flow.scan(representativeCode));
     flow.quantity.value = '2';
     await finish(Promise.all([flow.submit(), flow.submit()]));
     expect((await finish(panelPackingApi.getBox('BOX-1'))).totalQuantity).toBe(2);
@@ -89,10 +102,10 @@ describe('order packing Mock workflow', () => {
   it('preserves box and order on unknown scan or version conflict', async () => {
     const flow = useOrderPacking();
     await finish(flow.scan('BOX-1'));
-    flow.order.value = 'SO-20260901-018';
+    await finish(flow.scan(representativeCode));
     await finish(flow.scan('BAD'));
     expect(flow.order.value).toBe('SO-20260901-018');
-    await finish(panelPackingApi.bindByOrder('BOX-1', 1, 'SO-20260901-018', 1));
+    await finish(panelPackingApi.bindByOrder('BOX-1', 1, 'SO-20260901-018', 1, representativeCode));
     flow.quantity.value = '2';
     await finish(flow.submit());
     expect(flow.notice.value?.text).toContain('绑定已变化');

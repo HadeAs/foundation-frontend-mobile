@@ -8,7 +8,8 @@ import { usePdaScanner } from '../../composables/usePdaScanner';
 import { useShipping } from '../../composables/useShipping';
 import MaterialRows from '../../components/MaterialRows.vue';
 
-const { shipped, dismissLogistics, object, materials, detail, busy, disabled, canSubmit, notice, notify, clear, scan, openMaterials, closeMaterials, submit } = useShipping();
+const { shipped, dismissLogistics, object, materials, detail, busy, disabled, canSubmit, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, submit } = useShipping();
+const contentStateNames = { UNKNOWN: '未确认', EMPTY: '已确认空载', LOADED: '已确认非空' };
 const input = ref('');
 let active = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -19,23 +20,24 @@ async function handleScan(value: string) {
 }
 usePdaScanner(handleScan);
 const { reset: resetKeyboard } = useKeyboardScanner(handleScan, disabled);
-function clearPage() { if (!busy.value) { clear(); input.value = ''; resetKeyboard(); } }
+function clearPage() { if (!disabled.value) { clear(); input.value = ''; resetKeyboard(); } }
 function continueLogistics() {
   const receipt = shipped.value;
-  if (!receipt || busy.value) return;
+  if (!active || !receipt || busy.value) return;
+  const current = () => active && shipped.value === receipt;
   busy.value = true;
   uni.navigateTo({
     url: `/pages/logistics-create/index?scanCode=${encodeURIComponent(receipt.object.containerCode)}&shippingNo=${encodeURIComponent(receipt.shippingNo)}`,
-    success: () => { dismissLogistics(); },
-    fail: () => { notify('无法打开物流任务页面，请重试；成品发货已完成', true); },
-    complete: () => { busy.value = false; }
+    success: () => { if (current()) { busy.value = false; dismissLogistics(); } },
+    fail: () => { if (current()) notify('无法打开物流任务页面，请重试；成品发货已完成', true); },
+    complete: () => { if (current()) busy.value = false; }
   });
 }
 function goBack() { if (!busy.value) uni.navigateBack(); }
-onShow(() => { active = true; });
+onShow(() => { active = true; resume(); });
 onHide(() => {
   active = false;
-  clear();
+  pause();
   input.value = '';
   resetKeyboard();
 });
@@ -46,7 +48,7 @@ watch(notice, (value) => {
 onUnmounted(() => {
   active = false;
   clearTimeout(noticeTimer);
-  clear();
+  pause();
 });
 </script>
 
@@ -65,6 +67,7 @@ onUnmounted(() => {
         <view class="info"><text>扫描编码</text><text>{{ object.scanCode }}</text></view>
         <view class="info"><text>容器编号</text><text>{{ object.object.containerCode }}</text></view>
         <view class="info"><text>当前位置</text><text>{{ object.object.location ? object.object.location.locationCode + ' · ' + object.object.location.locationName : '—' }}</text></view>
+        <view class="info"><text>实际内容</text><text>{{ contentStateNames[object.object.contentState || 'UNKNOWN'] }}</text></view>
         <view class="info"><text>关联物料</text><text>{{ object.totalMaterialQuantity }} 件</text></view>
       </view>
       <view v-if="busy" class="processing" role="status">处理中…</view>
@@ -81,7 +84,7 @@ onUnmounted(() => {
               <text class="box-action">查看物料 ›</text>
             </button>
           </view>
-          <MaterialRows v-else :materials="materials" />
+          <MaterialRows v-else :materials="materials" show-batch />
         </scroll-view>
       </view>
     </view>
@@ -100,7 +103,7 @@ onUnmounted(() => {
       <view class="modal detail-modal" role="dialog" aria-modal="true" aria-label="箱内物料">
         <view class="detail-heading"><text class="modal-title">箱内物料</text><text class="detail-summary">{{ detail.box.containerCode }} · {{ detail.totalQuantity }} 件</text></view>
         <view class="detail-scroll">
-          <MaterialRows v-if="detail.materials.length" :materials="detail.materials" />
+          <MaterialRows v-if="detail.materials.length" :materials="detail.materials" show-batch />
           <view v-else class="empty">当前箱子暂无物料</view>
         </view>
         <view class="detail-footer"><button @tap="closeMaterials">关闭</button></view>
@@ -136,9 +139,9 @@ button:focus-visible { outline: 2px solid #0d9496; outline-offset: 2px; }
 .primary { color: white; background: #0d9496; border-color: #0d9496; }
 .danger { color: #bb3535; border-color: #bb3535; }
 .modal-mask { position: fixed; inset: 0; background: #173f4866; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 24rpx; }
-.modal { background: white; border-radius: 16rpx; width: 100%; max-width: 440px; padding: 28rpx; }
+.modal { background: white; border-radius: 16rpx; width: 100%; max-width: 440px; max-height: 80dvh; padding: 28rpx; display: flex; flex-direction: column; }
 .modal-title { font-size: 30rpx; font-weight: 600; }
-.modal-content { font-size: 28rpx; margin: 24rpx 0; line-height: 1.6; word-break: break-word; }
+.modal-content { min-height: 0; overflow-y: auto; font-size: 28rpx; margin: 24rpx 0; line-height: 1.6; word-break: break-word; }
 .modal-actions { display: grid; grid-template-columns: 1fr 1.6fr; gap: 14rpx; }
 .list-card { display: flex; flex-direction: column; min-height: 0; max-height: 100%; flex: 1; }
 .list-card > .card-heading { flex-shrink: 0; }

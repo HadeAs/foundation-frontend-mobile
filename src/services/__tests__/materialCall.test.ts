@@ -301,17 +301,17 @@ describe('manual material call Mock workflow', () => {
     expect(flow.notice.value?.error).toBe(true);
     expect(flow.canSubmit.value).toBe(false);
   });
-  it('rejects incomplete location and queries the original request after a malformed creation receipt', async () => {
+  it('rejects incomplete location and retains the original request after a malformed creation receipt', async () => {
     const flow = useMaterialCall();
-    vi.spyOn(api, 'getLocation').mockResolvedValueOnce({ location: { locationCode: 'OTHER', locationName: '错误位置' }, version: 1, occupied: false, eligibility: { allowed: true } });
+    vi.spyOn(api, 'getLocation').mockResolvedValueOnce({ location: { locationCode: 'OTHER', locationName: '错误位置' }, version: 1, occupied: false, eligibility: { allowed: true }, relatedTasks: [], unbindEligibility: { allowed: false, reason: '当前库位未绑定容器' } });
     await flow.scan('KW-MATERIAL-CALL'); expect(flow.location.value).toBeNull(); expect(flow.notice.value?.error).toBe(true);
     await finish(flow.scan('KW-MATERIAL-CALL')); flow.order.value = 'MO-LONG'; await finish(flow.query());
     flow.toggle(flow.boxes.value[0].boxCode);
     vi.spyOn(api, 'submit').mockResolvedValueOnce({ requestId: 'OTHER', callNo: 'CALL-BAD', orderNo: 'MO-LONG',
       destination: { locationCode: 'KW-MATERIAL-CALL', locationName: '叫料接收位' }, tasks: [], createdTime: new Date().toISOString() });
-    const check = vi.spyOn(api, 'getResult');
+    const submit = vi.spyOn(api, 'submit');
     await finish(flow.submit()); expect(flow.selected.value).toHaveLength(1);
-    expect(check).toHaveBeenCalledWith(flow.attempt.value!.input.requestId);
+    expect(submit).toHaveBeenCalledOnce();
     expect(flow.canSubmit.value).toBe(false); expect(flow.notice.value?.text).toContain('尚未确认');
   });
   it('ignores late responses after clearing location, query or submission state', async () => {
@@ -331,7 +331,7 @@ describe('manual material call Mock workflow', () => {
     expect(flow.canSubmit.value).toBe(false);
     expect(network).toHaveBeenCalled();
   });
-  it('uses the formal location, candidate, submit and result endpoints in explicit real mode', async () => {
+  it('uses formal location and candidate queries and replays the same submit endpoint', async () => {
     const location = await finish(locationBindingApi.getLocation('KW-MATERIAL-CALL'));
     const realRequest = vi.fn((options: UniNamespace.RequestOptions) => {
       options.success?.({ data: { code: 0, data: location }, statusCode: 200, header: {}, cookies: [] });
@@ -344,12 +344,12 @@ describe('manual material call Mock workflow', () => {
       url: expect.stringContaining('/api/v1/business/nari-logistics/locations/containers'), data: { locationCode: 'KW-MATERIAL-CALL' } });
     await api.getBoxes('KW-MATERIAL-CALL', 'MO-LONG');
     const input = { requestId: requestId(), destinationLocationCode: 'KW-MATERIAL-CALL', destinationVersion: 7, orderNo: 'MO-LONG', boxes: [{ boxCode: 'BOX-1', version: 2 }] };
-    await api.submit(input); await api.getResult(input.requestId);
+    await api.submit(input); await api.submit(input);
     expect(realRequest).toHaveBeenCalledTimes(4);
     expect(realRequest.mock.calls[1][0]).toMatchObject({ url: expect.stringContaining('/order-calls/candidates'), method: 'GET',
       data: { destinationLocationCode: 'KW-MATERIAL-CALL', orderNo: 'MO-LONG' } });
     expect(realRequest.mock.calls[2][0]).toMatchObject({ url: expect.stringMatching(/\/order-calls$/), method: 'POST', data: input });
-    expect(realRequest.mock.calls[3][0]).toMatchObject({ url: expect.stringContaining(`/order-calls/${input.requestId}`), method: 'GET', data: {} });
+    expect(realRequest.mock.calls[3][0]).toMatchObject({ url: expect.stringMatching(/\/order-calls$/), method: 'POST', data: input });
   });
   it('uses the candidate runtime version rather than the initial location version and reserves one task per selected box', async () => {
     const flow = await ready(); const candidate = { ...flow.result.value!, destinationVersion: 7 };
@@ -385,27 +385,28 @@ describe('manual material call Mock workflow', () => {
     flow.order.value = 'MO-BATCH-BLOCKED'; await finish(flow.query()); flow.toggle(flow.boxes.value[0].boxCode);
     expect(flow.selected.value).toEqual([]); expect(flow.canSubmit.value).toBe(false); expect(flow.notice.value?.text).toBe('当前订单暂不可叫料');
   });
-  it('recovers a created batch after an uncertain POST without refreshing candidates or sending a second POST', async () => {
+  it('recovers an uncertain batch by manually replaying the same POST without refreshing candidates', async () => {
     const flow = await ready('MO-SUBMIT-UNKNOWN'); flow.toggle(flow.boxes.value[0].boxCode);
-    const create = vi.spyOn(api, 'submit'); const check = vi.spyOn(api, 'getResult'); const query = vi.spyOn(api, 'getBoxes');
+    const create = vi.spyOn(api, 'submit'); const query = vi.spyOn(api, 'getBoxes');
     await finish(flow.submit());
-    expect(check).toHaveBeenCalledWith(create.mock.calls[0][0].requestId); expect(create).toHaveBeenCalledOnce(); expect(query).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledOnce(); expect(flow.attempt.value).not.toBeNull();
+    await finish(flow.check());
+    expect(create).toHaveBeenCalledTimes(2); expect(create.mock.calls[1][0]).toEqual(create.mock.calls[0][0]); expect(query).not.toHaveBeenCalled();
     expect(flow.notice.value?.text).toContain('叫料成功'); expect(flow.location.value).toBeNull(); expect(flow.attempt.value).toBeNull();
-    expect((await finish(api.getResult(create.mock.calls[0][0].requestId))).tasks).toHaveLength(1);
+    expect((await finish(api.submit(create.mock.calls[0][0]))).tasks).toHaveLength(1);
   });
-  it.each([new Error('网络连接中断'), new ApiRequestError('请求超时', 408)])('queries the original request after %s instead of refreshing candidates or retrying POST', async (failure) => {
+  it.each([new Error('网络连接中断'), new ApiRequestError('请求超时', 408)])('manually retries the original input after %s without refreshing candidates', async (failure) => {
     const flow = await ready(); flow.toggle(flow.boxes.value[0].boxCode);
-    const submit = vi.spyOn(api, 'submit').mockRejectedValueOnce(failure);
-    const check = vi.spyOn(api, 'getResult').mockRejectedValue(new ApiRequestError('暂未查询到', 404));
+    const submit = vi.spyOn(api, 'submit').mockRejectedValue(failure);
     const query = vi.spyOn(api, 'getBoxes'); await flow.submit();
     const id = submit.mock.calls[0][0].requestId;
-    expect(check).toHaveBeenCalledWith(id); expect(query).not.toHaveBeenCalled(); expect(flow.attempt.value?.input.requestId).toBe(id);
-    await flow.submit(); await flow.check(); expect(submit).toHaveBeenCalledOnce(); expect(check).toHaveBeenCalledTimes(2);
+    expect(submit).toHaveBeenCalledOnce(); expect(query).not.toHaveBeenCalled(); expect(flow.attempt.value?.input.requestId).toBe(id);
+    await flow.submit(); await flow.check(); expect(submit).toHaveBeenCalledTimes(2); expect(submit.mock.calls[1][0]).toEqual(submit.mock.calls[0][0]);
     expect(flow.canSubmit.value).toBe(false);
   });
-  it.each(['MO-RESULT-MISSING', 'MO-RESULT-FAIL', 'MO-DISPATCH-UNKNOWN'])('keeps %s correlated and locked across clear, leaving and re-entering', async (orderNo) => {
+  it.each(['MO-RESULT-MISSING', 'MO-RESULT-FAIL'])('keeps %s correlated and locked across clear, leaving and re-entering', async (orderNo) => {
     const flow = await ready(orderNo); flow.toggle(flow.boxes.value[0].boxCode);
-    const create = vi.spyOn(api, 'submit'); const query = vi.spyOn(api, 'getBoxes'); const check = vi.spyOn(api, 'getResult');
+    const create = vi.spyOn(api, 'submit'); const query = vi.spyOn(api, 'getBoxes');
     await finish(flow.submit()); const id = flow.attempt.value!.input.requestId;
     expect(flow.canSubmit.value).toBe(false); expect(flow.canQuery.value).toBe(false); expect(flow.disabled.value).toBe(true);
     flow.clear(); await flow.scan('KW-MATERIAL-CALL-2'); await flow.query(); await flow.submit();
@@ -413,15 +414,14 @@ describe('manual material call Mock workflow', () => {
     flow.pause(); const restored = useMaterialCall();
     expect(restored.attempt.value?.input.requestId).toBe(id); expect(restored.order.value).toBe(orderNo);
     await finish(restored.resume()); await finish(restored.check()); await restored.submit();
-    expect(restored.attempt.value?.input.requestId).toBe(id); expect(check.mock.calls.every(([request]) => request === id)).toBe(true);
-    expect(create).toHaveBeenCalledOnce(); expect(query).not.toHaveBeenCalled();
-    if (orderNo === 'MO-DISPATCH-UNKNOWN') expect(restored.receipt.value?.tasks[0].reason).toBe('等待核实调度受理结果');
-    else expect(restored.notice.value?.text).toContain(orderNo === 'MO-RESULT-MISSING' ? '暂未查询到' : '查询暂不可用');
+    expect(restored.attempt.value?.input.requestId).toBe(id); expect(create.mock.calls.every(([request]) => request.requestId === id)).toBe(true);
+    expect(create).toHaveBeenCalledTimes(2); expect(query).not.toHaveBeenCalled();
+    expect(restored.notice.value?.text).toContain(orderNo === 'MO-RESULT-MISSING' ? '结果未知' : '暂不可重试');
   });
   it('retains request IDs across reloads and isolates accounts and environments', async () => {
     const mockFlow = await ready(); const location = mockFlow.location.value!; const candidates = mockFlow.result.value!;
     vi.spyOn(api, 'getLocation').mockResolvedValue(location); vi.spyOn(api, 'getBoxes').mockResolvedValue(candidates);
-    vi.spyOn(api, 'submit').mockRejectedValue(new ApiRequestError('服务超时', 500)); vi.spyOn(api, 'getResult').mockRejectedValue(new ApiRequestError('暂未查询到', 404));
+    vi.spyOn(api, 'submit').mockRejectedValue(new ApiRequestError('服务超时', 500));
     const flow = await ready(); flow.toggle(flow.boxes.value[0].boxCode); await flow.submit();
     const id = flow.attempt.value!.input.requestId; flow.pause(); resetMockData();
     const restored = useMaterialCall(); expect(restored.attempt.value?.input.requestId).toBe(id); await restored.resume();
@@ -431,6 +431,22 @@ describe('manual material call Mock workflow', () => {
     expect(useMaterialCall().attempt.value).toBeNull(); seedTestSession();
     expect(useMaterialCall().attempt.value?.input.requestId).toBe(id);
     expect(JSON.stringify([...storage.values()])).not.toContain('Authorization');
+  });
+  it('keeps a rejected recovery locked to the original request and never automatically replays on resume', async () => {
+    const flow = await ready(); flow.toggle(flow.boxes.value[0].boxCode);
+    const submit = vi.spyOn(api, 'submit').mockRejectedValueOnce(new Error('连接中断'))
+      .mockRejectedValueOnce(new ApiRequestError('原请求仍待核实', 409));
+    const query = vi.spyOn(api, 'getBoxes');
+    await flow.submit();
+    const input = submit.mock.calls[0][0];
+    flow.pause(); await flow.resume();
+    expect(submit).toHaveBeenCalledOnce();
+    await flow.check();
+    expect(submit.mock.calls[1][0]).toEqual(input);
+    expect(flow.attempt.value?.input).toEqual(input);
+    expect(flow.disabled.value).toBe(true); expect(query).not.toHaveBeenCalled();
+    flow.pause(); const restored = useMaterialCall(); await restored.resume();
+    expect(restored.attempt.value?.input).toEqual(input); expect(submit).toHaveBeenCalledTimes(2);
   });
   it('ignores historical mock records without dropping real pending requests', async () => {
     const flow = await ready('MO-RESULT-MISSING'); flow.toggle(flow.boxes.value[0].boxCode); await finish(flow.submit());
@@ -457,17 +473,21 @@ describe('manual material call Mock workflow', () => {
     await flow.submit(); expect(submit).toHaveBeenCalledOnce(); expect(flow.location.value).toBeNull();
     expect((await finish(api.getBoxes('KW-MATERIAL-CALL', 'MO-DISPATCH-FAIL'))).boxes[0].eligibility.allowed).toBe(false);
   });
-  it('resolves UNKNOWN dispatch through GET and clears only after its result is known', async () => {
-    const flow = await ready('MO-DISPATCH-UNKNOWN'); flow.toggle(flow.boxes.value[0].boxCode); await finish(flow.submit());
-    const value = flow.receipt.value!;
-    vi.spyOn(api, 'getResult').mockResolvedValueOnce({ ...value, tasks: value.tasks.map((task) => ({ ...task, dispatchState: 'DISPATCHED' })) });
-    await flow.check(); expect(flow.attempt.value).toBeNull(); expect(flow.location.value).toBeNull(); expect(flow.notice.value?.text).toContain('叫料成功');
+  it('treats UNKNOWN dispatch as an already-created task without polling or reposting', async () => {
+    const flow = await ready('MO-DISPATCH-UNKNOWN'); flow.toggle(flow.boxes.value[0].boxCode);
+    const submit = vi.spyOn(api, 'submit'); await finish(flow.submit());
+    expect(flow.attempt.value).toBeNull(); expect(flow.location.value).toBeNull();
+    expect(flow.notice.value?.text).toContain('叫料任务已创建');
+    expect(flow.notice.value?.text).toContain('等待核实调度受理结果');
+    await flow.check(); await flow.resume(); expect(submit).toHaveBeenCalledOnce();
   });
-  it('keeps malformed result-query task sets unresolved and never enables a new POST', async () => {
-    const flow = await ready('MO-DISPATCH-UNKNOWN'); flow.toggle(flow.boxes.value[0].boxCode); await finish(flow.submit());
-    const value = flow.receipt.value!; const submit = vi.spyOn(api, 'submit');
-    vi.spyOn(api, 'getResult').mockResolvedValueOnce({ ...value, tasks: [] });
-    await flow.check(); expect(flow.notice.value?.text).toContain('叫料回执不完整'); await flow.submit(); expect(submit).not.toHaveBeenCalled();
+  it('keeps malformed replay receipts unresolved without creating a new request', async () => {
+    const flow = await ready('MO-SUBMIT-UNKNOWN'); flow.toggle(flow.boxes.value[0].boxCode); await finish(flow.submit());
+    const input = flow.attempt.value!.input;
+    const value = await finish(api.submit(input));
+    const submit = vi.spyOn(api, 'submit').mockResolvedValueOnce({ ...value, tasks: [] });
+    await flow.check(); expect(flow.notice.value?.text).toContain('叫料回执不完整'); await flow.submit();
+    expect(submit).toHaveBeenCalledOnce(); expect(submit.mock.calls[0][0]).toEqual(input);
     expect(flow.attempt.value?.input.requestId).toBe(value.requestId);
   });
   it('enforces the 1000-box batch limit without truncating the candidate list or automatically splitting it', async () => {
@@ -485,7 +505,7 @@ describe('manual material call Mock workflow', () => {
   it('shows unavailable reasons and an inline result-query card with locked inputs, including after re-entry', async () => {
     const wrapper = mount(MaterialCallPage, { global: { stubs: { 'scroll-view': { template: '<div><slot /></div>' },
       'checkbox-group': { template: '<div data-checkbox-group><slot /></div>' }, checkbox: true } } });
-    const submit = vi.spyOn(api, 'submit'); const check = vi.spyOn(api, 'getResult');
+    const submit = vi.spyOn(api, 'submit');
     try {
       hooks.show.forEach((show) => show());
       wrapper.getComponent(ScanInput).vm.$emit('scan', 'KW-MATERIAL-CALL'); await vi.advanceTimersByTimeAsync(200);
@@ -496,21 +516,22 @@ describe('manual material call Mock workflow', () => {
       await wrapper.get('.order-input').setValue('MO-RESULT-MISSING'); await wrapper.get('.order-query button').trigger('tap'); await vi.advanceTimersByTimeAsync(200);
       await wrapper.get('[data-checkbox-group]').trigger('change'); await wrapper.findAll('.footer button')[1].trigger('tap'); await vi.advanceTimersByTimeAsync(400);
       const id = submit.mock.calls[0][0].requestId;
-      expect(wrapper.get('.result-card').text()).toContain(id); expect(wrapper.get('.result-card').text()).toContain('暂未查询到');
+      expect(wrapper.get('.result-card').text()).toContain(id); expect(wrapper.get('.result-card').text()).toContain('结果未知');
+      expect(wrapper.get('.result-query').text()).toBe('重试原请求');
       expect(wrapper.get('.order-input').attributes('disabled')).toBeDefined(); expect(wrapper.getComponent(ScanInput).props('disabled')).toBe(true);
       expect(wrapper.findAll('.footer button').every((button) => button.attributes('disabled') !== undefined)).toBe(true);
       expect(wrapper.get('.nav-back').attributes('disabled')).toBeUndefined();
       await wrapper.get('.result-query').trigger('tap'); await vi.advanceTimersByTimeAsync(200);
       hooks.hide.forEach((hide) => hide()); hooks.show.forEach((show) => show()); await vi.advanceTimersByTimeAsync(200);
       expect(wrapper.get('.result-card').text()).toContain(id); expect(wrapper.get('.location-card').text()).toContain('KW-MATERIAL-CALL');
-      expect(submit).toHaveBeenCalledOnce(); expect(check.mock.calls.every(([value]) => value === id)).toBe(true);
+      expect(submit).toHaveBeenCalledTimes(2); expect(submit.mock.calls.every(([value]) => value.requestId === id)).toBe(true);
     } finally { wrapper.unmount(); }
   });
   it('adds an open homepage menu and route and keeps the confirmation button disabled until a box is checked', async () => {
     const home = mount(HomePage, { global: { stubs: { 'scroll-view': { template: '<div><slot /></div>' } } } });
     const menu = home.findAll('button').find((button) => button.text() === '手动叫料')!;
     await menu.trigger('tap'); expect(uni.navigateTo).toHaveBeenCalledWith({ url: '/pages/material-call/index' });
-    expect(home.findAll('.menu-entry')).toHaveLength(16); home.unmount(); hooks.show.length = 0;
+    expect(home.findAll('.menu-entry')).toHaveLength(18); home.unmount(); hooks.show.length = 0;
     expect(pages.pages.find((page) => page.path === 'pages/material-call/index')?.style.disableScroll).toBe(true);
     const wrapper = mount(MaterialCallPage, { global: { stubs: { 'scroll-view': { template: '<div><slot /></div>' },
       'checkbox-group': { template: '<div data-checkbox-group><slot /></div>' }, checkbox: true } } });

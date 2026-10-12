@@ -9,7 +9,8 @@ import { useLogisticsCreation } from '../../composables/useLogisticsCreation';
 import { locationPath } from '../../services/logistics';
 import LocationCascade from '../../components/LocationCascade.vue';
 
-const { options, destination, candidates, choosing, busy, disabled, canSubmit, canReturn, notice, notify, clear, scan, openChoice, closeChoice, choose, submit, returnToWarehouse } = useLogisticsCreation();
+const { options, destination, candidates, choosing, busy, disabled, canSubmit, canReturn, notice, notify, clear, pause, resume, scan, openChoice, closeChoice, choose, submit, returnToWarehouse } = useLogisticsCreation();
+const contentStateNames = { UNKNOWN: '未确认', EMPTY: '已确认空载', LOADED: '已确认非空' };
 const input = ref('');
 let active = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -20,17 +21,17 @@ async function handleScan(value: string) {
 }
 usePdaScanner(handleScan);
 const { reset: resetKeyboard } = useKeyboardScanner(handleScan, disabled);
-function clearPage() { if (!busy.value) { clear(); input.value = ''; resetKeyboard(); } }
+function clearPage() { if (!disabled.value) { clear(); input.value = ''; resetKeyboard(); } }
 onLoad((query) => {
   if (typeof query?.scanCode === 'string' && query.scanCode) {
     void scan(query.scanCode, typeof query.shippingNo === 'string' ? query.shippingNo : undefined);
   }
 });
 function goBack() { if (!busy.value) uni.navigateBack(); }
-onShow(() => { active = true; });
+onShow(() => { active = true; resume(); });
 onHide(() => {
   active = false;
-  clear();
+  pause();
   input.value = '';
   resetKeyboard();
 });
@@ -41,7 +42,7 @@ watch(notice, (value) => {
 onUnmounted(() => {
   active = false;
   clearTimeout(noticeTimer);
-  clear();
+  pause();
 });
 </script>
 
@@ -60,6 +61,7 @@ onUnmounted(() => {
           <view class="card-heading"><text>运输信息</text><text class="tag">已识别</text></view>
           <view class="info"><text>载具/容器</text><text>{{ options.object.containerCode }}</text></view>
           <view class="info"><text>起始位置</text><text>{{ options.origin.locationCode }} · {{ options.origin.locationName }}</text></view>
+          <view class="info"><text>实际内容</text><text>{{ contentStateNames[options.object.contentState || 'UNKNOWN'] }}</text></view>
         </view>
         <view class="card">
           <view class="card-heading"><text>目标位置</text><text>{{ candidates.length }} 个可选</text></view>

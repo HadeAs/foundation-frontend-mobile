@@ -7,8 +7,7 @@ import { useKeyboardScanner } from '../../composables/useKeyboardScanner';
 import { usePdaScanner } from '../../composables/usePdaScanner';
 import { useMaterialCall } from '../../composables/useMaterialCall';
 
-const { location, order, result, boxes, selected, busy, disabled, notice, attempt, receipt, canQuery, canSubmit, notify, clear, pause, resume, scan, query, toggle, submit, check } = useMaterialCall();
-const taskStates = { QUEUED: '等待派送', DISPATCHED: '调度已受理', FAILED: '派送失败', UNKNOWN: '结果未知', COMPLETED: '运输完成' };
+const { location, order, result, boxes, selected, busy, disabled, notice, attempt, storageError, canQuery, canSubmit, notify, clear, pause, resume, scan, query, toggle, submit, check } = useMaterialCall();
 const input = ref('');
 let active = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -19,10 +18,10 @@ async function handleScan(value: string) {
 }
 usePdaScanner(handleScan);
 const { reset: resetKeyboard } = useKeyboardScanner(handleScan, disabled);
-function clearPage() { if (!disabled.value) { clear(); input.value = ''; resetKeyboard(); } }
-function goBack() { if (!busy.value) uni.navigateBack(); }
+function clearPage() { if (active && !disabled.value) { clear(); input.value = ''; resetKeyboard(); } }
+function goBack() { if (active && !busy.value) uni.navigateBack(); }
 onShow(() => { active = true; void resume(); });
-onHide(() => { active = false; pause(); input.value = ''; resetKeyboard(); });
+onHide(() => { active = false; clearTimeout(noticeTimer); pause(); input.value = ''; resetKeyboard(); });
 watch(notice, (value) => {
   clearTimeout(noticeTimer);
   if (value) noticeTimer = setTimeout(() => { notice.value = null; }, value.error ? 6500 : 2500);
@@ -42,23 +41,24 @@ onUnmounted(() => { active = false; clearTimeout(noticeTimer); pause(); });
         <view class="info"><text>位置名称</text><text>{{ location.location.locationName }}</text></view>
       </view>
       <view v-if="location" class="order-query">
-        <input v-model="order" class="order-input" placeholder="请输入生产订单号" aria-label="生产订单号" confirm-type="search" :disabled="disabled" @confirm="query" />
+        <input v-model="order" class="order-input" placeholder="请输入生产订单号" aria-label="生产订单号" confirm-type="search" :maxlength="128" :disabled="disabled" @confirm="query" />
         <button class="secondary" :disabled="!canQuery" @tap="query">查询</button>
       </view>
       <view v-if="busy" class="processing" role="status">处理中…</view>
-      <view v-if="result && !attempt" class="card-heading list-heading"><text>箱子清单</text><text>已选 {{ selected.length }} / {{ boxes.length }} 箱</text></view>
+      <view v-if="result && !attempt && !storageError" class="card-heading list-heading"><text>箱子清单</text><text>已选 {{ selected.length }} / {{ boxes.length }} 箱</text></view>
     </view>
-    <scroll-view class="box-list" :class="{ 'box-list--empty': !result && !attempt }" scroll-y :show-scrollbar="true">
-      <view v-if="attempt" class="card result-card" role="status">
-        <view class="card-heading"><text>叫料结果待确认</text><text v-if="receipt" class="tag">{{ receipt.callNo }}</text></view>
+    <scroll-view class="box-list" :class="{ 'box-list--empty': !result || attempt || storageError }" :scroll-y="!!attempt || !!storageError || (!!result && boxes.length > 0)" :show-scrollbar="true">
+      <view v-if="storageError" class="card result-card storage-card" role="status">
+        <view class="card-heading"><text>本地叫料记录待核实</text></view>
+        <view v-if="attempt" class="request-id">请求标识：{{ attempt.input.requestId }}</view>
+        <view class="failure-reason">{{ storageError }}</view>
+        <button class="secondary result-query storage-retry" :disabled="busy" @tap="resume">重新读取本地记录</button>
+      </view>
+      <view v-else-if="attempt" class="card result-card" role="status">
+        <view class="card-heading"><text>叫料结果待确认</text></view>
         <view class="request-id">请求标识：{{ attempt.input.requestId }}</view>
         <view class="failure-reason">{{ attempt.reason }}</view>
-        <view v-for="task in receipt?.tasks || []" :key="task.taskId" class="task-row">
-          <view>{{ task.boxCode }} · {{ taskStates[task.dispatchState] }}</view>
-          <view class="request-id">任务编号：{{ task.taskNo }}</view>
-          <view v-if="task.reason" class="failure-reason">{{ task.reason }}</view>
-        </view>
-        <button class="secondary result-query" :disabled="busy" @tap="check">查询叫料结果</button>
+        <button class="secondary result-query" :disabled="busy" @tap="check">重试原请求</button>
       </view>
       <view v-else-if="!result" class="card empty">{{ location ? '请输入生产订单号并查询' : '请先扫描位置' }}<view class="empty-hint">{{ location ? '查询后勾选需要叫料的箱子' : '识别位置后按生产订单查询箱子' }}</view></view>
       <view v-else class="card">
@@ -104,8 +104,9 @@ button:focus-visible { outline: 2px solid #0d9496; outline-offset: 2px; }
 .box-list--empty { padding-top: 14rpx; }
 .empty { padding: 52rpx 20rpx; text-align: center; color: #748d93; font-size: 28rpx; }
 .empty-hint { margin-top: 16rpx; font-size: 24rpx; }
-.box-row { display: flex; align-items: center; gap: 12rpx; padding: 16rpx; border-bottom: 1px solid #dfebed; }
-.box-row checkbox { flex-shrink: 0; transform: scale(0.85); }
+.box-row { display: flex; align-items: center; gap: 12px; padding: 16rpx; padding-right: calc(16rpx + 10px); border-bottom: 1px solid #dfebed; }
+.box-row checkbox { flex-shrink: 0; margin: 0; transform: scale(0.85); transform-origin: right center; }
+.box-row :deep(.uni-checkbox-input) { margin-right: 0; }
 .box-content { flex: 1; min-width: 0; }
 .box-code { font-size: 28rpx; font-weight: 600; word-break: break-all; }
 .box-quantity { flex-shrink: 0; color: #087779; font-size: 24rpx; }
@@ -114,9 +115,8 @@ button:focus-visible { outline: 2px solid #0d9496; outline-offset: 2px; }
 .failure-reason { color: #c23232; font-size: 24rpx; line-height: 1.5; word-break: break-all; }
 .batch-reason { padding: 12rpx 16rpx; }
 .request-id { color: #748d93; font-size: 22rpx; line-height: 1.5; word-break: break-all; }
-.result-card { margin-top: 14rpx; padding-bottom: 16rpx; }
+.result-card { padding-bottom: 16rpx; }
 .result-card > .request-id, .result-card > .failure-reason { margin: 12rpx 16rpx; }
-.task-row { padding: 12rpx 16rpx; border-top: 1px solid #dfebed; font-size: 26rpx; }
 .result-query { margin: 12rpx 16rpx 0; }
 .footer { flex-shrink: 0; display: grid; grid-template-columns: 1fr 1.35fr; gap: 10rpx; padding: 14rpx 20rpx calc(14rpx + env(safe-area-inset-bottom)); }
 .primary { color: white; background: #0d9496; border-color: #0d9496; }

@@ -8,7 +8,8 @@ import { usePdaScanner } from '../../composables/usePdaScanner';
 import { useReceiving } from '../../composables/useReceiving';
 import MaterialRows from '../../components/MaterialRows.vue';
 
-const { result: object, materials, detail, confirmingClear, busy, disabled, canReceive, canClearWms, notice, notify, clear, scan, openMaterials, closeMaterials, askClearWms, cancelClearWms, submit } = useReceiving();
+const { result: object, materials, detail, confirmingClear, remark, busy, disabled, canReceive, canClearWms, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, askClearWms, cancelClearWms, submit } = useReceiving();
+const contentStateNames = { UNKNOWN: '未确认', EMPTY: '已确认空载', LOADED: '已确认非空' };
 const input = ref('');
 let active = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -19,11 +20,12 @@ async function handleScan(value: string) {
 }
 usePdaScanner(handleScan);
 const { reset: resetKeyboard } = useKeyboardScanner(handleScan, disabled);
-function clearPage() { if (!busy.value) { clear(); input.value = ''; resetKeyboard(); } }
+function clearPage() { if (!disabled.value) { clear(); input.value = ''; resetKeyboard(); } }
 function goBack() { if (!busy.value) uni.navigateBack(); }
-onShow(() => { active = true; });
+onShow(() => { active = true; resume(); });
 onHide(() => {
   active = false;
+  pause(); input.value = '';
   resetKeyboard();
 });
 watch(notice, (value) => {
@@ -33,7 +35,7 @@ watch(notice, (value) => {
 onUnmounted(() => {
   active = false;
   clearTimeout(noticeTimer);
-  clear();
+  pause();
 });
 </script>
 
@@ -52,6 +54,8 @@ onUnmounted(() => {
         <view class="info"><text>任务号</text><text>{{ object.task?.taskNo || '—' }}</text></view>
         <view class="info"><text>对象编号</text><text>{{ object.object.containerCode }}</text></view>
         <view class="info"><text>来源位置</text><text>{{ object.task?.location ? object.task.location.locationCode + ' · ' + object.task.location.locationName : '—' }}</text></view>
+        <view v-if="object.task" class="info"><text>接收状态</text><text>{{ object.task.statusName }} · {{ object.task.receivedBoxCount }}/{{ object.task.totalBoxCount }} 箱</text></view>
+        <view class="info"><text>实际内容</text><text>{{ contentStateNames[object.object.contentState || 'UNKNOWN'] }}</text></view>
         <view class="info"><text>关联物料</text><text>{{ object.totalMaterialQuantity }} 件</text></view>
       </view>
       <view v-if="busy" class="processing" role="status">处理中…</view>
@@ -60,7 +64,7 @@ onUnmounted(() => {
       <view v-if="!object" class="card empty">请扫描箱子或载具<view class="empty-hint">查询当前待接收任务</view></view>
       <view v-else-if="!object.task" class="card empty">当前{{ object.object.containerType === 'BOX' ? '箱子' : '载具' }}无接收任务<view class="empty-hint">请核对编码或扫描其他容器</view></view>
       <view v-else class="card list-card">
-        <view class="card-heading"><text>{{ object.object.containerType === 'VEHICLE' ? '载具内箱' : '箱内物料' }}</text><text>{{ object.object.containerType === 'VEHICLE' ? object.boxes.length + ' 箱' : object.totalMaterialQuantity + ' 件' }}</text></view>
+        <view class="card-heading"><text>{{ object.object.containerType === 'VEHICLE' ? '本次送达料箱' : '箱内物料' }}</text><text>{{ object.object.containerType === 'VEHICLE' ? object.boxes.length + ' 箱' : object.totalMaterialQuantity + ' 件' }}</text></view>
         <scroll-view class="list-scroll" scroll-y :show-scrollbar="true">
           <view v-if="object.object.containerType === 'VEHICLE'" class="box-rows">
             <button v-for="box in object.boxes" :key="box.boxCode" class="box-row" :disabled="disabled" @tap="openMaterials(box.boxCode)">
@@ -68,14 +72,18 @@ onUnmounted(() => {
               <text class="box-action">查看物料 ›</text>
             </button>
           </view>
-          <MaterialRows v-else :materials="materials" />
+          <MaterialRows v-else-if="materials.length" :materials="materials" show-batch />
+          <view v-else class="empty">本次接收范围暂无物料明细</view>
         </scroll-view>
       </view>
     </view>
-    <view class="footer">
-      <button :disabled="disabled" @tap="clearPage">清空页面</button>
-      <button class="danger" :disabled="!canClearWms" @tap="askClearWms">清空WMS历史</button>
-      <button class="primary" :disabled="!canReceive" @tap="submit()">确认接收</button>
+    <view class="bottom">
+      <textarea v-if="object?.task" v-model="remark" class="remark-input" placeholder="接收备注（可选，最多500字）" :maxlength="500" :disabled="disabled" />
+      <view class="footer">
+        <button :disabled="disabled" @tap="clearPage">清空页面</button>
+        <button class="danger" :disabled="!canClearWms" @tap="askClearWms">清空WMS历史</button>
+        <button class="primary" :disabled="!canReceive" @tap="submit()">确认接收</button>
+      </view>
     </view>
     <view v-if="confirmingClear" class="modal-mask">
       <view class="modal" role="dialog" aria-modal="true" aria-label="清空WMS历史">
@@ -91,7 +99,7 @@ onUnmounted(() => {
       <view class="modal detail-modal" role="dialog" aria-modal="true" aria-label="箱内物料">
         <view class="detail-heading"><text class="modal-title">箱内物料</text><text class="detail-summary">{{ detail.box.containerCode }} · {{ detail.totalQuantity }} 件</text></view>
         <view class="detail-scroll">
-          <MaterialRows v-if="detail.materials.length" :materials="detail.materials" />
+          <MaterialRows v-if="detail.materials.length" :materials="detail.materials" show-batch />
           <view v-else class="empty">当前箱子暂无物料</view>
         </view>
         <view class="detail-footer"><button @tap="closeMaterials">关闭</button></view>
@@ -123,14 +131,16 @@ button:focus-visible { outline: 2px solid #0d9496; outline-offset: 2px; }
 .empty { padding: 52rpx 20rpx; text-align: center; color: #748d93; font-size: 28rpx; }
 .empty-hint { margin-top: 16rpx; font-size: 24rpx; }
 .processing { font-size: 22rpx; color: #087779; padding-top: 8rpx; }
+.bottom { flex-shrink: 0; }
+.remark-input { width: calc(100% - 40rpx); height: 76rpx; margin: 14rpx 20rpx 0; padding: 12rpx 16rpx; font-size: 24rpx; line-height: 1.4; color: #254b54; background: white; border: 1px solid #b8d3d6; border-radius: 8rpx; box-sizing: border-box; }
 .footer { flex-shrink: 0; display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 10rpx; padding: 14rpx 20rpx calc(14rpx + env(safe-area-inset-bottom)); }
 .footer button { min-width: 0; padding: 0 4rpx; font-size: 24rpx; white-space: nowrap; }
 .primary { color: white; background: #0d9496; border-color: #0d9496; }
 .danger { color: #bb3535; border-color: #bb3535; }
 .modal-mask { position: fixed; inset: 0; background: #173f4866; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 24rpx; }
-.modal { background: white; border-radius: 16rpx; width: 100%; max-width: 440px; padding: 28rpx; }
+.modal { background: white; border-radius: 16rpx; width: 100%; max-width: 440px; max-height: 80dvh; padding: 28rpx; display: flex; flex-direction: column; }
 .modal-title { font-size: 30rpx; font-weight: 600; }
-.modal-content { font-size: 28rpx; margin: 24rpx 0; line-height: 1.6; word-break: break-word; }
+.modal-content { min-height: 0; overflow-y: auto; font-size: 28rpx; margin: 24rpx 0; line-height: 1.6; word-break: break-word; }
 .modal-actions { display: grid; grid-template-columns: 1fr 1.6fr; gap: 14rpx; }
 .list-card { display: flex; flex-direction: column; min-height: 0; max-height: 100%; flex: 1; }
 .list-card > .card-heading { flex-shrink: 0; }

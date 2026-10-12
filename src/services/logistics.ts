@@ -7,7 +7,7 @@ export interface LogisticsOptions {
   object: LocationContainer;
   origin: LocationSummary;
   vendor: 'STANDARD' | 'HIKVISION';
-  taskType: 'GENERAL' | 'PROCESS_ROUTE';
+  taskType: 'GENERAL';
   destinations: { location: LocationCandidate; recommended: boolean }[];
   recommendedDestination?: LocationCandidate;
   eligibility: Eligibility;
@@ -32,7 +32,8 @@ export interface LogisticsTask {
   vendor: LogisticsOptions['vendor']; taskType: LogisticsOptions['taskType'];
   container: LocationContainer; origin: LocationSummary; destination: LocationSummary;
   agvCode?: string; agvName?: string;
-  status: string; statusName: string; triggerMode: string; createdTime: string;
+  status: 'QUEUED' | 'DISPATCHING' | 'ACCEPTED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'UNKNOWN';
+  statusName: string; triggerMode: string; createdTime: string;
 }
 export interface TaskCreationResponse { requestId: string; task: LogisticsTask }
 export const logisticsApi = {

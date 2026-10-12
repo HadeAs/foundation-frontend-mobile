@@ -147,7 +147,7 @@ describe('warehouse application', () => {
       expect(flow.object.value).not.toBeNull();
       expect(flow.notice.value?.text).toContain('未能确认全部处理成功');
     }
-    submit.mockResolvedValueOnce(receipt);
+    submit.mockImplementationOnce(async (_object, _version, id) => ({ ...receipt, requestId: id! }));
     await flow.submit();
     expect(flow.object.value).toBeNull();
     expect(flow.notice.value?.text).toContain('SAP-1、SAP-2');

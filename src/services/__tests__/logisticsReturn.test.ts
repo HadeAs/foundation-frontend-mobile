@@ -106,7 +106,7 @@ describe('logistics return contract', () => {
     await finish(expect(api.returnToWarehouse({ ...stale, version: 99 })).rejects.toThrow('版本或起始位置已变化'));
     await finish(expect(api.returnToWarehouse({ ...stale, originLocationCode: 'OTHER' })).rejects.toThrow('版本或起始位置已变化'));
     await finish(expect(api.returnToWarehouse({ ...stale, vendor: 'HIKVISION' })).rejects.toThrow('任务配置已变化'));
-    await finish(expect(api.returnToWarehouse({ ...stale, taskType: 'PROCESS_ROUTE' })).rejects.toThrow('任务配置已变化'));
+    await finish(expect(api.returnToWarehouse({ ...stale, taskType: 'PROCESS_ROUTE' } as unknown as typeof stale)).rejects.toThrow('任务配置已变化'));
     await finish(expect(api.returnToWarehouse({ ...stale, destinationLocationCode: 'DEST-001' } as unknown as typeof stale)).rejects.toThrow('不能提交目标位置'));
     const location = await finish(locationBindingApi.getLocation('KW-LOG-SINGLE'));
     await finish(locationBindingApi.unbind({ locationCode: 'KW-LOG-SINGLE', version: location.version, container: stale.object, containerVersion: state.object.version }));
@@ -120,7 +120,7 @@ describe('logistics return contract', () => {
     const pending = flow.returnToWarehouse(); expect(flow.canReturn.value).toBe(false); flow.clear();
     resolve({ requestId: create.mock.calls[0][0].requestId, task: { taskId: '1', taskNo: 'RT-LATE', version: 1,
       vendor: options.vendor, taskType: options.taskType, container: options.object, origin: options.origin,
-      destination: { locationCode: 'RETURN', locationName: '回库位' }, status: 'CREATED', statusName: '已创建', triggerMode: 'MANUAL', createdTime: new Date().toISOString() } });
+      destination: { locationCode: 'RETURN', locationName: '回库位' }, status: 'QUEUED', statusName: '已创建', triggerMode: 'MANUAL', createdTime: new Date().toISOString() } });
     await pending; expect(flow.options.value).toBeNull(); expect(flow.notice.value).toBeNull();
     create.mockRestore();
     await finish(flow.scan('CAR-LOG-NORMAL'));

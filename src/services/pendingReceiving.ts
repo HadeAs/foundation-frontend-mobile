@@ -12,6 +12,8 @@ export interface ReceivingTask {
   statusName: string;
   createdTime: string;
   eligibility: Eligibility;
+  totalBoxCount: number;
+  receivedBoxCount: number;
 }
 export interface ReceivingTaskPage {
   records: ReceivingTask[];

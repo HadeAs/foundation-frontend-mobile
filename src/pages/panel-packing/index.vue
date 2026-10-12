@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import OperationNotice from '../../components/OperationNotice.vue';
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { onUnmounted, ref, watch } from 'vue';
 import { onHide, onShow } from '@dcloudio/uni-app';
 import ScanInput from '../../components/ScanInput.vue';
 import { useKeyboardScanner } from '../../composables/useKeyboardScanner';
 import { usePdaScanner } from '../../composables/usePdaScanner';
 import { usePanelPacking } from '../../composables/usePanelPacking';
 
-const { box, review, pending, busy, notice, canJoint, notify, clear, scan, keepBindings, unbindAll, getJoint, remove, submit } = usePanelPacking();
+const { box, review, pending, mixed, busy, disabled, notice, canJoint, canSubmit, notify, clear, pause, resume,
+  scan, keepBindings, unbindAll, getJoint, remove, submit, cancelMixed, continueMixed } = usePanelPacking();
 const input = ref('');
-const disabled = computed(() => busy.value || !!review.value);
+const contentStateName = { UNKNOWN: '未确认', EMPTY: '已确认空载', LOADED: '已确认非空' };
 let active = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -22,7 +23,7 @@ usePdaScanner(handleScan);
 
 const { reset: resetKeyboard } = useKeyboardScanner(handleScan, disabled);
 function clearPage() {
-  if (busy.value) return;
+  if (disabled.value) return;
   clear();
   input.value = '';
   resetKeyboard();
@@ -30,9 +31,12 @@ function clearPage() {
 function goBack() { if (!busy.value) uni.navigateBack(); }
 onShow(() => {
   active = true;
+  resume();
 });
 onHide(() => {
   active = false;
+  pause();
+  input.value = '';
   resetKeyboard();
 });
 watch(notice, (value) => {
@@ -42,7 +46,7 @@ watch(notice, (value) => {
 onUnmounted(() => {
   active = false;
   clearTimeout(noticeTimer);
-  clear();
+  pause();
 });
 </script>
 
@@ -60,35 +64,48 @@ onUnmounted(() => {
       <view v-if="box" class="card box-card">
         <view class="card-heading"><text>箱信息</text><text class="tag">已识别</text></view>
         <view class="info"><text>箱子编号</text><text>{{ box.box.containerCode }}</text></view>
+        <view class="info"><text>实际内容</text><text>{{ contentStateName[box.contentState] }}</text></view>
         <view class="counts"><text>已绑定 {{ box.totalQuantity }} 件</text><text>本次待绑定 {{ pending.length }} 件</text></view>
       </view>
       <view v-if="busy" class="processing" role="status">处理中…</view>
     </view>
-    <scroll-view class="material-list" scroll-y :show-scrollbar="true">
+    <scroll-view class="material-list" :scroll-y="!!(box?.bindings.length || pending.length)" :show-scrollbar="true">
       <view v-if="!box" class="empty">请先扫描箱码</view>
       <view v-else-if="!box.bindings.length && !pending.length" class="empty">请扫描物料唯一码</view>
       <view v-for="item in box?.bindings || []" :key="item.id" class="card material-card">
         <view class="material-heading"><text>{{ item.panelCode || item.materialCode }}</text><text class="tag tag--bound">已绑定</text></view>
-        <view class="secondary">{{ item.materialCode }} · {{ item.materialName }}</view>
+        <view class="secondary">{{ item.materialCode }}<text v-if="item.materialName"> · {{ item.materialName }}</text></view>
+        <view class="secondary">批次 {{ item.materialBatch }}</view>
         <view class="secondary">订单 {{ item.orderNo }}</view>
-        <view v-if="item.bindingMode === 'BY_ORDER'" class="secondary">数量 {{ item.quantity }} {{ item.unit }}</view>
+        <view v-if="item.bindingMode === 'BY_ORDER'" class="secondary">数量 {{ item.quantity }}<text v-if="item.unit"> {{ item.unit }}</text></view>
       </view>
       <view v-for="item in pending" :key="item.panelCode" class="card material-card">
         <view class="material-heading">
           <text>{{ item.panelCode }}</text>
           <text class="tag">待绑定</text>
-          <button class="delete" :aria-label="`删除 ${item.panelCode}`" :disabled="busy" @tap="remove(item.panelCode)">
+          <button class="delete" :aria-label="`删除 ${item.panelCode}`" :disabled="disabled" @tap="remove(item.panelCode)">
             <view class="trash-icon" aria-hidden="true" />
           </button>
         </view>
-        <view class="secondary">{{ item.materialCode }} · {{ item.materialName }}</view>
+        <view class="secondary">{{ item.materialCode }}<text v-if="item.materialName"> · {{ item.materialName }}</text></view>
+        <view v-if="item.materialBatch" class="secondary">批次 {{ item.materialBatch }}</view>
         <view class="secondary">订单 {{ item.orderNo }}</view>
       </view>
     </scroll-view>
     <view class="footer">
-      <button :disabled="busy" @tap="clearPage">清空页面</button>
+      <button :disabled="disabled" @tap="clearPage">清空页面</button>
       <button :disabled="disabled || !canJoint" @tap="getJoint">获取拼板</button>
-      <button class="primary" :disabled="disabled || !pending.length" @tap="submit">确认装箱</button>
+      <button class="primary" :disabled="!canSubmit" @tap="submit">确认装箱</button>
+    </view>
+    <view v-if="mixed" class="modal-mask">
+      <view class="modal" role="dialog" aria-modal="true" aria-label="混料确认">
+        <view class="modal-title">混料确认</view>
+        <view class="modal-content">{{ mixed.confirmation.message }}</view>
+        <view class="modal-actions">
+          <button :disabled="busy" @tap="cancelMixed">取消</button>
+          <button class="primary" :disabled="busy" @tap="continueMixed">{{ busy ? '提交中…' : '继续装箱' }}</button>
+        </view>
+      </view>
     </view>
     <view v-if="review" class="modal-mask">
       <view class="modal" role="dialog" aria-modal="true" aria-label="一键解绑确认">
@@ -136,9 +153,9 @@ button:focus-visible { outline: 2px solid #0d9496; outline-offset: 2px; }
 .footer { flex-shrink: 0; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10rpx; padding: 14rpx 20rpx calc(14rpx + env(safe-area-inset-bottom)); }
 .primary { color: white; background: #0d9496; border-color: #0d9496; }
 .modal-mask { position: fixed; inset: 0; background: #173f4866; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 24rpx; }
-.modal { background: white; border-radius: 16rpx; width: 100%; max-width: 440px; padding: 28rpx; }
+.modal { background: white; border-radius: 16rpx; width: 100%; max-width: 440px; max-height: 80dvh; padding: 28rpx; display: flex; flex-direction: column; }
 .modal-title { font-size: 30rpx; font-weight: 600; }
-.modal-content { font-size: 28rpx; margin: 24rpx 0; line-height: 1.6; }
+.modal-content { min-height: 0; overflow-y: auto; word-break: break-word; font-size: 28rpx; margin: 24rpx 0; line-height: 1.6; }
 .modal-actions { display: grid; grid-template-columns: 1fr 1.6fr; gap: 14rpx; }
 .danger { color: #bb3535; border-color: #bb3535; }
 </style>

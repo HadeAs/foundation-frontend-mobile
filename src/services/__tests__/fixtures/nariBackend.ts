@@ -4,7 +4,7 @@ import type { LoadPair, VehicleSlot, Vehicle, LoadedBox, MaterialLine, VehicleLo
 import type { LocationContainers, ContainerRef, LocationContainer, LocationOperation } from '../../locationBinding';
 import type { ApplicationObject, BoxContents } from '../../warehouseApplication';
 import type { ReceivingTask } from '../../pendingReceiving';
-import type { ReceivingResult, ReceivingRequest, ClearWmsRequest, ReceivingReceipt } from '../../receiving';
+import type { ReceivingResult, ReceivingRequest, ClearWmsRequest, ReceivingReceipt, ReceivingOperationReceipt } from '../../receiving';
 import type { ShippingObject, ShippingReceipt, ShippingRequest } from '../../shipping';
 import type { CreateLogisticsRequest, ReturnLogisticsRequest, LogisticsOptions, TaskCreationResponse, LocationCandidate, LogisticsTask } from '../../logistics';
 import type { CancelTaskRequest, CancellationResult } from '../../logisticsCancellation';
@@ -23,7 +23,7 @@ let jointGroups: string[][];
 let nextId: number;
 let slots: Record<string, VehicleSlot>;
 let vehicles: Vehicle[];
-let receivingEntries: { task: ReceivingTask; boxes: BoxContents[]; wmsBindings: BoxContents[] }[];
+let receivingEntries: { task: ReceivingTask; boxes: BoxContents[]; wmsBindings: BoxContents[]; received: Map<string, string | undefined> }[];
 let receivingHistory: Map<string, { action: string; input: ReceivingRequest | ClearWmsRequest; receipt: ReceivingReceipt; before: BoxContents[] }>;
 let shippingWms: Record<string, MaterialLine[]>;
 let shippingHistory: { request: ShippingRequest; receipt: ShippingReceipt; before: BoxContents[]; shipped: BoxContents[] }[];
@@ -40,7 +40,7 @@ let trafficAreas: TrafficArea[];
 let trafficHistory: Map<string, { areaCode: string; action: TrafficAction; input: TrafficActionRequest; before: TrafficArea; after: TrafficArea }>;
 let trafficPageFailed: boolean;
 let loadRelations: Record<string, Pick<LoadedBox, 'id' | 'version'>>;
-let locations: Record<string, Omit<LocationContainers, 'occupied' | 'container'> & { container?: ContainerRef }>;
+let locations: Record<string, Omit<LocationContainers, 'occupied' | 'container' | 'relatedTasks' | 'unbindEligibility'> & { container?: ContainerRef }>;
 
 export function resetMockData() {
   logisticsHistory = [];
@@ -77,9 +77,13 @@ export function resetMockData() {
   }));
   // Mock-only physical panel groups: 0034–0037, 0038–0041, etc.; not a production code rule.
   jointGroups = Array.from({ length: 15 }, (_, index) => panels.slice(index * 4, index * 4 + 4).map((panel) => panel.panelCode));
+  panels.push(
+    { ...panels[0], panelCode: '123456789ABC000001ABCDEFG00001234', materialBatch: '000001' },
+    { ...panels[1], panelCode: '123456789ABC000002ABCDEFG00001235', materialBatch: '000002' }
+  );
   const makeBox = (code: string): BoxBindings => ({
     box: { containerType: 'BOX', containerCode: code, containerName: '标准料箱', version: 1 },
-    empty: true, totalQuantity: 0, bindings: [], eligibility: { allowed: true }
+    empty: true, contentState: 'EMPTY', runtimeUsage: 'MATERIAL', totalQuantity: 0, bindings: [], eligibility: { allowed: true }
   });
   boxes = Object.fromEntries(['BOX-NR-240818', 'BOX-NR-240819', 'BOX-1', 'BOX-LONG'].map((code) => [code, makeBox(code)]));
   boxes['BOX-NR-240818'].bindings = panels.slice(0, 3).map(toBinding);
@@ -157,7 +161,7 @@ export function resetMockData() {
   for (const suffix of ['MES-FAIL', 'SAP-FAIL', 'WMS-FAIL', 'BLOCKED', 'DETAIL-FAIL']) {
     const code = `BOX-APPLY-${suffix}`;
     boxes[code] = makeBox(code);
-    boxes[code].bindings = [{ id: String(nextId++), version: 1, bindingMode: 'BY_ORDER', orderNo: 'SO-20260901-018', materialCode: 'MAT-7001', materialName: '控制模块', quantity: 5, unit: '件' }];
+    boxes[code].bindings = [{ id: String(nextId++), version: 1, bindingMode: 'BY_ORDER', orderNo: 'SO-20260901-018', materialCode: 'MAT-7001', materialBatch: '000001', materialName: '控制模块', quantity: 5, unit: '件' }];
     boxes[code].empty = false;
     boxes[code].totalQuantity = 5;
   }
@@ -220,7 +224,7 @@ export function resetMockData() {
         return toBinding(panel);
       });
       if (suffix === 'NORMAL' && i === 2) box.bindings = [{ id: String(nextId++), version: 1, bindingMode: 'BY_ORDER',
-        orderNo: 'SO-20260901-018', materialCode: 'MAT-7001', materialName: '控制模块', quantity: 5, unit: '件' }];
+        orderNo: 'SO-20260901-018', materialCode: 'MAT-7001', materialBatch: '000001', materialName: '控制模块', quantity: 5, unit: '件' }];
       box.empty = false; box.totalQuantity = box.bindings.reduce((sum, item) => sum + item.quantity, 0); boxes[boxCode] = box;
       const slotCode = `SLOT-${boxCode}`;
       slots[slotCode] = { slotCode, version: 1, vehicle, box: box.box, eligibility: { allowed: true } };
@@ -273,8 +277,9 @@ export function resetMockData() {
       taskId: `9007199254741${String(index + 1).padStart(3, '0')}`, taskNo: `RCV-20260917-${String(index + 1).padStart(4, '0')}`, version: 7,
       object, location: isBox ? undefined : { locationCode: `KW-03-0${index % 3 + 1}`, locationName: '缓存位' },
       status: 'PENDING', statusName: '待接收', createdTime: new Date(Date.UTC(2026, 8, 17, 2, Math.floor(index / 2))).toISOString(),
-      eligibility: code.endsWith('-BLOCKED') ? { allowed: false, reason: '当前任务暂不允许接收' } : { allowed: true }
-    }, boxes: contents, wmsBindings: JSON.parse(JSON.stringify(contents)) };
+      eligibility: code.endsWith('-BLOCKED') ? { allowed: false, reason: '当前任务暂不允许接收' } : { allowed: true },
+      totalBoxCount: contents.length, receivedBoxCount: 0
+    }, boxes: contents, wmsBindings: JSON.parse(JSON.stringify(contents)), received: new Map<string, string | undefined>() };
   });
   for (const [code, name] of [['KW-MATERIAL-CALL', '一号叫料接收位'], ['KW-MATERIAL-CALL-2', '二号叫料接收位']]) {
     locations[code] = { location: { locationCode: code, locationName: name, floorCode: 'F1', floorName: '一层',
@@ -301,16 +306,25 @@ export function resetMockData() {
     });
   }
 }
-function receivingResult(scanCode: unknown): ReceivingResult {
+function receivingResult(scanCode: unknown, taskId?: unknown): ReceivingResult {
   if (typeof scanCode !== 'string' || !scanCode.trim() || scanCode.length > 128) throw new Error('扫描编码无效');
   if (scanCode === 'CONTAINER-AMBIGUOUS') throw new Error('该编码匹配多个容器，无法唯一识别');
   if (scanCode === 'CAR-RECEIVE-MULTI') throw new MockHttpError('当前容器存在多个接收任务，请联系管理员核查', 409);
   if (scanCode === 'CAR-RECEIVE-INCOMPLETE') throw new Error('接收任务物料明细缺失，请联系管理员核查');
-  const entry = receivingEntries.find((item) => item.task.object.containerCode === scanCode);
+  const scope = receivingEntries.filter(item => item.task.object.containerCode === scanCode || item.boxes.some(box => box.boxCode === scanCode));
+  if (taskId !== undefined && !scope.some(item => item.task.taskId === taskId)) throw new MockHttpError('对象不属于本次运输接收范围', 404);
+  const entry = taskId !== undefined ? scope.find(item => item.task.taskId === taskId) : scope.find(item => item.task.status !== 'RECEIVED');
   if (entry) {
-    const task = entry.task.status === 'PENDING' ? entry.task : undefined;
-    return { object: entry.task.object, ...(task ? { task } : {}), boxes: task ? entry.boxes : [],
-      totalMaterialQuantity: task ? entry.boxes.reduce((sum, box) => sum + box.materialQuantity, 0) : 0 };
+    const isBox = entry.task.object.containerCode !== scanCode || entry.task.object.containerType === 'BOX';
+    const content = isBox ? entry.boxes.filter(box => box.boxCode === scanCode) : entry.boxes;
+    const object: LocationContainer = isBox ? { containerType: 'BOX', containerCode: scanCode, version: content[0].version } : entry.task.object;
+    const task = { ...entry.task, object, eligibility: isBox && entry.received.has(scanCode) ? { allowed: false, reason: '该箱已接收' } : entry.task.eligibility };
+    return { object, task, boxes: content, totalMaterialQuantity: content.reduce((sum, box) => sum + box.materialQuantity, 0) };
+  }
+  if (scope.length) {
+    const historical = scope[0]; const content = historical.boxes.find(box => box.boxCode === scanCode);
+    return { object: historical.task.object.containerCode === scanCode ? historical.task.object :
+      { containerType: 'BOX', containerCode: scanCode, version: content!.version }, boxes: [], totalMaterialQuantity: 0 };
   }
   const candidates: LocationContainer[] = vehicles.filter((vehicle) => vehicle.containerCode === scanCode);
   if (boxes[scanCode]) candidates.push(boxes[scanCode].box);
@@ -320,7 +334,7 @@ function receivingResult(scanCode: unknown): ReceivingResult {
 }
 function toBinding(panel: Panel): Binding {
   return { id: String(nextId++), version: 1, bindingMode: 'BY_CODE', panelCode: panel.panelCode,
-    materialCode: panel.materialCode, materialName: panel.materialName, orderNo: panel.orderNo, quantity: 1, unit: '件' };
+    materialCode: panel.materialCode, materialBatch: panel.materialBatch || '000001', materialName: panel.materialName, orderNo: panel.orderNo, quantity: 1, unit: '件' };
 }
 function boundBox(panelCode: string): string | undefined {
   return Object.values(boxes).find((box) => box.bindings.some((item) => item.panelCode === panelCode))?.box.containerCode;
@@ -328,6 +342,8 @@ function boundBox(panelCode: string): string | undefined {
 function requireBox(code: unknown): BoxBindings {
   const box = typeof code === 'string' ? boxes[code] : undefined;
   if (!box) throw new Error('箱子编码不存在');
+  // These legacy fixtures are confirmed material-only boxes, not unknown or fixture contents.
+  box.contentState = box.empty ? 'EMPTY' : 'LOADED';
   return box;
 }
 function requirePanel(code: unknown): Panel {
@@ -427,7 +443,7 @@ function logisticsOptions(code: unknown): LogisticsOptions {
   // Explicit fixture configuration belongs to the mock backend, never inferred by the page.
   const configurations: Record<string, [LogisticsOptions['vendor'], LogisticsOptions['taskType']]> = {
     'KW-SHIP-CAR': ['STANDARD', 'GENERAL'], 'KW-SHIP-BOX': ['HIKVISION', 'GENERAL'],
-    'KW-LOG-HIK': ['HIKVISION', 'GENERAL'], 'KW-LOG-PROCESS': ['STANDARD', 'PROCESS_ROUTE']
+    'KW-LOG-HIK': ['HIKVISION', 'GENERAL'], 'KW-LOG-PROCESS': ['STANDARD', 'GENERAL']
   };
   for (const suffix of ['NORMAL', 'SINGLE', 'LONG', 'BLOCKED', 'NO-END', 'FAIL', 'RETURN-FAIL']) configurations[`KW-LOG-${suffix}`] = ['STANDARD', 'GENERAL'];
   const config = configurations[origin.locationCode];
@@ -500,11 +516,11 @@ function cancellationTasks(): LogisticsTask[] {
   const fixtures: LogisticsTask[] = Array.from({ length: 45 }, (_, index) => {
     const scenario = ['NORMAL', 'ACCEPTED', 'FAILED', 'UNKNOWN', 'REJECTED', 'RESULT-FAIL'][index] || `PAGE-${index}`;
     return { taskId: `9007199254741${String(index + 1).padStart(3, '0')}`, taskNo: `WL-CANCEL-${String(index + 1).padStart(3, '0')}`, version: 1,
-      vendor: index % 2 ? 'HIKVISION' : 'STANDARD', taskType: index % 6 === 0 ? 'PROCESS_ROUTE' : 'GENERAL',
+      vendor: index % 2 ? 'HIKVISION' : 'STANDARD', taskType: 'GENERAL',
       container: { containerType: index % 2 ? 'BOX' : 'VEHICLE', containerCode: `CANCEL-${scenario}`, version: 1 },
       origin: { locationCode: 'KW-03-02', locationName: '三号缓存位' }, destination: { locationCode: 'KW-05-01', locationName: '成品库接驳台' },
       ...(index === 44 ? {} : { agvCode: `AGV-${String(index + 1).padStart(3, '0')}`, agvName: index < 6 ? '搬运一号车' : '分页测试车' }),
-      status: 'CREATED', statusName: '已创建', triggerMode: index % 6 ? 'MANUAL' : '满载自动发起',
+      status: 'QUEUED', statusName: '已创建', triggerMode: index % 6 ? 'MANUAL' : '满载自动发起',
       createdTime: new Date(Date.UTC(2026, 8, 17, 2, 59 - index)).toISOString() };
   });
   return [...logisticsHistory.map((entry) => entry.result.task), ...emptyCallHistory.map((entry) => entry.result.task), ...warehouseLogisticsHistory.map((entry) => entry.result.task),
@@ -531,13 +547,6 @@ function materialCallBoxes(locationCode: unknown, orderNo: unknown): MaterialCal
 }
 function mockData(path: string, method: string, data: Record<string, unknown>): unknown {
   if (method === 'GET' && path === `${prefix}/order-calls/candidates`) return materialCallBoxes(data.destinationLocationCode, data.orderNo);
-  if (method === 'GET' && path.startsWith(`${prefix}/order-calls/`)) {
-    const id = decodeURIComponent(path.slice(`${prefix}/order-calls/`.length));
-    const entry = materialCallHistory.get(id);
-    if (!entry) throw new MockHttpError('暂未查询到本次叫料结果', 404);
-    if (entry.input.orderNo === 'MO-RESULT-FAIL') throw new MockHttpError('叫料结果查询暂不可用', 500);
-    return entry.result;
-  }
   if (method === 'POST' && path === `${prefix}/order-calls`) {
     const input = data as unknown as MaterialCallRequest;
     if (typeof input.requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.requestId) ||
@@ -550,6 +559,7 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
         saved.boxes.length !== input.boxes.length || saved.boxes.some((box) => !input.boxes.some((item) => item.boxCode === box.boxCode && item.version === box.version))) {
         throw new MockHttpError('相同请求标识不能用于不同叫料内容', 409);
       }
+      if (input.orderNo === 'MO-RESULT-FAIL') throw new MockHttpError('原请求暂不可重试', 500);
       return previous.result;
     }
     const target = requireLocation(input.destinationLocationCode);
@@ -563,18 +573,18 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
       if (!candidate.eligibility.allowed) throw new MockHttpError(candidate.eligibility.reason!, 409);
     }
     if (input.orderNo === 'MO-SUBMIT-FAIL') throw new Error('叫料失败：后端暂无法处理该生产订单');
-    if (input.orderNo === 'MO-RESULT-MISSING') throw new MockHttpError('叫料提交结果未知，请查询原请求', 500);
+    if (input.orderNo === 'MO-RESULT-MISSING') throw new MockHttpError('叫料提交结果未知，请重试原请求', 500);
     const tasks: LogisticsTask[] = input.boxes.map((box) => ({ taskId: String(nextId++), taskNo: `WL-CALL-${nextId++}`, version: 1,
       vendor: 'STANDARD', taskType: 'GENERAL', container: requireBox(box.boxCode).box,
       origin: current.boxes.find((item) => item.boxCode === box.boxCode)!.origin, destination: target.location,
-      status: 'CREATED', statusName: '等待派送', triggerMode: 'MANUAL', createdTime: new Date().toISOString() }));
+      status: 'QUEUED', statusName: '等待派送', triggerMode: 'MANUAL', createdTime: new Date().toISOString() }));
     const result: MaterialCallReceipt = { requestId: input.requestId, callNo: `CALL-MOCK-${nextId++}`, orderNo: input.orderNo, destination: target.location,
       tasks: tasks.map((task) => ({ boxCode: task.container.containerCode, taskId: task.taskId, taskNo: task.taskNo,
         dispatchState: input.orderNo === 'MO-DISPATCH-UNKNOWN' ? 'UNKNOWN' : input.orderNo === 'MO-DISPATCH-FAIL' ? 'FAILED' : 'QUEUED',
         ...(input.orderNo === 'MO-DISPATCH-UNKNOWN' ? { reason: '等待核实调度受理结果' } : input.orderNo === 'MO-DISPATCH-FAIL' ? { reason: '调度派送失败' } : {}) })),
       createdTime: new Date().toISOString() };
     materialCallHistory.set(input.requestId, { input: JSON.parse(JSON.stringify(input)), result, tasks });
-    if (['MO-SUBMIT-UNKNOWN', 'MO-RESULT-FAIL'].includes(input.orderNo)) throw new MockHttpError('叫料提交结果未知，请查询原请求', 500);
+    if (['MO-SUBMIT-UNKNOWN', 'MO-RESULT-FAIL'].includes(input.orderNo)) throw new MockHttpError('叫料提交结果未知，请重试原请求', 500);
     return result;
   }
   if (method === 'GET' && path === `${prefix}/warehouse-logistics/options`) {
@@ -600,7 +610,7 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
     if (current.origin.locationCode === 'KW-WH-FAIL') throw new Error('缴库物流任务创建失败：目标地点暂不可用');
     const result: TaskCreationResponse = { requestId: input.requestId, task: { taskId: String(nextId++), taskNo: `WH-MOCK-${nextId++}`, version: 1,
       vendor: current.vendor, taskType: current.taskType, container: current.object, origin: current.origin, destination,
-      status: 'CREATED', statusName: '已创建', triggerMode: 'MANUAL', createdTime: new Date().toISOString() } };
+      status: 'QUEUED', statusName: '已创建', triggerMode: 'MANUAL', createdTime: new Date().toISOString() } };
     warehouseLogisticsHistory.push({ input: JSON.parse(JSON.stringify(input)), result });
     return result;
   }
@@ -661,7 +671,7 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
     if (input.destinationLocationCode === 'KW-CALL-FAIL') throw new Error('呼叫失败：设备暂不可用，请稍后重试');
     const result: TaskCreationResponse = { requestId: input.requestId, task: { taskId: String(nextId++), taskNo: `CALL-MOCK-${nextId++}`, version: 1,
       vendor: 'STANDARD', taskType: 'GENERAL', container: selected.vehicle, origin: selected.origin, destination: available.destination,
-      status: 'CREATED', statusName: '已创建', triggerMode: 'MANUAL', createdTime: new Date().toISOString() } };
+      status: 'QUEUED', statusName: '已创建', triggerMode: 'MANUAL', createdTime: new Date().toISOString() } };
     emptyCallHistory.push({ input: { ...input }, result });
     return result;
   }
@@ -748,7 +758,7 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
       : { locationCode: 'KW-RETURN-STANDARD', locationName: '斯坦德回库位' } : selected!.location;
     const result: TaskCreationResponse = { requestId: input.requestId, task: { taskId: String(nextId++), taskNo: `${returning ? 'RT' : 'WL'}-MOCK-${nextId++}`, version: 1,
       vendor: current.vendor, taskType: current.taskType, container: current.object, origin: current.origin, destination,
-      status: 'CREATED', statusName: '已创建', triggerMode: 'MANUAL', createdTime: new Date().toISOString() } };
+      status: 'QUEUED', statusName: '已创建', triggerMode: 'MANUAL', createdTime: new Date().toISOString() } };
     logisticsHistory.push({ input: JSON.parse(JSON.stringify(input)), result });
     return result;
   }
@@ -760,7 +770,7 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
       if (data[field] !== undefined && (typeof data[field] !== 'string' || !(data[field] as string).trim() || (data[field] as string).length > 128)) throw new Error('查询条件无效');
     }
     if (data.vehicleCode === 'CAR-QUERY-FAIL') throw new Error('待接收物料清单查询失败，请稍后重试');
-    const tasks = receivingEntries.map((entry) => entry.task).filter((task) => task.status === 'PENDING');
+    const tasks = receivingEntries.map((entry) => entry.task).filter((task) => task.status === 'PENDING' || task.status === 'PARTIAL');
     const matches = tasks.filter((task) => (!data.vehicleCode || task.object.containerType === 'VEHICLE' && task.object.containerCode === data.vehicleCode) &&
       (!data.locationCode || task.location?.locationCode === data.locationCode))
       .sort((a, b) => b.createdTime.localeCompare(a.createdTime) || b.taskId.localeCompare(a.taskId));
@@ -792,34 +802,46 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
     return { box, sourceSystem: 'LES', materials: contents.materials, totalQuantity: contents.materialQuantity };
   }
   if (method === 'GET' && path === `${prefix}/receiving/tasks`) {
-    if (Object.keys(data).some((key) => key !== 'scanCode')) throw new Error('接收查询仅接收 scanCode');
-    return receivingResult(data.scanCode);
+    if (Object.keys(data).some((key) => !['scanCode', 'taskId'].includes(key))) throw new Error('接收查询仅接收 scanCode 及可选 taskId');
+    return receivingResult(data.scanCode, data.taskId);
   }
   if (method === 'POST' && (path === `${prefix}/receiving/confirm` || path === `${prefix}/receiving/clear-wms-bindings`)) {
     const cleanup = path.endsWith('/clear-wms-bindings');
     const input = data as unknown as ClearWmsRequest;
-    if (Object.keys(data).some((key) => !['requestId', 'taskId', 'version', ...(cleanup ? ['object'] : [])].includes(key)) ||
+    if (Object.keys(data).some((key) => !['requestId', 'taskId', 'version', 'object', ...(!cleanup ? ['remark'] : [])].includes(key)) ||
       typeof input.requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.requestId) ||
-      typeof input.taskId !== 'string' || !/^[1-9][0-9]{0,18}$/.test(input.taskId) || !Number.isInteger(input.version) || input.version < 1) throw new Error('接收操作参数无效');
+      typeof input.taskId !== 'string' || !/^[1-9][0-9]{0,18}$/.test(input.taskId) || !Number.isInteger(input.version) || input.version < 1 ||
+      !input.object || !['BOX', 'VEHICLE'].includes(input.object.containerType) ||
+      'remark' in input && (typeof input.remark !== 'string' || input.remark.length > 500)) throw new Error('接收操作参数无效');
     const previous = receivingHistory.get(input.requestId);
     if (previous) {
-      if (previous.action !== path || previous.input.taskId !== input.taskId || previous.input.version !== input.version ||
-        (cleanup && JSON.stringify((previous.input as ClearWmsRequest).object) !== JSON.stringify(input.object))) throw new Error('相同请求标识不能用于不同接收操作');
+      if (previous.action !== path || JSON.stringify(previous.input) !== JSON.stringify(input)) throw new Error('相同请求标识不能用于不同接收操作');
       return previous.receipt;
     }
     const entry = receivingEntries.find((entry) => entry.task.taskId === input.taskId);
     if (!entry) throw new MockHttpError('接收任务不存在', 404);
     const task = entry.task;
-    if (task.version !== input.version || task.status !== 'PENDING') throw new MockHttpError('接收任务已变化或已完成，请重新扫描', 409);
-    if (cleanup && (input.object?.containerType !== task.object.containerType || input.object.containerCode !== task.object.containerCode)) throw new Error('清理对象与接收任务不匹配');
+    if (task.version !== input.version) throw new MockHttpError('接收任务已变化，请重新扫描', 409);
+    const scope = input.object.containerType === 'BOX' ? entry.boxes.filter(box => box.boxCode === input.object.containerCode) :
+      task.object.containerType === 'VEHICLE' && task.object.containerCode === input.object.containerCode ? entry.boxes : [];
+    if (!scope.length) throw new Error(cleanup ? '清理对象与接收任务不匹配' : '接收对象与运输范围不匹配');
     if (!cleanup && !task.eligibility.allowed) throw new Error(task.eligibility.reason);
-    receivingResult(task.object.containerCode);
+    if (!cleanup && scope.every(box => entry.received.has(box.boxCode))) throw new Error('当前对象已经接收');
+    receivingResult(task.object.containerCode, task.taskId);
     if (task.object.containerCode === (cleanup ? 'CAR-RECEIVE-CLEAR-FAIL' : 'CAR-RECEIVE-FAIL')) throw new Error(cleanup ? 'WMS 历史清理失败，请稍后重试' : '接收失败，请稍后重试');
-    const before: BoxContents[] = JSON.parse(JSON.stringify(cleanup ? entry.wmsBindings : entry.boxes));
-    const receipt: ReceivingReceipt = { requestId: input.requestId, operationNo: `RCV-OP-${nextId++}`,
-      affectedCount: cleanup ? entry.wmsBindings.reduce((sum, box) => sum + box.materials.length, 0) : 1, processedTime: new Date().toISOString() };
-    if (cleanup) entry.wmsBindings = [];
-    else { task.status = 'RECEIVED'; task.statusName = '已接收'; task.eligibility = { allowed: false, reason: '任务已接收' }; }
+    const affected = cleanup ? entry.wmsBindings.filter(box => scope.some(item => item.boxCode === box.boxCode)) : scope.filter(box => !entry.received.has(box.boxCode));
+    const before: BoxContents[] = JSON.parse(JSON.stringify(affected));
+    const receipt: ReceivingReceipt | ReceivingOperationReceipt = { requestId: input.requestId, operationNo: `RCV-OP-${nextId++}`,
+      affectedCount: cleanup ? affected.reduce((sum, box) => sum + box.materials.length, 0) : affected.length, processedTime: new Date().toISOString(),
+      ...(!cleanup ? { taskId: task.taskId, object: { ...input.object }, version: task.version + 1 } : {}) };
+    if (cleanup) entry.wmsBindings = entry.wmsBindings.filter(box => !scope.some(item => item.boxCode === box.boxCode));
+    else {
+      for (const box of affected) entry.received.set(box.boxCode, (input as ReceivingRequest).remark);
+      task.receivedBoxCount = entry.received.size;
+      task.status = task.receivedBoxCount === task.totalBoxCount ? 'RECEIVED' : 'PARTIAL';
+      task.statusName = task.status === 'RECEIVED' ? '已接收' : '部分接收';
+      if (task.status === 'RECEIVED') task.eligibility = { allowed: false, reason: '任务已接收' };
+    }
     task.version++;
     receivingHistory.set(input.requestId, { action: path, input: JSON.parse(JSON.stringify(input)), receipt, before });
     return receipt;
@@ -866,7 +888,7 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
     const changedVehicles = new Set<Vehicle>();
     for (const content of snapshot) {
       const box = requireBox(content.boxCode);
-      box.bindings = content.materials.map(({ lineType, ...line }) => ({ ...line, bindingMode: lineType === 'PANEL' ? 'BY_CODE' : 'BY_ORDER', id: String(nextId++), version: 1 }));
+      box.bindings = content.materials.map(({ lineType, ...line }) => ({ ...line, materialBatch: line.materialBatch || '000001', bindingMode: lineType === 'PANEL' ? 'BY_CODE' : 'BY_ORDER', id: String(nextId++), version: 1 }));
       box.totalQuantity = content.materialQuantity; box.empty = !content.materialQuantity; box.box.version++;
       const parent = loadedSlot(content.boxCode);
       if (parent) changedVehicles.add(parent.vehicle);
@@ -881,6 +903,7 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
   if (method === 'GET' && path === `${prefix}/locations/containers`) {
     const state = requireLocation(data.locationCode);
     return { ...state, occupied: !!state.container,
+      relatedTasks: [], unbindEligibility: state.container ? state.eligibility : { allowed: false, reason: '当前库位未绑定容器' },
       container: state.container ? { ...requireContainer(state.container), location: state.location } : undefined };
   }
   if (method === 'GET' && path === `${prefix}/locations/container-candidates`) {
@@ -1011,13 +1034,14 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
       affectedCount = additions.length;
       box.bindings.push(...additions.map(toBinding));
     } else if (path.endsWith('/bind-by-order')) {
-      if (!box.empty) throw new Error('当前箱子已有物料，请先一键解绑');
+      if (box.bindings.some(item => item.bindingMode === 'BY_CODE')) throw new Error('当前箱使用唯一码绑定，请先一键解绑');
       const quantity = data.quantity;
       if (typeof quantity !== 'number' || !Number.isInteger(quantity) || quantity < 1 || quantity > 2147483647) throw new Error('数量必须为有效的正整数');
-      const panel = panels.find((item) => item.orderNo === data.orderNo);
-      if (!panel) throw new Error('订单不存在或无法唯一解析物料');
-      box.bindings = [{ id: String(nextId++), version: 1, bindingMode: 'BY_ORDER', materialCode: panel.materialCode,
-        materialName: panel.materialName, orderNo: panel.orderNo, quantity, unit: '件' }];
+      if (typeof data.panelCode !== 'string' || data.panelCode.length < 33 || data.panelCode.length > 128) throw new Error('请提供实际代表板件码');
+      const panel = requirePanel(data.panelCode);
+      if (panel.orderNo !== data.orderNo) throw new Error('订单号与代表板件不一致');
+      box.bindings.push({ id: String(nextId++), version: 1, bindingMode: 'BY_ORDER', materialCode: panel.materialCode,
+        materialName: panel.materialName, materialBatch: panel.materialBatch || '000001', orderNo: panel.orderNo, quantity, unit: '件' });
       affectedCount = quantity;
     } else if (path.endsWith('/unbind-selected')) {
       const items = data.items as Pick<Binding, 'id' | 'version'>[];

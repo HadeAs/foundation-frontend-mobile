@@ -7,8 +7,10 @@ import { useKeyboardScanner } from '../../composables/useKeyboardScanner';
 import { usePdaScanner } from '../../composables/usePdaScanner';
 import { useVehicleUnloading } from '../../composables/useVehicleUnloading';
 
-const { vehicle, loaded, selected, confirmation, busy, disabled, notice, confirmCount, notify, clear, scan, toggle, requestUnload, cancel, submit } = useVehicleUnloading();
+const { vehicle, loaded, selected, confirmation, busy, disabled, notice, canUnloadAll, canUnloadSelected, confirmCount,
+  notify, clear, pause, resume, scan, toggle, requestUnload, cancel, submit } = useVehicleUnloading();
 const input = ref('');
+const contentStateName = { UNKNOWN: '未确认', EMPTY: '已确认空载', LOADED: '已确认非空' };
 let active = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -21,7 +23,7 @@ usePdaScanner(handleScan);
 
 const { reset: resetKeyboard } = useKeyboardScanner(handleScan, disabled);
 function clearPage() {
-  if (busy.value) return;
+  if (disabled.value) return;
   clear();
   input.value = '';
   resetKeyboard();
@@ -29,9 +31,11 @@ function clearPage() {
 function goBack() { if (!busy.value) uni.navigateBack(); }
 onShow(() => {
   active = true;
+  resume();
 });
 onHide(() => {
   active = false;
+  pause(); input.value = '';
   resetKeyboard();
 });
 watch(notice, (value) => {
@@ -41,7 +45,7 @@ watch(notice, (value) => {
 onUnmounted(() => {
   active = false;
   clearTimeout(noticeTimer);
-  clear();
+  pause();
 });
 </script>
 
@@ -58,12 +62,13 @@ onUnmounted(() => {
       <view v-if="vehicle" class="card box-card">
         <view class="card-heading"><text>载具信息</text><text class="tag">已识别</text></view>
         <view class="info"><text>载具编号</text><text>{{ vehicle.vehicle.containerCode }}</text></view>
+        <view v-if="vehicle.vehicle.containerName" class="info"><text>载具名称</text><text>{{ vehicle.vehicle.containerName }}</text></view>
         <view class="info"><text>载具类型</text><text>载具</text></view>
       </view>
       <view v-if="busy" class="processing" role="status">处理中…</view>
       <view v-if="vehicle" class="card-heading list-heading"><text>载具内箱</text><text>已选 {{ selected.length }} / {{ loaded.length }} 条</text></view>
     </view>
-    <scroll-view class="material-list" :class="{ 'material-list--initial': !vehicle }" scroll-y :show-scrollbar="true">
+    <scroll-view class="material-list" :class="{ 'material-list--initial': !vehicle }" :scroll-y="!!loaded.length" :show-scrollbar="true">
       <view v-if="!vehicle" class="card empty">请先扫描载具<view class="empty-hint">获取载具所有位置内的箱子</view></view>
       <view v-else class="card">
         <view v-if="!loaded.length" class="empty">该载具暂无已装载箱子</view>
@@ -73,6 +78,7 @@ onUnmounted(() => {
             <view class="binding-body">
               <view class="binding-code">{{ item.box.containerCode }}</view>
               <view class="secondary">载具库位 {{ item.slotCode }}</view>
+              <view class="secondary">实际内容 {{ contentStateName[item.box.contentState || 'UNKNOWN'] }}</view>
             </view>
             <text class="binding-quantity">1 箱</text>
           </label>
@@ -81,8 +87,8 @@ onUnmounted(() => {
     </scroll-view>
     <view class="footer">
       <button :disabled="disabled" @tap="clearPage">清空页面</button>
-      <button class="danger" :disabled="disabled || !loaded.length" @tap="requestUnload('all')">全部卸载</button>
-      <button class="primary" :disabled="disabled || !selected.length" @tap="requestUnload('selected')">卸载所选（{{ selected.length }}）</button>
+      <button class="danger" :disabled="!canUnloadAll" @tap="requestUnload('all')">全部卸载</button>
+      <button class="primary" :disabled="!canUnloadSelected" @tap="requestUnload('selected')">卸载所选（{{ selected.length }}）</button>
     </view>
     <view v-if="confirmation" class="modal-mask">
       <view class="modal" role="dialog" aria-modal="true" aria-label="确认卸载">
@@ -123,16 +129,17 @@ button:focus-visible { outline: 2px solid #0d9496; outline-offset: 2px; }
 .footer { flex-shrink: 0; display: grid; grid-template-columns: 1fr 1fr 1.35fr; gap: 10rpx; padding: 14rpx 20rpx calc(14rpx + env(safe-area-inset-bottom)); }
 .primary { color: white; background: #0d9496; border-color: #0d9496; }
 .modal-mask { position: fixed; inset: 0; background: #173f4866; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 24rpx; }
-.modal { background: white; border-radius: 16rpx; width: 100%; max-width: 440px; padding: 28rpx; }
+.modal { background: white; border-radius: 16rpx; width: 100%; max-width: 440px; max-height: 80dvh; padding: 28rpx; display: flex; flex-direction: column; }
 .modal-title { font-size: 30rpx; font-weight: 600; }
-.modal-content { font-size: 28rpx; margin: 24rpx 0; line-height: 1.6; }
+.modal-content { min-height: 0; overflow-y: auto; word-break: break-word; font-size: 28rpx; margin: 24rpx 0; line-height: 1.6; }
 .modal-actions { display: grid; grid-template-columns: 1fr 1.6fr; gap: 14rpx; }
 .danger { color: #bb3535; border-color: #bb3535; }
 
 .list-heading { margin-top: 14rpx; border: 1px solid #cee1e3; border-radius: 10rpx 10rpx 0 0; background: white; }
 .list-heading text:last-child { font-size: 24rpx; font-weight: normal; }
-.binding-row { display: flex; align-items: center; gap: 12rpx; padding: 16rpx; border-bottom: 1px solid #dfebed; }
-.binding-row checkbox { flex-shrink: 0; transform: scale(0.85); }
+.binding-row { display: flex; align-items: center; gap: 12px; padding: 16rpx; border-bottom: 1px solid #dfebed; }
+.binding-row checkbox { flex-shrink: 0; margin: 0; transform: scale(0.85); transform-origin: right center; }
+.binding-row :deep(.uni-checkbox-input) { margin-right: 0; }
 .binding-body { flex: 1; min-width: 0; }
 .binding-code { font-size: 28rpx; font-weight: 600; word-break: break-all; }
 .secondary { margin-top: 6rpx; font-size: 24rpx; color: #748d93; word-break: break-word; }

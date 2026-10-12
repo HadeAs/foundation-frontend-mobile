@@ -13,6 +13,7 @@ import { emptyVehicleApi as empty } from '../emptyVehicle';
 import { trafficApi as traffic } from '../traffic';
 import { warehouseLogisticsApi as warehouse } from '../warehouseLogistics';
 import { materialCallApi as call } from '../materialCall';
+import { boxVehicleBindingApi as direct } from '../boxVehicleBinding';
 import { seedTestSession } from './helpers/authSession';
 
 const requestId = '47ab7945-b324-4ed4-a10a-af734b83de07';
@@ -29,13 +30,25 @@ const cases: [string, string, () => Promise<unknown>][] = [
   ['get', '/panels', () => panels.getPanel('板件/1')],
   ['post', '/panels/joint-candidates/query', () => panels.getJoint(['板件/1'])],
   ['post', '/boxes/bindings/bind-by-codes', () => panels.bind('箱/1', 2, ['板件/1'])],
+  ['post', '/boxes/bindings/bind-by-codes', () => panels.bind('箱/1', 2, ['板件/1'], { requestId, confirmMixed: true, confirmationToken: 'server-confirmation-token' })],
   ['post', '/boxes/bindings/unbind-all', () => panels.unbindAll('箱/1', 2)],
-  ['post', '/boxes/bindings/bind-by-order', () => panels.bindByOrder('箱/1', 2, '订单/1', 3)],
+  ['post', '/boxes/bindings/bind-by-order', () => panels.bindByOrder('箱/1', 2, '订单/1', 3, '123456789ABC000001ABCDEFG00001234')],
+  ['post', '/boxes/bindings/bind-by-order', () => panels.bindByOrder('箱/1', 2, '订单/1', 3, '123456789ABC000001ABCDEFG00001234',
+    { requestId, confirmMixed: true, confirmationToken: 'server-confirmation-token' })],
   ['post', '/boxes/bindings/unbind-selected', () => panels.unbindSelected('箱/1', 2, items)],
   ['get', '/vehicle-slots', () => loading.getSlot('车位/1')],
   ['get', '/loading/boxes', () => loading.getBox('箱/1')],
   ['post', '/loading/batch-load', () => loading.load([{ boxCode: '箱/1', boxVersion: 2, slotCode: '车位/1', slotVersion: 3 }])],
   ['get', '/vehicles/loads', () => loading.getLoads(object.containerCode)],
+  ['get', '/vehicles/direct-bindings', () => direct.getVehicle('料车/1')],
+  ['get', '/vehicles/direct-bindings/box-candidates', () => direct.getBox('料车/1', '箱/1')],
+  ['post', '/vehicles/direct-bindings/bind', () => direct.bind({ requestId, vehicleCode: '料车/1', vehicleVersion: 2,
+    items: [{ boxCode: '箱/1', boxVersion: 3, expectedBinding: null, confirmRebind: false }] })],
+  ['post', '/vehicles/direct-bindings/bind', () => direct.bind({ requestId, vehicleCode: '料车/1', vehicleVersion: 2,
+    items: [{ boxCode: '箱/1', boxVersion: 3, expectedBinding: { bindingId: '9007199254741001', bindingVersion: 4, vehicleCode: '旧车/2' }, confirmRebind: true }] })],
+  ['post', '/vehicles/direct-bindings/unbind-all', () => direct.unbindAll({ requestId, vehicleCode: '料车/1', vehicleVersion: 2 })],
+  ['post', '/vehicles/direct-bindings/unbind-selected', () => direct.unbindSelected({ requestId, vehicleCode: '料车/1', vehicleVersion: 2,
+    items: [{ bindingId: '9007199254741001', bindingVersion: 3, boxCode: '箱/1', boxVersion: 4 }] })],
   ['post', '/loading/unload-selected', () => loading.unloadSelected(object.containerCode, 2, items)],
   ['post', '/loading/unload-all', () => loading.unloadAll(object.containerCode, 2)],
   ['get', '/locations/containers', () => locations.getLocation('位置/1')],
@@ -46,7 +59,9 @@ const cases: [string, string, () => Promise<unknown>][] = [
   ['get', '/boxes/materials', () => application.getMaterials('箱/1')],
   ['post', '/warehouse-applications/submit', () => application.submit(object, 2)],
   ['get', '/receiving/tasks', () => receiving.query(object.containerCode)],
-  ['post', '/receiving/confirm', () => receiving.confirm({ ...operation, taskId: '9007199254741001' })],
+  ['get', '/receiving/tasks', () => receiving.query(object.containerCode, '9007199254741001')],
+  ['post', '/receiving/confirm', () => receiving.confirm({ ...operation, taskId: '9007199254741001', object })],
+  ['post', '/receiving/confirm', () => receiving.confirm({ ...operation, taskId: '9007199254741001', object, remark: '本次接收清点备注' })],
   ['post', '/receiving/clear-wms-bindings', () => receiving.clearWms({ ...operation, taskId: '9007199254741001', object })],
   ['get', '/receiving/pending-tasks', () => pending.query({ vehicleCode: object.containerCode, locationCode: '位置/1' }, 2)],
   ['get', '/shipping/objects', () => shipping.getObject(object.containerCode)],
@@ -55,6 +70,7 @@ const cases: [string, string, () => Promise<unknown>][] = [
   ['post', '/logistics/tasks', () => logistics.create(logisticsInput)],
   ['get', '/logistics/cancellable-tasks', () => cancellation.query('AGV/1', 2)],
   ['post', '/logistics/tasks/{taskId}/cancel', () => cancellation.cancel('9007199254741001', operation)],
+  ['post', '/logistics/tasks/{taskId}/cancel', () => cancellation.cancel('9007199254741001', { ...operation, unbindContext: locationOperation })],
   ['get', '/logistics/tasks/{taskId}/cancellation', () => cancellation.result('9007199254741001', requestId)],
   ['get', '/empty-vehicles/origins', () => empty.getOrigins('终点/2')],
   ['post', '/empty-vehicles/call', () => empty.call({ ...operation, originLocationCode: '起点/1', destinationLocationCode: '终点/2', vehicleCode: object.containerCode })],
@@ -65,7 +81,6 @@ const cases: [string, string, () => Promise<unknown>][] = [
   ['post', '/warehouse-logistics/tasks', () => warehouse.create({ ...operation, object, scanType: 'VEHICLE', scanCode: object.containerCode, destinationLocationCode: '终点/2' })],
   ['get', '/order-calls/candidates', () => call.getBoxes('终点/2', '订单/1')],
   ['post', '/order-calls', () => call.submit({ requestId, destinationLocationCode: '终点/2', destinationVersion: 2, orderNo: '订单/1', boxes: [{ boxCode: '箱/1', version: 3 }] })],
-  ['get', '/order-calls/{requestId}', () => call.getResult(requestId)],
   ['post', '/logistics/tasks', () => logistics.returnToWarehouse({ ...returnInput, destinationMode: 'RETURN_LINE_SIDE' })],
   ['get', '/locations/containers', () => call.getLocation('位置/1')],
   ['get', '/boxes/materials', () => receiving.getMaterials('箱/1')],
@@ -73,11 +88,12 @@ const cases: [string, string, () => Promise<unknown>][] = [
   ['get', '/boxes/materials', () => warehouse.getMaterials('箱/1')]
 ];
 
-interface Schema { $ref?: string; type?: string; required?: string[]; properties?: Record<string, Schema>; items?: Schema; enum?: unknown[]; pattern?: string; format?: string }
+interface Schema { $ref?: string; type?: string; nullable?: boolean; required?: string[]; properties?: Record<string, Schema>; items?: Schema; enum?: unknown[]; pattern?: string; format?: string }
 interface Operation { parameters?: { name: string; in: string; required?: boolean; schema: Schema }[]; requestBody?: { content: { 'application/json': { schema: Schema } } } }
 const contract = document as unknown as { paths: Record<string, Record<string, Operation>>; components: { schemas: Record<string, Schema> } };
 function checkFields(value: unknown, schema: Schema) {
   if (schema.$ref) return checkFields(value, contract.components.schemas[schema.$ref.split('/').pop()!]);
+  if (schema.nullable && value === null) return;
   if (schema.enum) expect(schema.enum).toContain(value);
   if (schema.type === 'object') {
     expect(value).toBeTypeOf('object'); expect(value).not.toBeNull();
@@ -109,11 +125,46 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe('documented Nari requests', () => {
-  it('covers every documented operation, including shared queries and return mode', () => {
+  it('covers all documented operations', () => {
     const expected = Object.entries(contract.paths).flatMap(([path, item]) => Object.keys(item)
       .filter((method) => ['get', 'post'].includes(method)).map((method) => `${method} ${path}`));
     expect([...new Set(cases.map(([method, path]) => `${method} ${prefix}${path}`))].sort()).toEqual(expected.sort());
-    expect(expected).toHaveLength(41);
+    expect(expected).toHaveLength(45);
+  });
+  it.each(['all', 'selected'] as const)('preserves the original request UUID for manually replayed %s panel unbind', async mode => {
+    if (mode === 'all') await panels.unbindAll('箱/1', 2, requestId);
+    else await panels.unbindSelected('箱/1', 2, items, requestId);
+    const data = network.mock.calls[0][0].data as Record<string, unknown>;
+    expect(data.requestId).toBe(requestId);
+    if (mode === 'all') expect(data).not.toHaveProperty('items');
+    else expect(data.items).toEqual(items);
+    checkFields(data, contract.paths[`${prefix}/boxes/bindings/unbind-${mode}`].post.requestBody!.content['application/json'].schema);
+  });
+  it('preserves the original request UUID and exact pair versions for manually replayed loading', async () => {
+    const pairs = [{ slotCode: '车位/1', slotVersion: 2, boxCode: '箱/1', boxVersion: 3 }];
+    await loading.load(pairs, requestId);
+    const data = network.mock.calls[0][0].data as Record<string, unknown>;
+    expect(data).toEqual({ requestId, items: pairs });
+    checkFields(data, contract.paths[`${prefix}/loading/batch-load`].post.requestBody!.content['application/json'].schema);
+  });
+  it.each(['all', 'selected'] as const)('preserves the original request UUID and unload credentials for manually replayed %s unloading', async mode => {
+    if (mode === 'all') await loading.unloadAll(object.containerCode, 2, requestId);
+    else await loading.unloadSelected(object.containerCode, 2, items, requestId);
+    const data = network.mock.calls[0][0].data as Record<string, unknown>;
+    expect(data).toEqual({ requestId, vehicleCode: object.containerCode, version: 2, ...(mode === 'selected' ? { items } : {}) });
+    checkFields(data, contract.paths[`${prefix}/loading/unload-${mode}`].post.requestBody!.content['application/json'].schema);
+  });
+  it.each(['bind', 'unbind'] as const)('preserves the original UUID and both current versions for manually replayed location %s', async mode => {
+    await locations[mode](locationOperation, requestId);
+    const data = network.mock.calls[0][0].data as Record<string, unknown>;
+    expect(data).toEqual({ ...locationOperation, requestId });
+    checkFields(data, contract.paths[`${prefix}/locations/${mode}-container`].post.requestBody!.content['application/json'].schema);
+  });
+  it('preserves the original UUID and whole object version for a manually replayed warehouse application', async () => {
+    await application.submit(object, 2, requestId);
+    const data = network.mock.calls[0][0].data as Record<string, unknown>;
+    expect(data).toEqual({ requestId, object, version: 2 });
+    checkFields(data, contract.paths[`${prefix}/warehouse-applications/submit`].post.requestBody!.content['application/json'].schema);
   });
   it.each(cases)('%s %s follows the current contract', async (method, path, invoke) => {
     await expect(invoke()).resolves.toEqual({ backend: true });

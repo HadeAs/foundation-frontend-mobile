@@ -4,17 +4,17 @@ import { panelPackingApi, type BoxBindings, type Panel } from '../panelPacking';
 
 vi.mock('../auth', () => ({ getAccessToken: () => 'test-token', getCurrentApiBaseUrl: () => 'http://test.local' }));
 const request = vi.fn();
-const box = (): BoxBindings => ({ box: { containerType: 'BOX', containerCode: 'BOX-1', version: 2 }, empty: true, totalQuantity: 0, bindings: [], eligibility: { allowed: true } });
+const box = (): BoxBindings => ({ box: { containerType: 'BOX', containerCode: 'BOX-1', version: 2 }, empty: true, contentState: 'EMPTY', totalQuantity: 0, bindings: [], eligibility: { allowed: true } });
 const panel = (panelCode = 'P1', orderNo = 'O1'): Panel => ({ panelCode, orderNo, materialCode: 'M1', materialName: '板件', eligibility: { allowed: true } });
 function fullBox(): BoxBindings {
-  return { ...box(), empty: false, totalQuantity: 1, bindings: [{ id: '1', version: 1, bindingMode: 'BY_CODE', panelCode: 'BOUND', orderNo: 'OLD', materialCode: 'M1', materialName: '板件', quantity: 1, unit: '件' }] };
+  return { ...box(), empty: false, contentState: 'LOADED', totalQuantity: 1, bindings: [{ id: '1', version: 1, bindingMode: 'BY_CODE', panelCode: 'BOUND', orderNo: 'OLD', materialCode: 'M1', materialBatch: '000001', materialName: '板件', quantity: 1, unit: '件' }] };
 }
 function respond(data: unknown, statusCode = 200, code = 0, message = 'ok') {
   request.mockImplementationOnce((options: UniNamespace.RequestOptions) => {
-    options.success?.({ statusCode, data: { code, data, message }, header: {}, cookies: [] });
+    options.success?.({ statusCode, data: { code, data: typeof data === 'function' ? data(options) : data, message }, header: {}, cookies: [] });
   });
 }
-function receipt(version = 3) { return { requestId: 'r1', operationNo: 'OP1', affectedCount: 1, processedTime: '2026-09-16T00:00:00Z', box: { boxCode: 'BOX-1', version, materialQuantity: 0 } }; }
+function receipt(version = 3) { return (options: UniNamespace.RequestOptions) => ({ requestId: (options.data as { requestId: string }).requestId, operationNo: 'OP1', affectedCount: 1, processedTime: '2026-09-16T00:00:00Z', box: { boxCode: 'BOX-1', version, materialQuantity: 0 } }); }
 
 beforeEach(() => { request.mockReset(); vi.stubGlobal('uni', { request }); vi.unstubAllEnvs(); });
 
@@ -65,7 +65,7 @@ describe('板件扫码绑箱', () => {
   it('unbinds once, retains box and uses returned version for subsequent binding', async () => {
     const flow = usePanelPacking();
     respond(fullBox()); await flow.scan('BOX-1');
-    respond(receipt(8)); await flow.unbindAll();
+    respond(receipt(8)); respond({ ...box(), box: { ...box().box, version: 8 } }); await flow.unbindAll();
     expect(flow.review.value).toBeNull();
     expect(flow.box.value?.box.version).toBe(8);
     expect(flow.box.value?.bindings).toEqual([]);
@@ -79,7 +79,7 @@ describe('板件扫码绑箱', () => {
     respond(panel()); await flow.scan('P1');
     respond(null, 409, 40900, '箱版本冲突'); await flow.submit();
     const firstId = request.mock.lastCall?.[0].data.requestId;
-    expect(flow.notice.value?.text).toBe('箱版本冲突');
+    expect(flow.notice.value?.text).toContain('箱版本冲突');
     expect(flow.pending.value).toHaveLength(1);
     request.mockImplementationOnce((options: UniNamespace.RequestOptions) => options.fail?.({ errMsg: 'timeout' }));
     await flow.submit();
@@ -94,7 +94,7 @@ describe('板件扫码绑箱', () => {
     expect(flow.review.value).not.toBeNull();
     expect(flow.box.value).toBeNull();
     expect(flow.notice.value?.text).toBe('不允许解绑');
-    respond(receipt()); await flow.unbindAll();
+    respond(receipt()); respond({ ...box(), box: { ...box().box, version: 3 } }); await flow.unbindAll();
     expect(flow.box.value?.totalQuantity).toBe(0);
   });
   it('rejects disallowed or incomplete panels without modifying the list', async () => {

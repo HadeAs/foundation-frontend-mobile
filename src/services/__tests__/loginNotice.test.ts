@@ -21,6 +21,15 @@ beforeEach(() => {
 afterEach(() => { wrapper.unmount(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('login failure notice', () => {
+  it('keeps remembered-account toggling after separating the symbol and label', async () => {
+    const row = wrapper.get('.login-row');
+    expect(row.findAll('text').map((item) => item.text())).toEqual(['☑', '记住账号']);
+    await row.trigger('tap');
+    expect(row.findAll('text').map((item) => item.text())).toEqual(['☐', '记住账号']);
+    await row.trigger('tap');
+    expect(row.findAll('text').map((item) => item.text())).toEqual(['☑', '记住账号']);
+  });
+
   it('uses the standard error notice for the full backend reason and hides after 6.5 seconds', async () => {
     const reason = 'account is locked until 2026-09-18T15:34:42 (Trace ID: test-trace)';
     vi.mocked(login).mockResolvedValueOnce({ ok: false, message: reason });
