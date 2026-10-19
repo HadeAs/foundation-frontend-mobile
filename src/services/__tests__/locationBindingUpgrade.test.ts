@@ -86,7 +86,7 @@ describe('location binding 2026-10-12.1', () => {
   it('verifies ACCEPTED using the original UUID and requires a new confirmation with refreshed versions', async () => {
     const flow = await ready(); flow.requestUnbind(); await flow.submit();
     const input = vi.mocked(cancellationApi.cancel).mock.calls[0][1];
-    expect(flow.notice.value?.text).toContain('已受理'); expect(cancellationApi.result).not.toHaveBeenCalled();
+    expect(flow.notice.value?.text).toContain('处理中'); expect(cancellationApi.result).not.toHaveBeenCalled();
     const fresh = snapshot({ version: 4, container: { ...snapshot().container!, version: 6 } });
     vi.mocked(api.getLocation).mockResolvedValue(fresh); await flow.verifyAndRefresh();
     expect(cancellationApi.result).toHaveBeenCalledWith(task().taskId, input.requestId);
@@ -113,7 +113,7 @@ describe('location binding 2026-10-12.1', () => {
     vi.mocked(cancellationApi.result).mockImplementation(async (_taskId, id) => cancellation(id, 'CANCELLED')); await flow.verifyAndRefresh();
     expect(flow.canUnbind.value).toBe(true); expect(cancellationApi.cancel).toHaveBeenCalledOnce();
   });
-  it.each([new Error('网络中断'), new ApiRequestError('服务器未确认', 503), new ApiRequestError('响应超时', 408)])(
+  it.each([new Error('网络中断'), new ApiRequestError('服务器未确认', 503), new ApiRequestError('响应超时', 408), new ApiRequestError('记录不可见', 404)])(
     'never re-posts an uncertain cancellation after clearing, hiding and reopening (%s)', async error => {
       const flow = await ready(); vi.mocked(cancellationApi.cancel).mockRejectedValueOnce(error);
       flow.requestUnbind(); await flow.submit(); const input = vi.mocked(cancellationApi.cancel).mock.calls[0][1];
@@ -160,6 +160,23 @@ describe('location binding 2026-10-12.1', () => {
     expect(api.getLocation).toHaveBeenCalledOnce(); await flow.verifyAndRefresh();
     expect(vi.mocked(cancellationApi.result).mock.calls).toEqual([[task().taskId, input.requestId], [task().taskId, input.requestId]]);
     expect(cancellationApi.cancel).toHaveBeenCalledOnce();
+  });
+  it('keeps the original cancellation after FLOW 503 and result 404 without unlocking location unbinding', async () => {
+    const flow = await ready(); vi.mocked(cancellationApi.cancel).mockRejectedValueOnce(new ApiRequestError('FLOW 未发送', 503));
+    flow.requestUnbind(); await flow.submit(); const input = vi.mocked(cancellationApi.cancel).mock.calls[0][1]; flow.cancel();
+    vi.mocked(cancellationApi.result).mockRejectedValue(new ApiRequestError('取消记录不存在', 404));
+    vi.mocked(api.getLocation).mockResolvedValue(snapshot()); await flow.verifyAndRefresh();
+    expect(flow.cancellationRecords.value[0]).toMatchObject({ input, status: 'UNKNOWN' });
+    expect(flow.notice.value?.text).toContain('不代表未发送或已过期'); expect(flow.canUnbind.value).toBe(false);
+    flow.requestUnbind(); await flow.submit(); expect(cancellationApi.cancel).toHaveBeenCalledOnce(); expect(api.unbind).not.toHaveBeenCalled();
+  });
+  it('normalizes legacy ACCEPTED descriptions while retaining the saved request and unbind context', async () => {
+    const flow = await ready(); flow.requestUnbind(); await flow.submit();
+    const saved = flow.cancellationRecords.value[0]; storage.set(storageKey, [{ ...saved, reason: '取消已受理' }]);
+    const reopened = useLocationBinding(); await reopened.scan('LOC-1');
+    expect(reopened.cancellationRecords.value[0]).toMatchObject({ input: saved.input, status: 'ACCEPTED' });
+    expect(reopened.cancellationRecords.value[0].reason).toContain('不代表调度已受理');
+    expect(cancellationApi.cancel).toHaveBeenCalledOnce(); expect(reopened.canUnbind.value).toBe(false);
   });
   it('preserves successfully submitted tasks when a later task cancellation fails and stops remaining writes', async () => {
     const flow = await ready(blocked([task(), task(2), task(3)]));
@@ -266,7 +283,7 @@ describe('location binding 2026-10-12.1', () => {
       expect(wrapper.find('.notice').exists()).toBe(false);
       expect(wrapper.getComponent(ScanInput).props('disabled')).toBe(true); expect(wrapper.get('.refresh').attributes('disabled')).toBeDefined();
       await wrapper.get('.modal-actions .danger').trigger('tap'); await flushPromises();
-      expect(wrapper.find('.modal').exists()).toBe(false); expect(wrapper.text()).toContain('取消已受理'); expect(api.unbind).not.toHaveBeenCalled();
+      expect(wrapper.find('.modal').exists()).toBe(false); expect(wrapper.text()).toContain('取消处理中'); expect(api.unbind).not.toHaveBeenCalled();
       vi.mocked(api.getLocation).mockResolvedValue(snapshot({ version: 4, container: { ...snapshot().container!, version: 6 } }));
       await wrapper.get('.refresh').trigger('tap'); await flushPromises(); await wrapper.get('.footer .danger').trigger('tap');
       expect(wrapper.get('.modal').attributes('aria-label')).toBe('确认解绑容器');

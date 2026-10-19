@@ -4,6 +4,7 @@ import { ApiRequestError, requestId } from '../services/nariRequest';
 import type { BoxMaterials } from '../services/warehouseApplication';
 import type { MaterialLine } from '../services/vehicleLoading';
 import type { LocationContainer, LocationSummary } from '../services/locationBinding';
+import { usePendingSubmission, validSubmission } from './usePendingSubmission';
 
 export function useReceiving() {
   const result = shallowRef<ReceivingResult | null>(null);
@@ -11,27 +12,32 @@ export function useReceiving() {
   const confirmingClear = ref(false);
   const remark = ref('');
   const busy = ref(false);
+  const cleaning = ref(false);
+  const cleanup = usePendingSubmission<ReceivingRequest>('wms-cleanup', (value): value is ReceivingRequest =>
+    validSubmission(value, ['taskId']) && typeof (value as ReceivingRequest).taskId === 'string' && /^[1-9][0-9]{0,18}$/.test((value as ReceivingRequest).taskId));
+  const { pending, storageError } = cleanup;
   const notice = ref<{ text: string; error: boolean } | null>(null);
-  const disabled = computed(() => busy.value || !!detail.value || confirmingClear.value);
+  const disabled = computed(() => busy.value || cleaning.value || !!detail.value || confirmingClear.value || !!pending.value || !!storageError.value);
   const canReceive = computed(() => !disabled.value && result.value?.task?.eligibility.allowed === true &&
     result.value.task.receivedBoxCount < result.value.task.totalBoxCount && remark.value.trim().length <= 500);
   // WMS cleanup is independent of receiving eligibility; the backend checks cleanup conditions.
-  const canClearWms = computed(() => !disabled.value && !!result.value?.task);
+  const canClearWms = computed(() => !busy.value && !cleaning.value && !detail.value && !confirmingClear.value && !storageError.value && (!!pending.value || !!result.value?.task));
   const materials = computed(() => result.value?.object.containerType === 'BOX' ? result.value.boxes.flatMap((box) => box.materials) : []);
   let generation = 0;
   let active = true;
   const known = new Map<string, { taskId: string; version: number }>();
   let attempt: { input: ReceivingRequest; fingerprint: string } | null = null;
   function notify(text: string, error = false) { notice.value = { text, error }; }
-  function clear() { generation++; result.value = null; detail.value = null; confirmingClear.value = false; remark.value = ''; busy.value = false; notice.value = null; attempt = null; }
-  function pause() { active = false; clear(); }
-  function resume() { active = true; }
+  function resetView() { generation++; result.value = null; detail.value = null; confirmingClear.value = false; remark.value = ''; busy.value = false; notice.value = null; attempt = null; }
+  function clear() { if (!pending.value && !storageError.value && !cleaning.value) resetView(); }
+  function pause() { active = false; resetView(); }
+  function resume() { active = true; if (!cleaning.value) cleanup.restore(); }
   async function run(action: (current: () => boolean) => Promise<void>) {
-    if (busy.value || !active) return;
+    if (busy.value || !active || !cleanup.sameScope()) return;
     const id = generation;
     busy.value = true; notice.value = null;
-    try { await action(() => active && id === generation); }
-    catch (error) { if (active && id === generation) notify(error instanceof Error ? error.message : '请求失败，请重试', true); }
+    try { await action(() => active && id === generation && cleanup.sameScope()); }
+    catch (error) { if (active && id === generation && cleanup.sameScope()) notify(error instanceof Error ? error.message : '请求失败，请重试', true); }
     finally { if (id === generation) busy.value = false; }
   }
   const text = (value: unknown, max = 128): value is string => typeof value === 'string' && !!value.trim() && value.length <= max;
@@ -114,19 +120,64 @@ export function useReceiving() {
   function closeMaterials() { if (!busy.value) detail.value = null; }
   function askClearWms() { if (active && canClearWms.value) { notice.value = null; confirmingClear.value = true; } }
   function cancelClearWms() { if (!busy.value) confirmingClear.value = false; }
+  async function submitCleanup() {
+    if (!active || !cleanup.sameScope() || !confirmingClear.value || busy.value || cleaning.value || storageError.value) return;
+    const data = result.value;
+    if (!pending.value && !data?.task) return;
+    const replay = !!pending.value;
+    const input = pending.value?.input || { requestId: requestId(), taskId: data!.task!.taskId, version: data!.task!.version,
+      object: { containerType: data!.object.containerType, containerCode: data!.object.containerCode } };
+    await run(async (current) => {
+      cleanup.save(input, pending.value?.reason || '正在确认本次 WMS 清理结果');
+      cleaning.value = true;
+      let completed = false;
+      let failure = '';
+      try {
+        const receipt = await api.clearWms(input);
+        if (!receipt || typeof receipt !== 'object' || 'resultType' in receipt || receipt.requestId !== input.requestId || !text(receipt.operationNo) || !integer(receipt.affectedCount, 0) ||
+          typeof receipt.processedTime !== 'string' || !Number.isFinite(Date.parse(receipt.processedTime))) throw new Error('清理结果不完整，请核实后重试原请求');
+        cleanup.finish(input.requestId);
+        completed = true;
+      } catch (error) {
+        if (!replay && error instanceof ApiRequestError && error.statusCode >= 400 && error.statusCode < 500 && error.statusCode !== 408) cleanup.finish(input.requestId);
+        cleanup.failed(error);
+        failure = error instanceof Error ? error.message : '清理失败，请核实结果';
+      } finally { cleaning.value = false; }
+      if (!current()) return;
+      // Both registration and result persistence can advance the task version, even on failure.
+      // Refresh only this transport scope; never substitute another pending task or rewrite the saved request.
+      try {
+        const fresh = await api.query(input.object.containerCode, input.taskId);
+        if (!current()) return;
+        if (!validResult(fresh, input.object.containerCode, input.taskId) || fresh.object.containerType !== input.object.containerType ||
+          fresh.task!.version < input.version || [...known.values()].some(value => value.taskId === input.taskId && value.version > fresh.task!.version)) throw new Error('任务版本或清理范围不一致');
+        remember(input.object.containerCode, input.taskId, fresh.task!.version);
+        for (const box of fresh.boxes) remember(box.boxCode, input.taskId, fresh.task!.version);
+        result.value = fresh;
+      } catch (error) {
+        if (!current()) return;
+        result.value = null;
+        failure += `${failure ? '；' : ''}任务刷新失败，请重新核实：${error instanceof Error ? error.message : '查询失败'}`;
+      }
+      confirmingClear.value = false;
+      if (completed) { resetView(); notify(`当前对象的 WMS 历史已清空${failure ? '；' + failure : ''}`, !!failure); }
+      else notify(failure, true);
+    });
+  }
   async function submit(cleanup = false) {
-    if (!active || detail.value || (cleanup ? !confirmingClear.value || busy.value : !canReceive.value)) return;
+    if (cleanup) { await submitCleanup(); return; }
+    if (!active || detail.value || !canReceive.value) return;
     const data = result.value;
     if (!data?.task) return;
     const body = { taskId: data.task.taskId, version: data.task.version, object: { containerType: data.object.containerType, containerCode: data.object.containerCode },
-      ...(!cleanup && remark.value.trim() ? { remark: remark.value.trim() } : {}) };
+      ...(remark.value.trim() ? { remark: remark.value.trim() } : {}) };
     const fingerprint = JSON.stringify({ cleanup, body });
     const pending = attempt?.fingerprint === fingerprint ? attempt : { input: { requestId: requestId(), ...body }, fingerprint };
     attempt = pending;
     const input = pending.input;
     await run(async (current) => {
       let receipt;
-      try { receipt = cleanup ? await api.clearWms(input) : await api.confirm(input); }
+      try { receipt = await api.confirm(input); }
       catch (error) {
         if (attempt === pending && error instanceof ApiRequestError && error.statusCode >= 400 && error.statusCode < 500 && error.statusCode !== 408) attempt = null;
         throw error;
@@ -134,17 +185,15 @@ export function useReceiving() {
       if (!current()) return;
       if (!receipt || typeof receipt !== 'object' || 'resultType' in receipt || receipt.requestId !== input.requestId || !text(receipt.operationNo) || !integer(receipt.affectedCount, 0) ||
         typeof receipt.processedTime !== 'string' || !Number.isFinite(Date.parse(receipt.processedTime))) throw new Error('处理结果不完整，未能确认成功，请核实后重试原请求');
-      if (!cleanup) {
-        const confirmed = receipt as ReceivingOperationReceipt;
-        const expected = data.object.containerType === 'BOX' ? 1 : data.task!.totalBoxCount - data.task!.receivedBoxCount;
-        if (confirmed.taskId !== input.taskId || confirmed.object?.containerType !== input.object.containerType || confirmed.object.containerCode !== input.object.containerCode ||
-          !integer(confirmed.version) || confirmed.version <= input.version || confirmed.affectedCount !== expected) throw new Error('接收回执与本次范围或最新版本不一致，未能确认成功，请核实后重试原请求');
-        remember(data.object.containerCode, confirmed.taskId, confirmed.version);
-      }
+      const confirmed = receipt as ReceivingOperationReceipt;
+      const expected = data.object.containerType === 'BOX' ? 1 : data.task!.totalBoxCount - data.task!.receivedBoxCount;
+      if (confirmed.taskId !== input.taskId || confirmed.object?.containerType !== input.object.containerType || confirmed.object.containerCode !== input.object.containerCode ||
+        !integer(confirmed.version) || confirmed.version <= input.version || confirmed.affectedCount !== expected) throw new Error('接收回执与本次范围或最新版本不一致，未能确认成功，请核实后重试原请求');
+      remember(data.object.containerCode, confirmed.taskId, confirmed.version);
       clear();
-      notify(cleanup ? '当前对象的 WMS 历史已清空' : '接收完成，当前接收流程已结束');
+      notify('接收完成，当前接收流程已结束');
     });
   }
-  return { result, materials, detail, confirmingClear, remark, busy, disabled, canReceive, canClearWms, notice, notify, clear, pause, resume, scan,
+  return { pending, storageError, result, materials, detail, confirmingClear, remark, busy, disabled, canReceive, canClearWms, notice, notify, clear, pause, resume, scan,
     openMaterials, closeMaterials, askClearWms, cancelClearWms, submit };
 }

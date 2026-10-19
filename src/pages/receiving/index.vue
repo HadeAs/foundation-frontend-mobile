@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import OperationNotice from '../../components/OperationNotice.vue';
+import PendingSubmission from '../../components/PendingSubmission.vue';
 import { onUnmounted, ref, watch } from 'vue';
 import { onHide, onShow } from '@dcloudio/uni-app';
 import ScanInput from '../../components/ScanInput.vue';
@@ -8,7 +9,7 @@ import { usePdaScanner } from '../../composables/usePdaScanner';
 import { useReceiving } from '../../composables/useReceiving';
 import MaterialRows from '../../components/MaterialRows.vue';
 
-const { result: object, materials, detail, confirmingClear, remark, busy, disabled, canReceive, canClearWms, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, askClearWms, cancelClearWms, submit } = useReceiving();
+const { pending, storageError, result: object, materials, detail, confirmingClear, remark, busy, disabled, canReceive, canClearWms, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, askClearWms, cancelClearWms, submit } = useReceiving();
 const contentStateNames = { UNKNOWN: '未确认', EMPTY: '已确认空载', LOADED: '已确认非空' };
 const input = ref('');
 let active = false;
@@ -42,7 +43,7 @@ onUnmounted(() => {
 <template>
   <view class="app-page receiving-page">
     <view class="app-nav">
-      <button class="nav-back" :disabled="disabled" @tap="goBack">‹ 返回</button>
+      <button class="nav-back" :disabled="busy || !!detail || confirmingClear" @tap="goBack">‹ 返回</button>
       <view class="app-nav__title">物料接收</view><view />
     </view>
     <OperationNotice :text="notice?.text" :error="notice?.error" />
@@ -61,7 +62,9 @@ onUnmounted(() => {
       <view v-if="busy" class="processing" role="status">处理中…</view>
     </view>
     <view class="content">
-      <view v-if="!object" class="card empty">请扫描箱子或载具<view class="empty-hint">查询当前待接收任务</view></view>
+      <PendingSubmission v-if="pending || storageError" :code="pending?.input.object.containerCode" :request-id="pending?.input.requestId"
+        :reason="pending?.reason" :storage-error="storageError" :busy="busy" @reload="resume" />
+      <view v-else-if="!object" class="card empty">请扫描箱子或载具<view class="empty-hint">查询当前待接收任务</view></view>
       <view v-else-if="!object.task" class="card empty">当前{{ object.object.containerType === 'BOX' ? '箱子' : '载具' }}无接收任务<view class="empty-hint">请核对编码或扫描其他容器</view></view>
       <view v-else class="card list-card">
         <view class="card-heading"><text>{{ object.object.containerType === 'VEHICLE' ? '本次送达料箱' : '箱内物料' }}</text><text>{{ object.object.containerType === 'VEHICLE' ? object.boxes.length + ' 箱' : object.totalMaterialQuantity + ' 件' }}</text></view>
@@ -81,14 +84,15 @@ onUnmounted(() => {
       <textarea v-if="object?.task" v-model="remark" class="remark-input" placeholder="接收备注（可选，最多500字）" :maxlength="500" :disabled="disabled" />
       <view class="footer">
         <button :disabled="disabled" @tap="clearPage">清空页面</button>
-        <button class="danger" :disabled="!canClearWms" @tap="askClearWms">清空WMS历史</button>
+        <button class="danger" :disabled="!canClearWms" @tap="askClearWms">{{ pending ? '重试原清理请求' : '清空WMS历史' }}</button>
         <button class="primary" :disabled="!canReceive" @tap="submit()">确认接收</button>
       </view>
     </view>
     <view v-if="confirmingClear" class="modal-mask">
       <view class="modal" role="dialog" aria-modal="true" aria-label="清空WMS历史">
         <view class="modal-title">清空WMS历史</view>
-        <view class="modal-content">确认清空 {{ object?.object.containerCode }} 当前接收任务的 WMS 历史绑定？此操作不会确认接收，历史追溯记录仍保留。</view>
+        <view v-if="pending" class="modal-content">确认重试 {{ pending.input.object.containerCode }} 的原清理请求？保留原任务、范围及版本，由后端核实处理结果。清理按箱码及状态100执行，可能影响同箱其他申请的绑定。</view>
+        <view v-else class="modal-content">确认清理 {{ object?.object.containerCode }} 本次范围内料箱的 WMS 历史绑定？清理按箱码及状态100执行，可能影响同箱其他申请的绑定。此操作不会确认接收，历史追溯记录仍保留。</view>
         <view class="modal-actions">
           <button :disabled="busy" @tap="cancelClearWms">取消</button>
           <button class="danger" :disabled="busy" @tap="submit(true)">确认清空</button>

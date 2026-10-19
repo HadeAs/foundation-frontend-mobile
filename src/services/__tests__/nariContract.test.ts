@@ -126,7 +126,8 @@ afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe('documented Nari requests', () => {
   it('covers all documented operations', () => {
-    const expected = Object.entries(contract.paths).flatMap(([path, item]) => Object.keys(item)
+    // The combined document also contains foundation/CRUD APIs and server-to-server AGV callbacks.
+    const expected = Object.entries(contract.paths).filter(([path]) => path.startsWith(`${prefix}/`) && !path.startsWith(`${prefix}/agv/callbacks/`)).flatMap(([path, item]) => Object.keys(item)
       .filter((method) => ['get', 'post'].includes(method)).map((method) => `${method} ${path}`));
     expect([...new Set(cases.map(([method, path]) => `${method} ${prefix}${path}`))].sort()).toEqual(expected.sort());
     expect(expected).toHaveLength(45);

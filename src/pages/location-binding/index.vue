@@ -13,7 +13,7 @@ const input = ref('');
 const placeholder = computed(() => location.value?.occupied ? '请先解绑当前容器' : location.value ? '扫描或输入载具/箱子编码' : '扫描或输入库位编码');
 const locationTypeNames: Record<string, string> = { STORAGE_SLOT: '存储库位', DOCK_POSITION: '接驳位', MACHINE_INLET: '机台入口', MACHINE_OUTLET: '机台出口', CARRIER_PARKING: '载具停放位' };
 const taskStatusNames = { QUEUED: '待派送', DISPATCHING: '派送中', ACCEPTED: '调度已受理', RUNNING: '执行中', COMPLETED: '运输已完成', FAILED: '运输失败', CANCELLED: '运输已取消', UNKNOWN: '运输结果未知' };
-const cancelStatusNames = { ACCEPTED: '取消已受理', CANCELLED: '取消成功', FAILED: '取消失败', UNKNOWN: '取消结果未知' };
+const cancelStatusNames = { ACCEPTED: '取消处理中', CANCELLED: '取消成功', FAILED: '取消失败', UNKNOWN: '取消结果未知' };
 let active = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 async function handleScan(value: string) {

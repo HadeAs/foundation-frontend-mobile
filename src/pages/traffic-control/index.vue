@@ -59,7 +59,7 @@ function goBack() { if (active && !disabled.value) uni.navigateBack({ delta: 1 }
             <view class="card-heading"><view class="area-title"><text>{{ area.areaCode }}</text><text class="area-name">{{ area.areaName }}</text></view><text class="tag" :class="{ occupied: area.status === 'OCCUPIED' }">{{ area.status === 'FREE' ? '空闲' : '占用' }}</text></view>
             <view class="meta-actions">
               <view class="metadata"><text class="label">最后操作人</text><text>{{ area.lastOperatorName || '—' }}</text><text class="label">操作时间</text><text>{{ area.lastOperationTime ? displayTaskTime(area.lastOperationTime) : '—' }}</text></view>
-              <button class="small" :class="area.status === 'FREE' ? 'danger' : 'primary'" :disabled="disabled" @tap="flow.open(area)">{{ area.status === 'FREE' ? '锁定' : '释放' }}</button>
+              <button class="small" :class="area.status === 'FREE' ? 'danger' : 'primary'" :disabled="disabled || flow.needsRefresh.value" @tap="flow.open(area)">{{ area.status === 'FREE' ? '锁定' : '释放' }}</button>
             </view>
           </view>
           <view class="list-status" role="status">

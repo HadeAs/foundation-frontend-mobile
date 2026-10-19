@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { receivingApi as api, type ReceivingResult, type ReceivingOperationReceipt, type ReceivingRequest } from '../receiving';
 import { ApiRequestError } from '../nariRequest';
 import { useReceiving } from '../../composables/useReceiving';
+import { seedTestSession } from './helpers/authSession';
 
 const snapshot = (type: 'BOX' | 'VEHICLE' = 'BOX'): ReceivingResult => {
   const object = { containerType: type, containerCode: type === 'BOX' ? 'BOX-1' : 'CAR-1', version: 3 };
@@ -17,7 +18,12 @@ const receipt = (input: ReceivingRequest, affectedCount = 1, version = input.ver
   requestId: input.requestId, taskId: input.taskId, object: input.object, version,
   operationNo: 'RECEIVE-1', affectedCount, processedTime: '2026-10-12T01:00:00Z'
 });
-afterEach(() => { vi.restoreAllMocks(); });
+beforeEach(() => {
+  const storage = new Map<string, unknown>();
+  vi.stubGlobal('uni', { getStorageSync: (key: string) => storage.get(key) ?? '', setStorageSync: (key: string, value: unknown) => storage.set(key, value) });
+  seedTestSession();
+});
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 describe('receiving 2026-10-12.1', () => {
   it('accepts material lines without optional names and units', async () => {
     vi.spyOn(api, 'query').mockResolvedValue(snapshot()); const flow = useReceiving(); await flow.scan('BOX-1');
@@ -74,7 +80,7 @@ describe('receiving 2026-10-12.1', () => {
   it('prioritizes new tasks, otherwise re-queries the known scope and uses its latest task version for cleanup', async () => {
     const value = snapshot();
     const completed = snapshot(); Object.assign(completed.task!, { version: 8, status: 'RECEIVED', statusName: '已接收', receivedBoxCount: 1, eligibility: { allowed: false, reason: '该箱已接收' } });
-    const query = vi.spyOn(api, 'query').mockResolvedValueOnce(value).mockResolvedValueOnce(noTask(value)).mockResolvedValueOnce(completed);
+    const query = vi.spyOn(api, 'query').mockResolvedValueOnce(value).mockResolvedValueOnce(noTask(value)).mockResolvedValueOnce(completed).mockResolvedValueOnce(completed);
     vi.spyOn(api, 'confirm').mockImplementation(async input => receipt(input));
     const cleanup = vi.spyOn(api, 'clearWms').mockImplementation(async input => ({ requestId: input.requestId, operationNo: 'WMS-1', affectedCount: 0, processedTime: '2026-10-12T01:00:00Z' }));
     const flow = useReceiving(); await flow.scan('BOX-1'); await flow.submit(); await flow.scan('BOX-1');
@@ -82,10 +88,11 @@ describe('receiving 2026-10-12.1', () => {
     expect(flow.canReceive.value).toBe(false); expect(flow.canClearWms.value).toBe(true);
     flow.remark.value = '不应写入清理请求'; flow.askClearWms(); await flow.submit(true);
     expect(cleanup.mock.lastCall?.[0]).toEqual({ requestId: expect.any(String), taskId: value.task!.taskId, version: 8, object: { containerType: 'BOX', containerCode: 'BOX-1' } });
+    expect(query.mock.lastCall).toEqual(['BOX-1', value.task!.taskId]);
     expect(flow.result.value).toBeNull();
     const newer = snapshot(); Object.assign(newer.task!, { taskId: '9007199254741002', version: 1 });
     query.mockResolvedValueOnce(newer); await flow.scan('BOX-1');
-    expect(query).toHaveBeenCalledTimes(4); expect(flow.result.value?.task?.taskId).toBe(newer.task!.taskId);
+    expect(query).toHaveBeenCalledTimes(5); expect(flow.result.value?.task?.taskId).toBe(newer.task!.taskId);
     expect(flow.canReceive.value).toBe(true);
   });
   it.each(['wrong task', 'stale version'])('refuses a known-scope response with %s after successful receiving', async fault => {
@@ -101,7 +108,7 @@ describe('receiving 2026-10-12.1', () => {
   });
   it('does not infer task versions or receiving progress from a generic WMS cleanup receipt', async () => {
     const first = snapshot(); const refreshed = snapshot(); refreshed.task!.version = 12;
-    vi.spyOn(api, 'query').mockResolvedValueOnce(first).mockResolvedValueOnce(refreshed);
+    vi.spyOn(api, 'query').mockResolvedValueOnce(first).mockResolvedValue(refreshed);
     vi.spyOn(api, 'clearWms').mockImplementation(async input => ({ requestId: input.requestId, operationNo: 'WMS-1', affectedCount: 0, processedTime: '2026-10-12T01:00:00Z' }));
     const confirm = vi.spyOn(api, 'confirm').mockImplementation(async input => receipt(input));
     const flow = useReceiving(); await flow.scan('BOX-1'); flow.askClearWms(); await flow.submit(true);
@@ -136,11 +143,11 @@ describe('receiving 2026-10-12.1', () => {
     expect(confirm).toHaveBeenCalledOnce(); await flow.submit(); expect(confirm.mock.lastCall?.[0]).toEqual(first);
     flow.remark.value = '修改备注'; await flow.submit(); expect(confirm.mock.lastCall?.[0].requestId).not.toBe(first?.requestId);
   });
-  it('retains cleanup confirmation and retries a network-unknown cleanup with the same UUID', async () => {
+  it('requires confirmation again and retries a network-unknown cleanup with the same UUID', async () => {
     vi.spyOn(api, 'query').mockResolvedValue(snapshot());
     const cleanup = vi.spyOn(api, 'clearWms').mockRejectedValue(new Error('网络异常'));
     const flow = useReceiving(); await flow.scan('BOX-1'); flow.askClearWms(); await flow.submit(true);
-    const first = cleanup.mock.lastCall?.[0]; expect(flow.confirmingClear.value).toBe(true); expect(flow.result.value).not.toBeNull();
+    const first = cleanup.mock.lastCall?.[0]; expect(flow.confirmingClear.value).toBe(false); expect(flow.result.value).not.toBeNull();
     flow.cancelClearWms(); flow.askClearWms(); await flow.submit(true); expect(cleanup.mock.lastCall?.[0]).toEqual(first);
   });
   it.each([400, 409])('uses a fresh UUID only on a new manual attempt after explicit rejection %s', async status => {

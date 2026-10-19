@@ -6,7 +6,7 @@ import { seedTestSession } from './helpers/authSession';
 import { panelPackingApi } from '../panelPacking';
 import { locationBindingApi } from '../locationBinding';
 import { vehicleLoadingApi } from '../vehicleLoading';
-import { shippingApi as api, shippingRequest, type ShippingObject } from '../shipping';
+import { shippingApi as api, shippingRequest } from '../shipping';
 import { useShipping } from '../../composables/useShipping';
 
 const storage = new Map<string, unknown>();
@@ -161,9 +161,9 @@ describe('shipping', () => {
     expect(flow.object.value).not.toBeNull();
     expect(flow.shipped.value).toBeNull();
     expect(flow.notice.value?.text).toContain('发货结果不完整');
-    let resolve!: (value: ShippingObject) => void;
-    vi.spyOn(api, 'getObject').mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
-    const old = flow.scan('CAR-SHIP'); flow.clear(); resolve(valid); await old;
-    expect(flow.object.value).toBeNull();
+    const original = flow.pending.value!.input;
+    flow.clear(); await flow.scan('CAR-SHIP');
+    expect(flow.pending.value?.input).toEqual(original);
+    expect(flow.object.value).not.toBeNull();
   });
 });

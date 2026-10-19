@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue';
-import { logisticsCancellationApi as api, type CancellationResult } from '../services/logisticsCancellation';
+import { logisticsCancellationApi as api, cancellationPendingMessage, cancellationQueryErrorMessage, type CancellationResult } from '../services/logisticsCancellation';
 import { ApiRequestError, requestId } from '../services/nariRequest';
 import { getCurrentApiBaseUrl, getCurrentUser } from '../services/auth';
 import type { LogisticsTask } from '../services/logistics';
@@ -55,7 +55,7 @@ export function useLogisticsCancellation() {
         new Set(stored.map(item => item.taskId)).size !== stored.length || new Set(stored.map(item => item.requestId)).size !== stored.length) {
         throw new Error('本地取消记录异常，请保留记录并核实，勿重复取消');
       }
-      attempts.value = stored; storageError.value = false;
+      attempts.value = stored.map(item => item.status === 'ACCEPTED' ? { ...item, reason: cancellationPendingMessage } : item); storageError.value = false;
     } catch (cause) { storageError.value = true; message(cause instanceof Error ? cause.message : '无法读取取消记录，请核实原请求'); }
   }
   function save(next = attempts.value) {
@@ -134,7 +134,7 @@ export function useLogisticsCancellation() {
     if (!saved) return;
     if (result.cancelStatus === 'ACCEPTED' || result.cancelStatus === 'UNKNOWN') {
       saved.status = result.cancelStatus;
-      saved.reason = result.cancelStatus === 'ACCEPTED' ? '取消已受理，正在确认最终结果' : result.reason!;
+      saved.reason = result.cancelStatus === 'ACCEPTED' ? cancellationPendingMessage : result.reason!;
       save();
     } else {
       save(attempts.value.filter((item) => item.requestId !== attempt.requestId));
@@ -160,7 +160,7 @@ export function useLogisticsCancellation() {
     catch (cause) {
       const saved = attempts.value.find(item => item.requestId === attempt.requestId);
       if (saved) {
-        saved.status = 'UNKNOWN'; saved.reason = cause instanceof Error ? cause.message : '取消结果查询失败，请刷新结果';
+        saved.status = 'UNKNOWN'; saved.reason = cancellationQueryErrorMessage(cause);
         try { save(); } catch { /* Keep the last saved correlation and block further writes. */ }
         if (current()) message(saved.reason);
       }
@@ -191,8 +191,8 @@ export function useLogisticsCancellation() {
       if (visible()) selected.value = null;
       await applyResult(current, result, false, visible);
     } catch (cause) {
-      // Explicit client/business rejection can be retried. Timeout/5xx/malformed receipts remain uncertain.
-      if (cause instanceof ApiRequestError && cause.statusCode >= 400 && cause.statusCode < 500 && cause.statusCode !== 408) {
+      // 404 cannot prove that cancellation was never sent. Keep its original correlation as well.
+      if (cause instanceof ApiRequestError && cause.statusCode >= 400 && cause.statusCode < 500 && ![404, 408].includes(cause.statusCode)) {
         try { save(attempts.value.filter((item) => item.requestId !== current.requestId)); } catch { /* Preserve pending IDs if local storage is unavailable. */ }
       } else {
         const saved = attempts.value.find(item => item.requestId === current.requestId);

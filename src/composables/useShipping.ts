@@ -4,30 +4,39 @@ import { ApiRequestError } from '../services/nariRequest';
 import type { BoxMaterials } from '../services/warehouseApplication';
 import type { MaterialLine } from '../services/vehicleLoading';
 import type { LocationContainer, LocationSummary } from '../services/locationBinding';
+import { usePendingSubmission, validSubmission } from './usePendingSubmission';
 
 export function useShipping() {
   const object = shallowRef<ShippingObject | null>(null);
   const detail = shallowRef<BoxMaterials | null>(null);
   const shipped = shallowRef<ShippingReceipt | null>(null);
   const busy = ref(false);
+  const writing = ref(false);
+  const saved = usePendingSubmission<ShippingRequest>('shipping', (value): value is ShippingRequest => {
+    const input = value as ShippingRequest;
+    return validSubmission(value, ['scanType', 'scanCode']) && ['BOX', 'VEHICLE', 'LOCATION'].includes(input.scanType) && text(input.scanCode) &&
+      (input.scanType === 'LOCATION' || input.scanType === input.object.containerType && input.scanCode === input.object.containerCode);
+  });
+  const { pending, storageError } = saved;
   const notice = ref<{ text: string; error: boolean } | null>(null);
-  const disabled = computed(() => busy.value || !!detail.value || !!shipped.value);
-  const canSubmit = computed(() => !disabled.value && !!object.value?.eligibility.allowed && object.value.totalMaterialQuantity > 0);
+  const disabled = computed(() => busy.value || writing.value || !!detail.value || !!shipped.value || !!pending.value || !!storageError.value);
+  const canSubmit = computed(() => !busy.value && !writing.value && !detail.value && !shipped.value && !storageError.value &&
+    (!!pending.value || !!object.value?.eligibility.allowed && object.value.totalMaterialQuantity > 0));
   const materials = computed(() => object.value?.object.containerType === 'BOX' ? object.value.boxes.flatMap((box) => box.materials) : []);
   let generation = 0;
   let active = true;
-  let attempt: ShippingRequest | null = null;
   function notify(text: string, error = false) { notice.value = { text, error }; }
-  function clear() { generation++; object.value = null; detail.value = null; shipped.value = null; busy.value = false; notice.value = null; attempt = null; }
-  function pause() { active = false; clear(); }
-  function resume() { active = true; }
+  function resetView() { generation++; object.value = null; detail.value = null; shipped.value = null; busy.value = false; notice.value = null; }
+  function clear() { if (!pending.value && !storageError.value && !writing.value) resetView(); }
+  function pause() { active = false; resetView(); }
+  function resume() { active = true; if (!writing.value) saved.restore(); }
   async function run(action: (current: () => boolean) => Promise<void>) {
-    if (busy.value || !active) return;
+    if (busy.value || !active || !saved.sameScope()) return;
     const id = generation;
     busy.value = true;
     notice.value = null;
-    try { await action(() => active && id === generation); }
-    catch (error) { if (active && id === generation) notify(error instanceof Error ? error.message : '请求失败，请重试', true); }
+    try { await action(() => active && id === generation && saved.sameScope()); }
+    catch (error) { if (active && id === generation && saved.sameScope()) notify(error instanceof Error ? error.message : '请求失败，请重试', true); }
     finally { if (id === generation) busy.value = false; }
   }
   function text(value: unknown, max = 128) { return typeof value === 'string' && !!value.trim() && value.length <= max; }
@@ -90,29 +99,34 @@ export function useShipping() {
   }
   function closeMaterials() { if (!busy.value) detail.value = null; }
   async function submit() {
-    if (!active || !canSubmit.value || !object.value) return;
-    const target = object.value;
-    const input = attempt || shippingRequest(target);
-    attempt = input;
+    if (!active || !canSubmit.value || !saved.sameScope()) return;
+    const replay = !!pending.value;
+    const input = pending.value?.input || shippingRequest(object.value!);
     await run(async (current) => {
-      let result;
-      try { result = await api.submit(input); }
-      catch (error) {
-        if (attempt === input && error instanceof ApiRequestError && error.statusCode >= 400 && error.statusCode < 500 && error.statusCode !== 408) attempt = null;
-        throw error;
-      }
-      if (!current()) return;
-      if (!result || typeof result !== 'object' || 'resultType' in result || result.requestId !== input.requestId || !text(result.shippingNo) || !validContainer(result.object) ||
-        result.object.containerType !== target.object.containerType || result.object.containerCode !== target.object.containerCode ||
-        result.object.version <= input.version || typeof result.canCreateLogisticsTask !== 'boolean' ||
-        typeof result.processedTime !== 'string' || !Number.isFinite(Date.parse(result.processedTime))) {
-        throw new Error('发货结果不完整，未能确认处理成功，请核实后重试原请求');
-      }
-      clear();
-      notify(`成品发货成功，发货单号：${result.shippingNo}`);
-      if (result.object.containerType === 'VEHICLE' && result.canCreateLogisticsTask) shipped.value = result;
+      saved.save(input, pending.value?.reason || '正在确认本次成品发货结果');
+      writing.value = true;
+      try {
+        let result;
+        try { result = await api.submit(input); }
+        catch (error) {
+          if (!replay && error instanceof ApiRequestError && error.statusCode >= 400 && error.statusCode < 500 && error.statusCode !== 408) saved.finish(input.requestId);
+          throw error;
+        }
+        if (!result || typeof result !== 'object' || 'resultType' in result || result.requestId !== input.requestId || !text(result.shippingNo) || !validContainer(result.object) ||
+          result.object.containerType !== input.object.containerType || result.object.containerCode !== input.object.containerCode ||
+          result.object.version <= input.version || typeof result.canCreateLogisticsTask !== 'boolean' ||
+          typeof result.processedTime !== 'string' || !Number.isFinite(Date.parse(result.processedTime))) {
+          throw new Error('发货结果不完整，未能确认处理成功，请核实后重试原请求');
+        }
+        saved.finish(input.requestId);
+        if (!current()) return;
+        resetView();
+        notify(`成品发货成功，发货单号：${result.shippingNo}`);
+        if (result.object.containerType === 'VEHICLE' && result.canCreateLogisticsTask) shipped.value = result;
+      } catch (error) { saved.failed(error); throw error; }
+      finally { writing.value = false; }
     });
   }
   function dismissLogistics() { if (active && !busy.value) shipped.value = null; }
-  return { shipped, dismissLogistics, object, materials, detail, busy, disabled, canSubmit, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, submit };
+  return { pending, storageError, shipped, dismissLogistics, object, materials, detail, busy, disabled, canSubmit, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, submit };
 }

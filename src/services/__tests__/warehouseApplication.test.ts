@@ -165,7 +165,8 @@ describe('warehouse application', () => {
     await finish(flow.scan('BOX-NR-240818'));
     const submit = flow.submit();
     expect(flow.disabled.value).toBe(true);
-    flow.clear(); await finish(submit);
+    flow.clear(); expect(flow.object.value).not.toBeNull();
+    flow.pause(); await finish(submit);
     expect(flow.notice.value).toBeNull();
     expect(flow.object.value).toBeNull();
   });

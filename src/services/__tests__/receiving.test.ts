@@ -59,9 +59,10 @@ describe('receiving', () => {
     expect(transport).not.toHaveBeenCalled();
     flow.askClearWms();
     await finish(flow.submit(true));
-    expect(transport).toHaveBeenCalledOnce();
-    expect(transport.mock.lastCall?.[0].data).toEqual({ requestId: expect.any(String), taskId: before.task!.taskId, version: before.task!.version,
+    expect(transport).toHaveBeenCalledTimes(2);
+    expect(transport.mock.calls[0][0].data).toEqual({ requestId: expect.any(String), taskId: before.task!.taskId, version: before.task!.version,
       object: { containerType: 'VEHICLE', containerCode: 'CAR-RECEIVE' } });
+    expect(transport.mock.calls[1][0].data).toEqual({ scanCode: 'CAR-RECEIVE', taskId: before.task!.taskId });
     expect(flow.result.value).toBeNull();
     expect(flow.notice.value?.text).toContain('WMS 历史已清空');
     const stale = api.confirm({ requestId: requestId(), taskId: before.task!.taskId, version: before.task!.version,
@@ -148,19 +149,21 @@ describe('receiving', () => {
     await finish(flow.scan('BOX-RECEIVE-LONG'));
     expect(flow.materials.value).toHaveLength(30);
   });
-  it.each([false, true])('preserves data on failure, sends a fresh UUID on manual retry: cleanup=%s', async (cleanup) => {
+  it.each([false, true])('preserves data on explicit failure and retries manually: cleanup=%s', async (cleanup) => {
     const flow = useReceiving();
     await finish(flow.scan(cleanup ? 'CAR-RECEIVE-CLEAR-FAIL' : 'CAR-RECEIVE-FAIL'));
     const before = flow.result.value;
     if (cleanup) flow.askClearWms();
     const transport = vi.spyOn(mock, 'resolveMockRequest');
     await finish(flow.submit(cleanup));
-    expect(flow.result.value).toBe(before); expect(flow.notice.value?.error).toBe(true);
-    expect(flow.confirmingClear.value).toBe(cleanup);
-    const first = transport.mock.lastCall?.[0].data as { requestId: string };
+    expect(flow.result.value).toEqual(before); expect(flow.notice.value?.error).toBe(true);
+    expect(flow.confirmingClear.value).toBe(false);
+    const first = transport.mock.calls[0][0].data as { requestId: string };
+    if (cleanup) flow.askClearWms();
     await finish(flow.submit(cleanup));
-    expect((transport.mock.lastCall?.[0].data as { requestId: string }).requestId).not.toBe(first.requestId);
-    expect(transport).toHaveBeenCalledTimes(2);
+    const second = transport.mock.calls[cleanup ? 2 : 1][0].data as { requestId: string };
+    expect(second.requestId).not.toBe(first.requestId);
+    expect(transport).toHaveBeenCalledTimes(cleanup ? 4 : 2);
   });
   it('rejects mismatched/missing task contents and invalid receipts without claiming success', async () => {
     const flow = useReceiving();

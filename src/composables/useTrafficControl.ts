@@ -32,6 +32,7 @@ export function useTrafficControl() {
   let operation = 0;
   let failedPage = 1;
   let active = true;
+  const needsRefresh = ref(false);
   let attempt: { areaCode: string; action: TrafficAction; input: TrafficActionRequest } | null = null;
 
   async function load(target: number) {
@@ -50,6 +51,7 @@ export function useTrafficControl() {
       const merged = new Map((target === 1 ? [] : items.value).map((area) => [area.areaCode, area]));
       result.records.forEach((area) => merged.set(area.areaCode, area));
       items.value = [...merged.values()]; page.value = result.current; pages.value = result.pages;
+      if (target === 1) needsRefresh.value = false;
     } catch (cause) {
       if (!active || current !== revision) return;
       failedPage = target;
@@ -81,7 +83,7 @@ export function useTrafficControl() {
     if (active && !loading.value && !selected.value && !submitting.value && error.value) await load(failedPage);
   }
   function open(area: TrafficArea) {
-    if (!active || loading.value || submitting.value || selected.value) return;
+    if (!active || loading.value || submitting.value || selected.value || needsRefresh.value) return;
     const current = items.value.find(item => item.areaCode === area.areaCode);
     if (current) { selected.value = { ...current }; notice.value = null; }
   }
@@ -114,11 +116,10 @@ export function useTrafficControl() {
       items.value = items.value.map((item) => item.areaCode === result.areaCode ? result : item);
       selected.value = null;
       notice.value = { message: `${label}成功`, error: false };
-      // Status filtering changes offsets. Re-query page one instead of skipping records on the next page.
-      if (filters.status && result.status !== filters.status) {
-        items.value = items.value.filter((item) => item.areaCode !== result.areaCode);
-        await load(1);
-      }
+      // A replay returns its historical receipt. Refresh before allowing the next action.
+      needsRefresh.value = true;
+      if (filters.status && result.status !== filters.status) items.value = items.value.filter((item) => item.areaCode !== result.areaCode);
+      await load(1);
     } catch (cause) {
       if (!active || current !== revision) return;
       notice.value = { message: cause instanceof Error ? cause.message : `${label}失败，请重试`, error: true };
@@ -131,6 +132,6 @@ export function useTrafficControl() {
     selected.value = null; notice.value = null; error.value = ''; attempt = null;
   }
   function resume() { active = true; }
-  return { keyword, status, items, loading, refreshing, submitting, selected, error, notice, hasMore, actionName,
+  return { needsRefresh, keyword, status, items, loading, refreshing, submitting, selected, error, notice, hasMore, actionName,
     query, refresh, loadMore, retry, open, close, confirm, dispose, resume };
 }

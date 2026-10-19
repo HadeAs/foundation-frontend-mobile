@@ -45,13 +45,15 @@ describe('traffic control', () => {
     flow.keyword.value = 'QUERY-FAIL'; await finish(flow.query()); expect(flow.notice.value?.message).toContain('交管区域查询失败');
   });
   it('confirms before writing, prevents double submissions, and displays server metadata', async () => {
+    const query = vi.spyOn(api, 'query');
     const flow = useTrafficControl(); await finish(flow.query()); const act = vi.spyOn(api, 'act');
     flow.open(flow.items.value[0]); flow.close(); expect(act).not.toHaveBeenCalled();
     flow.open(flow.items.value[0]); expect(flow.actionName.value).toBe('锁定');
     const pending = flow.confirm(); await flow.confirm(); flow.close(); expect(flow.selected.value).not.toBeNull();
     await finish(pending); expect(act).toHaveBeenCalledOnce();
     expect(act.mock.calls[0]).toEqual(['TC-01', 'lock', { requestId: expect.any(String), version: 1 }]);
-    expect(flow.items.value[0]).toMatchObject({ status: 'OCCUPIED', version: 2, lastOperatorName: '系统管理员', lastOperationTime: new Date().toISOString() });
+    expect(flow.items.value[0]).toMatchObject({ status: 'OCCUPIED', version: 2, lastOperatorName: '系统管理员' });
+    expect(flow.items.value).toEqual((await query.mock.results[1].value).records);
     expect(flow.items.value).toHaveLength(20); expect(flow.selected.value).toBeNull();
     expect(flow.notice.value).toEqual({ message: '锁定成功', error: false });
     flow.open(flow.items.value[0]); expect(flow.actionName.value).toBe('释放'); await finish(flow.confirm());

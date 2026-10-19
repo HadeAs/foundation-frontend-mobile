@@ -3,29 +3,34 @@ import { warehouseApplicationApi as api, type ApplicationObject, type BoxMateria
 import type { MaterialLine } from '../services/vehicleLoading';
 import type { LocationContainer } from '../services/locationBinding';
 import { ApiRequestError, requestId } from '../services/nariRequest';
+import { usePendingSubmission, validSubmission, type SubmissionInput } from './usePendingSubmission';
 
 export function useWarehouseApplication() {
   const object = shallowRef<ApplicationObject | null>(null);
   const detail = shallowRef<BoxMaterials | null>(null);
   const busy = ref(false);
+  const writing = ref(false);
+  const saved = usePendingSubmission<SubmissionInput>('warehouse-applications', validSubmission);
+  const { pending, storageError } = saved;
   const notice = ref<{ text: string; error: boolean } | null>(null);
-  const disabled = computed(() => busy.value || !!detail.value);
-  const canSubmit = computed(() => !disabled.value && !!object.value?.eligibility.allowed && object.value.totalMaterialQuantity > 0);
+  const disabled = computed(() => busy.value || writing.value || !!detail.value || !!pending.value || !!storageError.value);
+  const canSubmit = computed(() => !busy.value && !writing.value && !detail.value && !storageError.value &&
+    (!!pending.value || !!object.value?.eligibility.allowed && object.value.totalMaterialQuantity > 0));
   const materials = computed(() => object.value?.object.containerType === 'BOX' ? object.value.boxes.flatMap((box) => box.materials) : []);
   let generation = 0;
   let active = true;
-  let attempt: { id: string; fingerprint: string; target: Pick<LocationContainer, 'containerCode' | 'containerType'>; version: number } | null = null;
   function notify(text: string, error = false) { notice.value = { text, error }; }
-  function clear() { generation++; object.value = null; detail.value = null; busy.value = false; notice.value = null; attempt = null; }
-  function pause() { active = false; clear(); }
-  function resume() { active = true; }
+  function resetView() { generation++; object.value = null; detail.value = null; busy.value = false; notice.value = null; }
+  function clear() { if (!pending.value && !storageError.value && !writing.value) resetView(); }
+  function pause() { active = false; resetView(); }
+  function resume() { active = true; if (!writing.value) saved.restore(); }
   async function run(action: (current: () => boolean) => Promise<void>) {
-    if (busy.value || !active) return;
+    if (busy.value || !active || !saved.sameScope()) return;
     const id = generation;
     busy.value = true;
     notice.value = null;
-    try { await action(() => active && id === generation); }
-    catch (error) { if (active && id === generation) notify(error instanceof Error ? error.message : '请求失败，请重试', true); }
+    try { await action(() => active && id === generation && saved.sameScope()); }
+    catch (error) { if (active && id === generation && saved.sameScope()) notify(error instanceof Error ? error.message : '请求失败，请重试', true); }
     finally { if (id === generation) busy.value = false; }
   }
   function text(value: unknown, max = 128): value is string { return typeof value === 'string' && !!value.trim() && value.length <= max; }
@@ -83,26 +88,31 @@ export function useWarehouseApplication() {
   }
   function closeMaterials() { if (!busy.value) detail.value = null; }
   async function submit() {
-    if (!canSubmit.value || !active || !object.value) return;
-    const value = object.value.object;
-    const target = { containerType: value.containerType, containerCode: value.containerCode };
-    const fingerprint = JSON.stringify({ target, version: value.version });
-    const input = attempt?.fingerprint === fingerprint ? attempt : { id: requestId(), fingerprint, target, version: value.version };
-    attempt = input;
+    if (!canSubmit.value || !active || !saved.sameScope()) return;
+    const replay = !!pending.value;
+    const value = object.value?.object;
+    const input = pending.value?.input || { requestId: requestId(), object: { containerType: value!.containerType, containerCode: value!.containerCode }, version: value!.version };
     await run(async (current) => {
-      let result;
-      try { result = await api.submit(input.target, input.version, input.id); }
-      catch (error) {
-        if (attempt === input && error instanceof ApiRequestError && error.statusCode >= 400 && error.statusCode < 500 && error.statusCode !== 408) attempt = null;
-        throw error;
-      }
-      if (!current()) return;
-      if (!result || typeof result !== 'object' || 'resultType' in result || result.requestId !== input.id || result.wmsPendingCreated !== true || !text(result.applicationNo) || !Array.isArray(result.sapDocumentNos) ||
-        !result.sapDocumentNos.length || result.sapDocumentNos.length > 1000 || !result.sapDocumentNos.every(no => text(no)) ||
-        !text(result.processedTime) || !Number.isFinite(Date.parse(result.processedTime))) throw new Error('申请结果不完整，未能确认全部处理成功，请核实后重试');
-      clear();
-      notify(`缴库申请成功，缴库单号：${result.sapDocumentNos.join('、')}`);
+      saved.save(input, pending.value?.reason || '正在确认本次缴库申请结果');
+      writing.value = true;
+      try {
+        let result;
+        try { result = await api.submit(input.object, input.version, input.requestId); }
+        catch (error) {
+          // 409 also covers partial/unknown processing; it does not prove that no SAP/WMS work happened.
+          if (!replay && error instanceof ApiRequestError && error.statusCode >= 400 && error.statusCode < 500 && ![408, 409].includes(error.statusCode)) saved.finish(input.requestId);
+          throw error;
+        }
+        if (!result || typeof result !== 'object' || 'resultType' in result || result.requestId !== input.requestId || result.wmsPendingCreated !== true || !text(result.applicationNo) || !Array.isArray(result.sapDocumentNos) ||
+          !result.sapDocumentNos.length || result.sapDocumentNos.length > 1000 || !result.sapDocumentNos.every(no => text(no)) ||
+          !text(result.processedTime) || !Number.isFinite(Date.parse(result.processedTime))) throw new Error('申请结果不完整，未能确认全部处理成功，请核实后重试');
+        saved.finish(input.requestId);
+        if (!current()) return;
+        resetView();
+        notify(`缴库申请成功，缴库单号：${result.sapDocumentNos.join('、')}`);
+      } catch (error) { saved.failed(error); throw error; }
+      finally { writing.value = false; }
     });
   }
-  return { object, materials, detail, busy, disabled, canSubmit, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, submit };
+  return { pending, storageError, object, materials, detail, busy, disabled, canSubmit, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, submit };
 }

@@ -106,7 +106,8 @@ describe('traffic control 2026-10-12.1', () => {
     const flow = useTrafficControl(); flow.status.value = 'FREE'; await flow.query(); flow.open(flow.items.value[0]); await flow.confirm();
     expect(flow.items.value.map(item => item.areaCode)).toEqual(['TC-3']); expect(flow.selected.value).toBeNull(); expect(get.mock.lastCall).toEqual([{ status: 'FREE' }, 1]);
     expect(act).toHaveBeenCalledOnce(); flow.status.value = ''; get.mockResolvedValue({ ...snapshot(1, 1), records: [result(area())] }); await flow.query();
-    flow.open(flow.items.value[0]); await flow.confirm(); expect(flow.items.value[0]).toEqual(result(result(area()))); expect(flow.notice.value?.message).toBe('释放成功');
+    flow.open(flow.items.value[0]); get.mockResolvedValue({ ...snapshot(1, 1), records: [result(result(area()))] });
+    await flow.confirm(); expect(flow.items.value[0]).toEqual(result(result(area()))); expect(flow.notice.value?.message).toBe('释放成功');
   });
   it('blocks background requests in a confirmation, prevents duplicates and does not revive hidden reads or writes', async () => {
     const get = vi.spyOn(api, 'query').mockResolvedValue(snapshot(1, 2)); const flow = useTrafficControl(); await flow.query(); flow.open(flow.items.value[0]);

@@ -5,6 +5,7 @@ import { ApiRequestError } from '../nariRequest';
 import { useShipping } from '../../composables/useShipping';
 import ShippingPage from '../../pages/shipping/index.vue';
 import ScanInput from '../../components/ScanInput.vue';
+import { seedTestSession } from './helpers/authSession';
 
 const hooks = vi.hoisted(() => ({ show: [] as (() => void)[], hide: [] as (() => void)[] }));
 vi.mock('@dcloudio/uni-app', () => ({ onShow: (fn: () => void) => hooks.show.push(fn), onHide: (fn: () => void) => hooks.hide.push(fn) }));
@@ -16,7 +17,13 @@ const snapshot = (type: 'BOX' | 'VEHICLE' = 'BOX', location = false): ShippingOb
   totalMaterialQuantity: type === 'BOX' ? 1 : 3, eligibility: { allowed: true } });
 const receipt = (input: ShippingRequest): ShippingReceipt => ({ requestId: input.requestId, shippingNo: 'SHIP-1', object: { ...input.object, version: 8 },
   canCreateLogisticsTask: input.object.containerType === 'VEHICLE', processedTime: '2026-10-12T01:00:00Z' });
-beforeEach(() => { hooks.show.length = hooks.hide.length = 0; vi.stubGlobal('uni', { navigateBack: vi.fn(), navigateTo: vi.fn() }); });
+beforeEach(() => {
+  const storage = new Map<string, unknown>();
+  hooks.show.length = hooks.hide.length = 0;
+  vi.stubGlobal('uni', { navigateBack: vi.fn(), navigateTo: vi.fn(), getStorageSync: (key: string) => storage.get(key) ?? '',
+    setStorageSync: (key: string, value: unknown) => storage.set(key, value) });
+  seedTestSession();
+});
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('shipping 2026-10-12.1', () => {
@@ -131,13 +138,15 @@ describe('shipping 2026-10-12.1', () => {
     wrapper.findComponent(ScanInput).vm.$emit('scan', 'BOX-1'); await flushPromises();
     expect(wrapper.text()).toContain('实际内容'); expect(wrapper.text()).toContain('未确认'); expect(wrapper.text()).toContain('批次 000031');
     expect(wrapper.get('.material-sub').text()).toBe('MAT-1'); expect(wrapper.get('.material-quantity').text()).toBe('1');
+    expect(wrapper.get('.shipping-scope').text()).toContain('不按状态或申请号隔离');
+    expect(wrapper.get('.shipping-scope').text()).toContain('可能影响同箱其他申请');
     hooks.hide.forEach(fn => fn()); await flushPromises(); expect(wrapper.find('.object-card').exists()).toBe(false);
     hooks.show.forEach(fn => fn()); wrapper.findComponent(ScanInput).vm.$emit('scan', 'BOX-1'); await flushPromises(); expect(get).toHaveBeenCalledTimes(2);
     wrapper.unmount();
   });
   it('retains the completed shipping question on navigation failure without resubmitting and protects late callbacks after hide', async () => {
     vi.spyOn(api, 'getObject').mockResolvedValue(snapshot('VEHICLE', true)); const submit = vi.spyOn(api, 'submit').mockImplementation(async input => receipt(input));
-    const navigate = vi.fn(); vi.stubGlobal('uni', { navigateBack: vi.fn(), navigateTo: navigate });
+    const navigate = vi.fn(); vi.stubGlobal('uni', { ...uni, navigateTo: navigate });
     const wrapper = mount(ShippingPage, { global: { stubs: { 'scroll-view': { template: '<div><slot /></div>' } } } }); hooks.show.forEach(fn => fn());
     wrapper.findComponent(ScanInput).vm.$emit('scan', 'KW-1'); await flushPromises(); await wrapper.get('.footer .primary').trigger('tap'); await flushPromises();
     expect(wrapper.find('.object-card').exists()).toBe(false); await wrapper.get('.modal-actions .primary').trigger('tap');
@@ -153,7 +162,7 @@ describe('shipping 2026-10-12.1', () => {
     const data = snapshot('VEHICLE', true); data.object.containerCode = 'CAR / 中文?';
     vi.spyOn(api, 'getObject').mockResolvedValue(data);
     const submit = vi.spyOn(api, 'submit').mockImplementation(async input => ({ ...receipt(input), shippingNo: 'SHIP / 编号?' }));
-    const navigate = vi.fn(); vi.stubGlobal('uni', { navigateBack: vi.fn(), navigateTo: navigate });
+    const navigate = vi.fn(); vi.stubGlobal('uni', { ...uni, navigateTo: navigate });
     const wrapper = mount(ShippingPage, { global: { stubs: { 'scroll-view': { template: '<div><slot /></div>' } } } }); hooks.show.forEach(fn => fn());
     wrapper.findComponent(ScanInput).vm.$emit('scan', 'KW-1'); await flushPromises(); await wrapper.get('.footer .primary').trigger('tap'); await flushPromises();
     await wrapper.get('.modal-actions .primary').trigger('tap');

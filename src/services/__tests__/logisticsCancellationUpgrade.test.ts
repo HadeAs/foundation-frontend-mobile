@@ -100,7 +100,7 @@ describe('logistics cancellation 2026-10-12.1', () => {
     await flow.check(task().taskId); expect(flow.notice.value?.message).toHaveLength(600); expect(flow.attempts.value).toHaveLength(0);
     flow.open(flow.items.value[0]); await flow.confirm(); expect(cancel.mock.calls[1][1].requestId).not.toBe(id);
   });
-  it.each([408, 503, undefined])('persists the request before sending and never repeats an uncertain write after %s', async status => {
+  it.each([404, 408, 503, undefined])('persists the request before sending and never repeats an uncertain write after %s', async status => {
     const flow = await ready(); const cancel = vi.spyOn(api, 'cancel').mockImplementation(async (_id, input) => {
       const stored = [...storage.entries()].find(([key]) => key.startsWith('foundation.cancellations.real.'))![1] as { requestId: string }[];
       expect(stored[0].requestId).toBe(input.requestId); throw status ? new ApiRequestError('结果未知', status) : new Error('网络异常');
@@ -108,6 +108,25 @@ describe('logistics cancellation 2026-10-12.1', () => {
     await flow.confirm(); const id = flow.attempts.value[0].requestId; await vi.advanceTimersByTimeAsync(10000); flow.pause();
     vi.mocked(api.query).mockResolvedValue(page([])); await flow.resume(); expect(flow.attempts.value[0].requestId).toBe(id);
     expect(cancel).toHaveBeenCalledOnce(); expect(flow.notice.value?.message || '').not.toContain('取消成功');
+  });
+  it('describes ACCEPTED and restored legacy records as processing, not proof of vendor acceptance', async () => {
+    const flow = await ready(); vi.spyOn(api, 'cancel').mockImplementation(async (id, input) => receipt(id, input.requestId));
+    await flow.confirm(); expect(flow.attempts.value[0].reason).toContain('取消请求处理中');
+    expect(flow.attempts.value[0].reason).toContain('不代表调度已受理');
+    const key = [...storage.keys()].find(key => key.startsWith('foundation.cancellations.real.'))!;
+    storage.set(key, [{ ...flow.attempts.value[0], reason: '取消已受理，等待结果' }]); flow.pause();
+    const reopened = makeFlow(); await reopened.resume();
+    expect(reopened.attempts.value[0].reason).toBe(flow.attempts.value[0].reason);
+    expect(reopened.attempts.value[0].requestId).toBe(flow.attempts.value[0].requestId); expect(api.cancel).toHaveBeenCalledOnce();
+  });
+  it('does not infer a safe new cancellation from a FLOW message followed by a missing result', async () => {
+    const flow = await ready(); const cancel = vi.spyOn(api, 'cancel').mockRejectedValue(new ApiRequestError('FLOW 未发送，暂不支持取消', 503));
+    await flow.confirm(); const id = flow.attempts.value[0].requestId;
+    const result = vi.spyOn(api, 'result').mockRejectedValue(new ApiRequestError('取消记录不存在', 404));
+    await flow.check(task().taskId); await vi.advanceTimersByTimeAsync(10000);
+    expect(result).toHaveBeenCalledOnce(); expect(flow.attempts.value[0]).toMatchObject({ requestId: id, status: 'UNKNOWN' });
+    expect(flow.attempts.value[0].reason).toContain('不代表未发送或已过期');
+    flow.open(task()); await flow.confirm(); expect(cancel).toHaveBeenCalledOnce();
   });
   it('blocks hidden reads/writes and modal background events while preserving pending polling on close', async () => {
     const flow = await ready(); const query = vi.mocked(api.query); query.mockClear();

@@ -6,6 +6,7 @@ import { ApiRequestError } from '../nariRequest';
 import ApplicationPage from '../../pages/warehouse-application/index.vue';
 import ScanInput from '../../components/ScanInput.vue';
 import type { BoxMaterials } from '../warehouseApplication';
+import { seedTestSession } from './helpers/authSession';
 
 const hooks = vi.hoisted(() => ({ show: [] as (() => void)[], hide: [] as (() => void)[] }));
 vi.mock('@dcloudio/uni-app', () => ({ onShow: (fn: () => void) => hooks.show.push(fn), onHide: (fn: () => void) => hooks.hide.push(fn) }));
@@ -22,7 +23,13 @@ const receipt = (requestId: string): ApplicationReceipt => ({ requestId, applica
 async function ready(value = object()) {
   vi.spyOn(api, 'getObject').mockResolvedValue(value); const flow = useWarehouseApplication(); await flow.scan(value.scanCode); return flow;
 }
-beforeEach(() => { hooks.show.length = hooks.hide.length = 0; vi.stubGlobal('uni', { navigateBack: vi.fn() }); });
+beforeEach(() => {
+  const storage = new Map<string, unknown>();
+  hooks.show.length = hooks.hide.length = 0;
+  vi.stubGlobal('uni', { navigateBack: vi.fn(), getStorageSync: (key: string) => storage.get(key) ?? '',
+    setStorageSync: (key: string, value: unknown) => storage.set(key, value) });
+  seedTestSession();
+});
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('warehouse application 2026-10-12.1', () => {
@@ -115,13 +122,15 @@ describe('warehouse application 2026-10-12.1', () => {
     resolve({ box: object().object, sourceSystem: 'LES', totalQuantity: 1, materials: object().boxes[0].materials }); await work;
     expect(flow.object.value?.scanType).toBe('BOX'); expect(flow.detail.value).toBeNull(); expect(flow.busy.value).toBe(false);
   });
-  it('does not clear a resumed page or its new request on late submission failure', async () => {
+  it('keeps the original request pending across hide/show without starting an overlapping submission', async () => {
     const flow = await ready(); let reject!: (error: Error) => void;
     const submit = vi.spyOn(api, 'submit').mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail; }))
       .mockRejectedValue(new ApiRequestError('新申请结果未知', 503));
-    const old = flow.submit(); flow.pause(); flow.resume(); await flow.scan('BOX-1'); await flow.submit(); const input = submit.mock.calls[1];
+    const old = flow.submit(); const input = submit.mock.calls[0]; flow.pause(); flow.resume(); await flow.scan('BOX-1'); await flow.submit();
+    expect(submit).toHaveBeenCalledOnce();
     reject(new ApiRequestError('旧申请被拒绝', 400)); await old; await flow.submit();
-    expect(submit.mock.calls[2]).toEqual(input); expect(flow.object.value?.scanCode).toBe('BOX-1'); expect(flow.notice.value?.text).toBe('新申请结果未知');
+    expect(submit).toHaveBeenCalledOnce(); expect(flow.object.value).toBeNull(); expect(flow.notice.value).toBeNull();
+    expect(flow.pending.value).toBeNull(); expect(input[2]).toMatch(/^[0-9a-f-]{36}$/i);
   });
   it('shows optional batch and physical state without changing the fixed page workflow, and clears on hiding', async () => {
     vi.spyOn(api, 'getObject').mockResolvedValue(object());

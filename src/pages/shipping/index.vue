@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import OperationNotice from '../../components/OperationNotice.vue';
+import PendingSubmission from '../../components/PendingSubmission.vue';
 import { onUnmounted, ref, watch } from 'vue';
 import { onHide, onShow } from '@dcloudio/uni-app';
 import ScanInput from '../../components/ScanInput.vue';
@@ -8,7 +9,7 @@ import { usePdaScanner } from '../../composables/usePdaScanner';
 import { useShipping } from '../../composables/useShipping';
 import MaterialRows from '../../components/MaterialRows.vue';
 
-const { shipped, dismissLogistics, object, materials, detail, busy, disabled, canSubmit, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, submit } = useShipping();
+const { pending, storageError, shipped, dismissLogistics, object, materials, detail, busy, disabled, canSubmit, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, submit } = useShipping();
 const contentStateNames = { UNKNOWN: '未确认', EMPTY: '已确认空载', LOADED: '已确认非空' };
 const input = ref('');
 let active = false;
@@ -55,7 +56,7 @@ onUnmounted(() => {
 <template>
   <view class="app-page application-page">
     <view class="app-nav">
-      <button class="nav-back" :disabled="disabled" @tap="goBack">‹ 返回</button>
+      <button class="nav-back" :disabled="busy || !!detail || !!shipped" @tap="goBack">‹ 返回</button>
       <view class="app-nav__title">成品发货</view><view />
     </view>
     <OperationNotice :text="notice?.text" :error="notice?.error" />
@@ -69,11 +70,14 @@ onUnmounted(() => {
         <view class="info"><text>当前位置</text><text>{{ object.object.location ? object.object.location.locationCode + ' · ' + object.object.location.locationName : '—' }}</text></view>
         <view class="info"><text>实际内容</text><text>{{ contentStateNames[object.object.contentState || 'UNKNOWN'] }}</text></view>
         <view class="info"><text>关联物料</text><text>{{ object.totalMaterialQuantity }} 件</text></view>
+        <view class="shipping-scope">发货将按料箱清理 WMS 记录，不按状态或申请号隔离，可能影响同箱其他申请。</view>
       </view>
       <view v-if="busy" class="processing" role="status">处理中…</view>
     </view>
     <view class="content">
-      <view v-if="!object" class="card empty">请先扫描作业对象<view class="empty-hint">识别后查看关联信息，再确认提交</view></view>
+      <PendingSubmission v-if="pending || storageError" :code="pending?.input.object.containerCode" :request-id="pending?.input.requestId"
+        :reason="pending?.reason" :storage-error="storageError" :busy="busy" @reload="resume" />
+      <view v-else-if="!object" class="card empty">请先扫描作业对象<view class="empty-hint">识别后查看关联信息，再确认提交</view></view>
       <view v-else-if="!object.totalMaterialQuantity" class="card empty">当前对象无可处理物料<view class="empty-hint">请核对对象或扫描其他容器</view></view>
       <view v-else class="card list-card">
         <view class="card-heading"><text>{{ object.object.containerType === 'VEHICLE' ? '关联料箱' : '关联物料' }}</text><text>{{ object.object.containerType === 'VEHICLE' ? object.boxes.length + ' 箱' : object.totalMaterialQuantity + ' 件' }}</text></view>
@@ -90,7 +94,7 @@ onUnmounted(() => {
     </view>
     <view class="footer">
       <button :disabled="disabled" @tap="clearPage">清空页面</button>
-      <button class="primary" :disabled="!canSubmit" @tap="submit">成品发货</button>
+      <button class="primary" :disabled="!canSubmit" @tap="submit">{{ pending ? '重试原请求' : '成品发货' }}</button>
     </view>
     <view v-if="shipped" class="modal-mask">
       <view class="modal" role="dialog" aria-modal="true" aria-label="是否创建物流任务">
@@ -130,6 +134,7 @@ button:focus-visible { outline: 2px solid #0d9496; outline-offset: 2px; }
 .info { display: flex; justify-content: space-between; gap: 16rpx; padding: 12rpx 16rpx; font-size: 26rpx; }
 .info text:first-child { color: #748d93; flex-shrink: 0; }
 .info text:last-child { min-width: 0; word-break: break-all; text-align: right; }
+.shipping-scope { padding: 0 16rpx 12rpx; color: #47686f; font-size: 24rpx; line-height: 1.5; }
 .tag { font-size: 22rpx; padding: 4rpx 10rpx; border-radius: 6rpx; color: #087779; background: #e6f6f6; flex-shrink: 0; font-weight: normal; }
 .tag--bound { background: #edf2f3; color: #47686f; }
 .empty { padding: 52rpx 20rpx; text-align: center; color: #748d93; font-size: 28rpx; }

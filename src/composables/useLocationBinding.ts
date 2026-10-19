@@ -1,6 +1,6 @@
 import { computed, ref, shallowRef } from 'vue';
 import { locationBindingApi as api, type LocationContainers, type LocationContainer, type LocationOperation, type LocationSummary } from '../services/locationBinding';
-import { logisticsCancellationApi as cancellationApi, type CancelTaskRequest, type CancellationResult } from '../services/logisticsCancellation';
+import { logisticsCancellationApi as cancellationApi, cancellationPendingMessage, cancellationQueryErrorMessage, type CancelTaskRequest, type CancellationResult } from '../services/logisticsCancellation';
 import { ApiRequestError, requestId } from '../services/nariRequest';
 import { getCurrentApiBaseUrl, getCurrentUser } from '../services/auth';
 import type { Eligibility } from '../services/panelPacking';
@@ -78,7 +78,7 @@ export function useLocationBinding() {
         ['BOX', 'VEHICLE'].includes(record.input.unbindContext.container?.containerType) && text(record.input.unbindContext.container.containerCode) && version(record.input.unbindContext.containerVersion))) {
         throw new Error('本地取消记录异常，请保留记录并核实，不能重新取消');
       }
-      records.value = stored; storageError.value = false;
+      records.value = stored.map(record => record.status === 'ACCEPTED' ? { ...record, reason: cancellationPendingMessage } : record); storageError.value = false;
     } catch (error) { storageError.value = true; notify(error instanceof Error ? error.message : '无法读取取消请求记录，请核实', true); }
   }
   function save() {
@@ -140,7 +140,7 @@ export function useLocationBinding() {
       throw new Error('取消回执异常，请核实原取消结果');
     }
     record.status = result.cancelStatus;
-    record.reason = result.reason || (result.cancelStatus === 'ACCEPTED' ? '取消已受理，尚未确认最终结果' : '取消成功，仍需核实实物及解绑资格');
+    record.reason = result.cancelStatus === 'ACCEPTED' ? cancellationPendingMessage : result.reason || '取消成功，仍需核实实物及解绑资格';
     save();
   }
   async function refreshSnapshot(current: () => boolean, before: LocationContainers) {
@@ -166,7 +166,7 @@ export function useLocationBinding() {
           applyCancellation(record, result, true);
         } catch (error) {
           if (!current()) return;
-          record.status = 'UNKNOWN'; record.reason = error instanceof Error ? error.message : '取消结果查询失败'; save(); throw error;
+          record.status = 'UNKNOWN'; record.reason = cancellationQueryErrorMessage(error); save(); throw new Error(record.reason);
         }
       }
       const failure = cancellationRecords.value.find(record => record.status === 'FAILED')?.reason;
@@ -194,12 +194,12 @@ export function useLocationBinding() {
           applyCancellation(record, result, false);
         } catch (error) {
           if (!current()) return;
-          record.status = error instanceof ApiRequestError && error.statusCode >= 400 && error.statusCode < 500 && error.statusCode !== 408 ? 'FAILED' : 'UNKNOWN';
+          record.status = error instanceof ApiRequestError && error.statusCode >= 400 && error.statusCode < 500 && ![404, 408].includes(error.statusCode) ? 'FAILED' : 'UNKNOWN';
           record.reason = error instanceof Error ? error.message : '取消请求失败'; save(); throw error;
         }
       }
       confirmation.value = false; confirmingTasks.value = false;
-      if (unresolved.value) notify('取消已受理，请核实最终结果后再解绑');
+      if (unresolved.value) notify('取消请求处理中，请核实最终结果和实物状态后再解绑');
       else {
         await refreshSnapshot(current, before); if (!current()) return;
         if (!unbindReady.value) notify(location.value!.unbindEligibility.reason || '取消成功，但仍存在未结算阻塞，不能解绑', true);
