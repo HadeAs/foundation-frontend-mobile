@@ -86,7 +86,7 @@ export function useVehicleLoading() {
         throw error;
       }
       if (!current()) return;
-      if (!result || 'resultType' in result || result.requestId !== input.id || !text(result.operationNo) ||
+      if (!result || 'resultType' in result || result.requestId !== input.id ||
         !integer(result.affectedCount, 0) || result.affectedCount !== input.items.length || typeof result.processedTime !== 'string' || !Number.isFinite(Date.parse(result.processedTime))) {
         throw new Error('装载回执不完整或与本次配对不一致，请核实后重试原请求');
       }

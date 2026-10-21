@@ -16,7 +16,7 @@ const snapshot = (type: 'BOX' | 'VEHICLE' = 'BOX'): ReceivingResult => {
 const noTask = (value: ReceivingResult): ReceivingResult => ({ object: value.object, boxes: [], totalMaterialQuantity: 0 });
 const receipt = (input: ReceivingRequest, affectedCount = 1, version = input.version + 1): ReceivingOperationReceipt => ({
   requestId: input.requestId, taskId: input.taskId, object: input.object, version,
-  operationNo: 'RECEIVE-1', affectedCount, processedTime: '2026-10-12T01:00:00Z'
+  affectedCount, processedTime: '2026-10-12T01:00:00Z'
 });
 beforeEach(() => {
   const storage = new Map<string, unknown>();
@@ -33,7 +33,7 @@ describe('receiving 2026-10-12.1', () => {
     const value = snapshot(); value.boxes[0].materials[0].materialName = '板件'; value.boxes[0].materials[0].unit = '件';
     vi.spyOn(api, 'query').mockResolvedValue(value);
     const confirm = vi.spyOn(api, 'confirm').mockImplementation(async input => Object.assign({ requestId: input.requestId,
-      operationNo: 'RECEIVE-1', affectedCount: 1, processedTime: '2026-10-12T01:00:00Z' },
+      affectedCount: 1, processedTime: '2026-10-12T01:00:00Z' },
       { taskId: value.task!.taskId, object: { containerType: 'BOX' as const, containerCode: 'BOX-1' }, version: 8 }));
     const flow = useReceiving(); await flow.scan('BOX-1'); await flow.submit();
     expect(confirm).toHaveBeenCalledWith({ requestId: expect.any(String), taskId: value.task!.taskId, version: 7,
@@ -43,7 +43,7 @@ describe('receiving 2026-10-12.1', () => {
     const value = snapshot(); value.boxes[0].materials[0].materialName = '板件'; value.boxes[0].materials[0].unit = '件';
     vi.spyOn(api, 'query').mockResolvedValue(value);
     vi.spyOn(api, 'confirm').mockImplementation(async input => ({ requestId: input.requestId,
-      operationNo: 'RECEIVE-1', affectedCount: 1, processedTime: '2026-10-12T01:00:00Z' } as ReceivingOperationReceipt));
+      affectedCount: 1, processedTime: '2026-10-12T01:00:00Z' } as ReceivingOperationReceipt));
     const flow = useReceiving(); await flow.scan('BOX-1'); await flow.submit(); expect(flow.result.value).not.toBeNull();
     expect(flow.notice.value?.error).toBe(true);
   });
@@ -55,7 +55,7 @@ describe('receiving 2026-10-12.1', () => {
     expect(confirm.mock.lastCall?.[0]).toMatchObject({ version: 7, object: { containerType: 'BOX', containerCode: 'BOX-1' }, remark: '单箱验收' });
     expect(flow.result.value).toBeNull(); expect(flow.remark.value).toBe('');
   });
-  it('confirms the remaining boxes of a partial transport, not its material quantity or whole box count', async () => {
+  it('confirms only the remaining boxes of a partial transport with a receipt without operationNo', async () => {
     const value = snapshot('VEHICLE'); Object.assign(value.task!, { status: 'PARTIAL', statusName: '部分接收', receivedBoxCount: 1 });
     vi.spyOn(api, 'query').mockResolvedValue(value);
     const confirm = vi.spyOn(api, 'confirm').mockImplementation(async input => receipt(input, 2));
@@ -82,7 +82,7 @@ describe('receiving 2026-10-12.1', () => {
     const completed = snapshot(); Object.assign(completed.task!, { version: 8, status: 'RECEIVED', statusName: '已接收', receivedBoxCount: 1, eligibility: { allowed: false, reason: '该箱已接收' } });
     const query = vi.spyOn(api, 'query').mockResolvedValueOnce(value).mockResolvedValueOnce(noTask(value)).mockResolvedValueOnce(completed).mockResolvedValueOnce(completed);
     vi.spyOn(api, 'confirm').mockImplementation(async input => receipt(input));
-    const cleanup = vi.spyOn(api, 'clearWms').mockImplementation(async input => ({ requestId: input.requestId, operationNo: 'WMS-1', affectedCount: 0, processedTime: '2026-10-12T01:00:00Z' }));
+    const cleanup = vi.spyOn(api, 'clearWms').mockImplementation(async input => ({ requestId: input.requestId, affectedCount: 0, processedTime: '2026-10-12T01:00:00Z' }));
     const flow = useReceiving(); await flow.scan('BOX-1'); await flow.submit(); await flow.scan('BOX-1');
     expect(query.mock.calls.slice(1)).toEqual([['BOX-1'], ['BOX-1', value.task!.taskId]]);
     expect(flow.canReceive.value).toBe(false); expect(flow.canClearWms.value).toBe(true);
@@ -106,10 +106,10 @@ describe('receiving 2026-10-12.1', () => {
     expect(flow.result.value).toBeNull(); expect(flow.notice.value?.error).toBe(true); await flow.submit();
     expect(confirm).toHaveBeenCalledOnce();
   });
-  it('does not infer task versions or receiving progress from a generic WMS cleanup receipt', async () => {
+  it('accepts WMS cleanup without operationNo and refreshes task versions instead of inferring receiving progress', async () => {
     const first = snapshot(); const refreshed = snapshot(); refreshed.task!.version = 12;
     vi.spyOn(api, 'query').mockResolvedValueOnce(first).mockResolvedValue(refreshed);
-    vi.spyOn(api, 'clearWms').mockImplementation(async input => ({ requestId: input.requestId, operationNo: 'WMS-1', affectedCount: 0, processedTime: '2026-10-12T01:00:00Z' }));
+    vi.spyOn(api, 'clearWms').mockImplementation(async input => ({ requestId: input.requestId, affectedCount: 0, processedTime: '2026-10-12T01:00:00Z' }));
     const confirm = vi.spyOn(api, 'confirm').mockImplementation(async input => receipt(input));
     const flow = useReceiving(); await flow.scan('BOX-1'); flow.askClearWms(); await flow.submit(true);
     expect(flow.result.value).toBeNull(); await flow.scan('BOX-1'); await flow.submit();
@@ -119,7 +119,7 @@ describe('receiving 2026-10-12.1', () => {
     const value = snapshot(); value.task!.eligibility = { allowed: false, reason: '当前不允许接收' };
     vi.spyOn(api, 'query').mockResolvedValue(value);
     const confirm = vi.spyOn(api, 'confirm');
-    const cleanup = vi.spyOn(api, 'clearWms').mockImplementation(async input => ({ requestId: input.requestId, operationNo: 'WMS-1', affectedCount: 9, processedTime: '2026-10-12T01:00:00Z' }));
+    const cleanup = vi.spyOn(api, 'clearWms').mockImplementation(async input => ({ requestId: input.requestId, affectedCount: 9, processedTime: '2026-10-12T01:00:00Z' }));
     const flow = useReceiving(); await flow.scan('BOX-1'); flow.remark.value = '备注'; await flow.submit();
     expect(confirm).not.toHaveBeenCalled(); expect(flow.canClearWms.value).toBe(true);
     flow.askClearWms(); expect(flow.notice.value).toBeNull(); await flow.submit(true);

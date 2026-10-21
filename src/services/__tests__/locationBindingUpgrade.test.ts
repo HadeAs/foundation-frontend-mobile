@@ -22,7 +22,7 @@ const cancellation = (id: string, status: CancellationResult['cancelStatus'] = '
   requestId: id, taskId: task(index).taskId, taskNo: task(index).taskNo, cancelStatus: status, processedTime: '2026-10-12T01:00:00Z',
   ...(['FAILED', 'UNKNOWN'].includes(status) ? { reason: '后端返回的取消原因' } : {})
 });
-const receipt = (id: string) => ({ requestId: id, operationNo: 'LOCATION-001', affectedCount: 1, processedTime: '2026-10-12T01:00:00Z' });
+const receipt = (id: string) => ({ requestId: id, affectedCount: 1, processedTime: '2026-10-12T01:00:00Z' });
 const context = { locationCode: 'LOC-1', version: 2, container: { containerType: 'VEHICLE' as const, containerCode: 'CAR-1' }, containerVersion: 3 };
 const storage = new Map<string, unknown>();
 const storageKey = 'foundation.location-cancellations.real.' + API_ENVIRONMENTS[0].baseUrl + '.admin';
@@ -251,7 +251,7 @@ describe('location binding 2026-10-12.1', () => {
     const value = blocked(); change(value); const flow = await ready(value);
     expect(flow.location.value).toBeNull(); expect(flow.canRequestUnbind.value).toBe(false); expect(flow.notice.value?.text).toContain('不完整');
   });
-  it.each(['bind', 'unbind'] as const)('replays an uncertain %s using the same UUID and validates the complete receipt before clearing', async mode => {
+  it.each(['bind', 'unbind'] as const)('replays an uncertain %s using the same UUID and accepts a complete receipt without operationNo', async mode => {
     const flow = mode === 'bind' ? await bindingReady() : await ready(snapshot());
     if (mode === 'unbind') flow.requestUnbind();
     const mutation = vi.mocked(api[mode]); mutation.mockRejectedValueOnce(new ApiRequestError('外部处理结果未知', 503));
@@ -259,9 +259,10 @@ describe('location binding 2026-10-12.1', () => {
     await flow.submit(); expect(mutation.mock.calls[1]).toEqual(first); expect(flow.location.value).toBeNull();
     expect(cancellationApi.cancel).not.toHaveBeenCalled();
   });
-  it.each(['requestId', 'operationNo', 'affectedCount', 'processedTime', 'resultType'] as const)('rejects an incomplete or inconsistent location receipt %s', async field => {
+  it.each(['requestId', 'missingCount', 'affectedCount', 'processedTime', 'resultType'] as const)('rejects an incomplete or inconsistent location receipt %s', async field => {
     const flow = await bindingReady(); vi.mocked(api.bind).mockImplementationOnce(async (_data, id) =>
-      Object.assign(receipt(id!), { [field]: field === 'affectedCount' ? 0 : field === 'resultType' ? 'CONFIRMATION_REQUIRED' : '' }));
+      Object.assign(receipt(id!), field === 'missingCount' ? { affectedCount: undefined } :
+        { [field]: field === 'affectedCount' ? 0 : field === 'resultType' ? 'CONFIRMATION_REQUIRED' : '' }));
     await flow.submit(); expect(flow.pending.value?.containerCode).toBe('CAR-1'); expect(flow.notice.value?.error).toBe(true);
     await flow.submit(); expect(vi.mocked(api.bind).mock.calls[1]).toEqual(vi.mocked(api.bind).mock.calls[0]); expect(flow.location.value).toBeNull();
   });

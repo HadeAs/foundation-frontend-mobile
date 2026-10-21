@@ -114,7 +114,7 @@ export function useVehicleUnloading() {
         throw error;
       }
       if (!current()) return;
-      if (!result || typeof result !== 'object' || 'resultType' in result || result.requestId !== input.requestId || !text(result.operationNo) ||
+      if (!result || typeof result !== 'object' || 'resultType' in result || result.requestId !== input.requestId ||
         !integer(result.affectedCount, 0) || result.affectedCount !== chosen.length || typeof result.processedTime !== 'string' || !Number.isFinite(Date.parse(result.processedTime))) {
         throw new Error('卸载回执不完整或与本次关系不一致，请核实后重试原请求');
       }

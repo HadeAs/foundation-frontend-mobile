@@ -134,7 +134,7 @@ export function useReceiving() {
       let failure = '';
       try {
         const receipt = await api.clearWms(input);
-        if (!receipt || typeof receipt !== 'object' || 'resultType' in receipt || receipt.requestId !== input.requestId || !text(receipt.operationNo) || !integer(receipt.affectedCount, 0) ||
+        if (!receipt || typeof receipt !== 'object' || 'resultType' in receipt || receipt.requestId !== input.requestId || !integer(receipt.affectedCount, 0) ||
           typeof receipt.processedTime !== 'string' || !Number.isFinite(Date.parse(receipt.processedTime))) throw new Error('清理结果不完整，请核实后重试原请求');
         cleanup.finish(input.requestId);
         completed = true;
@@ -183,7 +183,7 @@ export function useReceiving() {
         throw error;
       }
       if (!current()) return;
-      if (!receipt || typeof receipt !== 'object' || 'resultType' in receipt || receipt.requestId !== input.requestId || !text(receipt.operationNo) || !integer(receipt.affectedCount, 0) ||
+      if (!receipt || typeof receipt !== 'object' || 'resultType' in receipt || receipt.requestId !== input.requestId || !integer(receipt.affectedCount, 0) ||
         typeof receipt.processedTime !== 'string' || !Number.isFinite(Date.parse(receipt.processedTime))) throw new Error('处理结果不完整，未能确认成功，请核实后重试原请求');
       const confirmed = receipt as ReceivingOperationReceipt;
       const expected = data.object.containerType === 'BOX' ? 1 : data.task!.totalBoxCount - data.task!.receivedBoxCount;

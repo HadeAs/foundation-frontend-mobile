@@ -43,7 +43,6 @@ export interface BoxBindings {
 }
 export interface BoxReceipt {
   requestId: string;
-  operationNo: string;
   affectedCount: number;
   processedTime: string;
   box: { boxCode: string; version: number; materialQuantity: number };

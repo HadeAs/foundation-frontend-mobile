@@ -104,7 +104,7 @@ export function usePanelPacking() {
     if (!canStage.value) notify('当前箱使用数量绑箱，请先一键解绑后再扫码绑箱', true);
   }
   function validReceipt(value: BoxReceipt, code: string, version: number, id?: string) {
-    return value && !('resultType' in value) && (id === undefined || value.requestId === id) && text(value.operationNo) &&
+    return value && !('resultType' in value) && (id === undefined || value.requestId === id) &&
       integer(value.affectedCount, 0) && Number.isFinite(Date.parse(value.processedTime)) &&
       value.box?.boxCode === code && integer(value.box.version) && value.box.version > version && integer(value.box.materialQuantity, 0);
   }

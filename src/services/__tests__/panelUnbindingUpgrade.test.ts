@@ -20,7 +20,7 @@ const box = (): BoxBindings => ({ box: { containerType: 'BOX', containerCode: 'B
     { id: '9007199254741002', version: 4, bindingMode: 'BY_ORDER', materialCode: 'MAT-2', materialBatch: '000002', orderNo: 'ORDER-2', quantity: 3 }
   ] });
 function receipt(id: string, remaining = 3, count = 1): BoxReceipt {
-  return { requestId: id, operationNo: 'OP-1', affectedCount: count, processedTime: '2026-10-12T06:00:00Z',
+  return { requestId: id, affectedCount: count, processedTime: '2026-10-12T06:00:00Z',
     box: { boxCode: 'BOX-1', version: 3, materialQuantity: remaining } };
 }
 async function ready(value = box()) {
@@ -90,7 +90,7 @@ describe('panel unbinding 2026-10-12.1', () => {
     await flow.submit(); expect(submit.mock.calls[1]).toEqual(submit.mock.calls[0]); expect(flow.selected.value).toHaveLength(1);
     await flow.submit(); expect(submit.mock.calls[2][3]).not.toBe(submit.mock.calls[1][3]); expect(flow.box.value).toBeNull();
   });
-  it('replays an uncertain entire-box request without adding selected items', async () => {
+  it('replays an uncertain entire-box request without selected items and accepts the receipt without operationNo', async () => {
     const flow = await ready(); flow.requestUnbind('all');
     const submit = vi.spyOn(api, 'unbindAll').mockRejectedValueOnce(new ApiRequestError('响应未知', 503))
       .mockImplementationOnce(async (_code, _version, id) => receipt(id!, 0, 2));

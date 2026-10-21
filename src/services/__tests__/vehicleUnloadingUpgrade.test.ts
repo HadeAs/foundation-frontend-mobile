@@ -27,7 +27,7 @@ const snapshot = (): VehicleLoads => ({
   ]
 });
 type Receipt = Awaited<ReturnType<typeof api.unloadAll>>;
-const receipt = (requestId: string, affectedCount = 1): Receipt => ({ requestId, operationNo: 'OP-1', affectedCount, processedTime: '2026-10-12T07:00:00Z' });
+const receipt = (requestId: string, affectedCount = 1): Receipt => ({ requestId, affectedCount, processedTime: '2026-10-12T07:00:00Z' });
 async function ready() {
   vi.spyOn(api, 'getLoads').mockResolvedValue(snapshot());
   const flow = useVehicleUnloading(); await flow.scan('CAR-1'); return flow;
@@ -107,7 +107,7 @@ describe('vehicle unloading 2026-10-12.1', () => {
     const flow = useVehicleUnloading(); await flow.scan('CAR-1');
     expect(flow.vehicle.value).toBeNull(); expect(flow.loaded.value).toEqual([]); expect(flow.notice.value?.error).toBe(true);
   });
-  it.each(['all', 'selected'] as const)('uses exact carrier/relationship versions and clears only after a complete %s receipt', async mode => {
+  it.each(['all', 'selected'] as const)('uses exact carrier/relationship versions and accepts a complete %s receipt without operationNo', async mode => {
     const flow = await ready(); await flow.scan('BOX-1'); flow.requestUnload(mode);
     const all = vi.spyOn(api, 'unloadAll').mockImplementation(async (_code, _version, id) => receipt(id!, 2));
     const part = vi.spyOn(api, 'unloadSelected').mockImplementation(async (_code, _version, _items, id) => receipt(id!));
@@ -117,12 +117,12 @@ describe('vehicle unloading 2026-10-12.1', () => {
     expect(flow.vehicle.value).toBeNull(); expect(flow.selected.value).toEqual([]); expect(flow.confirmation.value).toBeNull();
     expect(flow.notice.value?.text).toBe('卸载成功');
   });
-  it.each(['requestId', 'operationNo', 'time', 'partial', 'materialsCount', 'resultType', 'null'] as const)('does not clear on a malformed receipt and replays the original request manually: %s', async kind => {
+  it.each(['requestId', 'missingCount', 'time', 'partial', 'materialsCount', 'resultType', 'null'] as const)('does not clear on a malformed receipt and replays the original request manually: %s', async kind => {
     const flow = await ready(); await flow.scan('BOX-1'); flow.requestUnload('selected');
     const unload = vi.spyOn(api, 'unloadSelected').mockImplementationOnce(async (_code, _version, _items, id) => {
       const value = receipt(id!);
       if (kind === 'requestId') value.requestId = 'other';
-      if (kind === 'operationNo') value.operationNo = '';
+      if (kind === 'missingCount') Object.assign(value, { affectedCount: undefined });
       if (kind === 'time') value.processedTime = 'not-a-date';
       if (kind === 'partial') value.affectedCount = 0;
       if (kind === 'materialsCount') value.affectedCount = 5;

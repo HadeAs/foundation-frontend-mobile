@@ -224,7 +224,7 @@ export function useLocationBinding() {
         throw error;
       }
       if (!current()) return;
-      if (!result || typeof result !== 'object' || 'resultType' in result || result.requestId !== input.id || !text(result.operationNo) || result.affectedCount !== 1 ||
+      if (!result || typeof result !== 'object' || 'resultType' in result || result.requestId !== input.id || result.affectedCount !== 1 ||
         typeof result.processedTime !== 'string' || !Number.isFinite(Date.parse(result.processedTime))) throw new Error('位置操作回执不完整或不一致，请核实后重试原请求');
       clear(); notify(unbinding ? '解绑成功' : '位置绑定成功');
     });

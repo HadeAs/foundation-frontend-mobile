@@ -118,10 +118,10 @@ describe('WMS cleanup version refresh', () => {
     flow.askClearWms(); await flow.submit(true); expect(send.mock.calls[1]).toEqual(send.mock.calls[0]);
     expect(flow.pending.value?.input).toEqual(original); expect(flow.canReceive.value).toBe(false);
   });
-  it('refreshes the same scope after failure, but preserves the original cleanup version and UUID on replay', async () => {
+  it('refreshes the same scope and finishes cleanup replay without operationNo using the original version and UUID', async () => {
     const query = vi.spyOn(receivingApi, 'query').mockResolvedValueOnce(receiving()).mockResolvedValueOnce(receiving(9)).mockResolvedValueOnce(receiving(11));
     const send = vi.spyOn(receivingApi, 'clearWms').mockRejectedValueOnce(new ApiRequestError('清理结果未知', 503)).mockImplementationOnce(async input =>
-      ({ requestId: input.requestId, operationNo: 'CLEAN-1', affectedCount: 1, processedTime: time }));
+      ({ requestId: input.requestId, affectedCount: 1, processedTime: time }));
     const flow = useReceiving(); await flow.scan('BOX-1'); flow.askClearWms(); await flow.submit(true);
     expect(query.mock.lastCall).toEqual(['BOX-1', '101']); expect(flow.result.value?.task?.version).toBe(9);
     expect(flow.canReceive.value).toBe(false); expect(flow.pending.value?.input.version).toBe(7);

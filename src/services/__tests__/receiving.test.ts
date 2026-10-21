@@ -176,7 +176,7 @@ describe('receiving', () => {
       expect(flow.result.value).toBeNull(); expect(flow.notice.value?.error).toBe(true);
     }
     query.mockRestore(); await finish(flow.scan('CAR-RECEIVE'));
-    vi.spyOn(api, 'confirm').mockResolvedValueOnce({ requestId: 'wrong', operationNo: 'OP', affectedCount: 3, processedTime: new Date().toISOString(),
+    vi.spyOn(api, 'confirm').mockResolvedValueOnce({ requestId: 'wrong', affectedCount: 3, processedTime: new Date().toISOString(),
       taskId: valid.task!.taskId, object: { containerType: 'VEHICLE', containerCode: 'CAR-RECEIVE' }, version: valid.task!.version + 1 });
     await flow.submit();
     expect(flow.result.value).not.toBeNull(); expect(flow.notice.value?.text).toContain('未能确认成功');

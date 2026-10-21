@@ -12,7 +12,7 @@ const slot = (code = 'SLOT-1', vehicleCode = 'CAR-1'): VehicleSlot => ({ slotCod
   vehicle: { containerType: 'VEHICLE', containerCode: vehicleCode, version: 3 }, eligibility: { allowed: true } });
 const box = (code = 'BOX-1'): LoadingBox => ({ box: { containerType: 'BOX', containerCode: code, version: 4, contentState: 'LOADED', runtimeUsage: 'FIXTURE' }, eligibility: { allowed: true } });
 type Receipt = Awaited<ReturnType<typeof api.load>>;
-const receipt = (requestId: string, affectedCount = 1): Receipt => ({ requestId, operationNo: 'OP-1', affectedCount, processedTime: '2026-10-12T07:00:00Z' });
+const receipt = (requestId: string, affectedCount = 1): Receipt => ({ requestId, affectedCount, processedTime: '2026-10-12T07:00:00Z' });
 async function ready() {
   vi.spyOn(api, 'getSlot').mockImplementation(async code => slot(code, code === 'SLOT-2' ? 'CAR-2' : 'CAR-1'));
   vi.spyOn(api, 'getBox').mockImplementation(async code => box(code));
@@ -68,7 +68,7 @@ describe('vehicle loading 2026-10-12.1', () => {
     await flow.scan('SLOT-1'); vi.mocked(api.getBox).mockResolvedValueOnce({ ...box(), loadedSlotCode: 'SLOT-OTHER' });
     await flow.scan('BOX-1'); expect(flow.pending.value?.box).toBeNull(); expect(flow.notice.value?.text).toContain('已装车');
   });
-  it('submits slot/box versions from both carriers without sending physical metadata or vehicle versions', async () => {
+  it('submits only slot/box versions from both carriers and accepts the receipt without operationNo', async () => {
     const flow = await ready(); await flow.scan('SLOT-2'); await flow.scan('BOX-2');
     const load = vi.spyOn(api, 'load').mockImplementation(async (_items, id) => receipt(id!, 2)); await flow.submit();
     expect(load).toHaveBeenCalledWith([
@@ -91,11 +91,11 @@ describe('vehicle loading 2026-10-12.1', () => {
     expect(load.mock.calls[1][1]).not.toBe(load.mock.calls[0][1]);
     expect(load.mock.calls[1][0]).toEqual([{ slotCode: 'SLOT-2', slotVersion: 2, boxCode: 'BOX-2', boxVersion: 4 }]);
   });
-  it.each(['requestId', 'operationNo', 'time', 'resultType'])('does not clear on a malformed load receipt: %s', async kind => {
+  it.each(['requestId', 'missingCount', 'time', 'resultType'])('does not clear on a malformed load receipt: %s', async kind => {
     const flow = await ready(); const load = vi.spyOn(api, 'load').mockImplementationOnce(async (_items, id) => {
       const value = receipt(id!);
       if (kind === 'requestId') value.requestId = 'other';
-      if (kind === 'operationNo') value.operationNo = '';
+      if (kind === 'missingCount') Object.assign(value, { affectedCount: undefined });
       if (kind === 'time') value.processedTime = 'not-a-date';
       if (kind === 'resultType') Object.assign(value, { resultType: 'CONFIRMATION_REQUIRED' });
       return value;

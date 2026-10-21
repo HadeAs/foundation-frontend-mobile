@@ -41,7 +41,7 @@ export interface VehicleLoads {
   loads: LoadLine[];
   totalMaterialQuantity: number;
 }
-interface OperationReceipt { requestId: string; operationNo: string; affectedCount: number; processedTime: string }
+interface OperationReceipt { requestId: string; affectedCount: number; processedTime: string }
 export const vehicleLoadingApi = {
   getSlot: (slotCode: string) => request<VehicleSlot>('/vehicle-slots', 'GET', { slotCode }),
   getBox: (boxCode: string) => request<LoadingBox>('/loading/boxes', 'GET', { boxCode }),

@@ -11,7 +11,7 @@ export interface ReceivingResult {
 }
 export interface ReceivingRequest { requestId: string; taskId: string; version: number; object: ContainerRef; remark?: string }
 export type ClearWmsRequest = Omit<ReceivingRequest, 'remark'>;
-export interface ReceivingReceipt { requestId: string; operationNo: string; affectedCount: number; processedTime: string }
+export interface ReceivingReceipt { requestId: string; affectedCount: number; processedTime: string }
 export interface ReceivingOperationReceipt extends ReceivingReceipt { taskId: string; object: ContainerRef; version: number }
 export const receivingApi = {
   query: (scanCode: string, taskId?: string) => request<ReceivingResult>('/receiving/tasks', 'GET', { scanCode, ...(taskId ? { taskId } : {}) }),

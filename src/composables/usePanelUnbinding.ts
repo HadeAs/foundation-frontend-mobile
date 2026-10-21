@@ -108,7 +108,7 @@ export function usePanelUnbinding() {
         throw error;
       }
       if (!current()) return;
-      if (!result || 'resultType' in result || result.requestId !== input.requestId || !text(result.operationNo) ||
+      if (!result || 'resultType' in result || result.requestId !== input.requestId ||
         !integer(result.affectedCount, 0) || result.affectedCount !== chosen.length || typeof result.processedTime !== 'string' || !Number.isFinite(Date.parse(result.processedTime)) ||
         result.box?.boxCode !== input.boxCode || !integer(result.box.version) || result.box.version <= input.version ||
         !integer(result.box.materialQuantity, 0) || result.box.materialQuantity !== remainingQuantity) {

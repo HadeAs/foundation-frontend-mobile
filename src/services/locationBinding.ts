@@ -39,7 +39,7 @@ export interface LocationOperation {
   container: ContainerRef;
   containerVersion: number;
 }
-interface OperationReceipt { requestId: string; operationNo: string; affectedCount: number; processedTime: string }
+interface OperationReceipt { requestId: string; affectedCount: number; processedTime: string }
 export const locationBindingApi = {
   getLocation: (locationCode: string) => request<LocationContainers>('/locations/containers', 'GET', { locationCode }),
   getContainer: (scanCode: string) => request<ContainerCandidate>('/locations/container-candidates', 'GET', { scanCode }),

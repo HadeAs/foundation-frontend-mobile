@@ -831,7 +831,7 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
     if (task.object.containerCode === (cleanup ? 'CAR-RECEIVE-CLEAR-FAIL' : 'CAR-RECEIVE-FAIL')) throw new Error(cleanup ? 'WMS 历史清理失败，请稍后重试' : '接收失败，请稍后重试');
     const affected = cleanup ? entry.wmsBindings.filter(box => scope.some(item => item.boxCode === box.boxCode)) : scope.filter(box => !entry.received.has(box.boxCode));
     const before: BoxContents[] = JSON.parse(JSON.stringify(affected));
-    const receipt: ReceivingReceipt | ReceivingOperationReceipt = { requestId: input.requestId, operationNo: `RCV-OP-${nextId++}`,
+    const receipt: ReceivingReceipt | ReceivingOperationReceipt = { requestId: input.requestId,
       affectedCount: cleanup ? affected.reduce((sum, box) => sum + box.materials.length, 0) : affected.length, processedTime: new Date().toISOString(),
       ...(!cleanup ? { taskId: task.taskId, object: { ...input.object }, version: task.version + 1 } : {}) };
     if (cleanup) entry.wmsBindings = entry.wmsBindings.filter(box => !scope.some(item => item.boxCode === box.boxCode));
@@ -940,7 +940,7 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
     target.version++;
     const parent = target.containerType === 'BOX' ? loadedSlot(target.containerCode) : undefined;
     if (parent) parent.vehicle.version++;
-    return { requestId: data.requestId, operationNo: `MOCK-${nextId++}`, affectedCount: 1, processedTime: new Date().toISOString() };
+    return { requestId: data.requestId, affectedCount: 1, processedTime: new Date().toISOString() };
   }
   if (method === 'GET' && path === `${prefix}/vehicle-slots`) {
     const slot = requireSlot(data.slotCode);
@@ -973,7 +973,7 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
       delete loadRelations[slot.slotCode];
     }
     vehicle.version++;
-    return { requestId: data.requestId, operationNo: `MOCK-${nextId++}`, affectedCount: changes.length, processedTime: new Date().toISOString() };
+    return { requestId: data.requestId, affectedCount: changes.length, processedTime: new Date().toISOString() };
   }
   if (method === 'POST' && path === `${prefix}/loading/batch-load`) {
     const items = data.items as LoadPair[];
@@ -999,7 +999,7 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
       changedVehicles.add(slot.vehicle);
     }
     changedVehicles.forEach((vehicle) => vehicle.version++);
-    return { requestId: data.requestId, operationNo: `MOCK-${nextId++}`, affectedCount: changes.length, processedTime: new Date().toISOString() };
+    return { requestId: data.requestId, affectedCount: changes.length, processedTime: new Date().toISOString() };
   }
   if (method === 'GET' && path === `${prefix}/boxes/bindings`) return requireBox(data.boxCode);
   if (method === 'GET' && path === `${prefix}/panels`) {
@@ -1059,7 +1059,7 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
     box.box.version++;
     const parentSlot = loadedSlot(box.box.containerCode);
     if (parentSlot) parentSlot.vehicle.version++;
-    return { requestId: data.requestId, operationNo: `MOCK-${nextId++}`, affectedCount, processedTime: new Date().toISOString(),
+    return { requestId: data.requestId, affectedCount, processedTime: new Date().toISOString(),
       box: { boxCode: box.box.containerCode, version: box.box.version, materialQuantity: box.totalQuantity } };
   }
   // Never fall through to the network for an endpoint not yet implemented.

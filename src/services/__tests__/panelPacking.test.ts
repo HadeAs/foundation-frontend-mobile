@@ -14,7 +14,7 @@ function respond(data: unknown, statusCode = 200, code = 0, message = 'ok') {
     options.success?.({ statusCode, data: { code, data: typeof data === 'function' ? data(options) : data, message }, header: {}, cookies: [] });
   });
 }
-function receipt(version = 3) { return (options: UniNamespace.RequestOptions) => ({ requestId: (options.data as { requestId: string }).requestId, operationNo: 'OP1', affectedCount: 1, processedTime: '2026-09-16T00:00:00Z', box: { boxCode: 'BOX-1', version, materialQuantity: 0 } }); }
+function receipt(version = 3) { return (options: UniNamespace.RequestOptions) => ({ requestId: (options.data as { requestId: string }).requestId, affectedCount: 1, processedTime: '2026-09-16T00:00:00Z', box: { boxCode: 'BOX-1', version, materialQuantity: 0 } }); }
 
 beforeEach(() => { request.mockReset(); vi.stubGlobal('uni', { request }); vi.unstubAllEnvs(); });
 

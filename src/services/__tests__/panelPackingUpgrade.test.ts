@@ -18,7 +18,7 @@ function confirmation(id: string): BoxBindingConfirmation {
     box: box().box, confirmationToken: 'server-token-not-client-generated', message: '本次存在混料，混装仅用于缴库，不参与生产配送，是否继续？' };
 }
 function receipt(id: string, version = 3): BoxReceipt {
-  return { requestId: id, operationNo: 'OP-1', affectedCount: 1, processedTime: '2026-10-12T02:00:00Z', box: { boxCode: 'BOX-1', version, materialQuantity: 1 } };
+  return { requestId: id, affectedCount: 1, processedTime: '2026-10-12T02:00:00Z', box: { boxCode: 'BOX-1', version, materialQuantity: 1 } };
 }
 async function ready() {
   vi.spyOn(api, 'getBox').mockResolvedValue(box()); vi.spyOn(api, 'getPanel').mockImplementation(async code => panel(code));
@@ -37,7 +37,7 @@ describe('panel packing 2026-10-12.1', () => {
     expect(flow.pending.value).toHaveLength(1); expect(bind).toHaveBeenCalledOnce(); expect(flow.canJoint.value).toBe(false);
     flow.cancelMixed(); expect(flow.mixed.value).toBeNull(); expect(flow.pending.value).toHaveLength(1); expect(flow.canSubmit.value).toBe(true);
   });
-  it('continues with a fresh ID, server token and the exact original panel set, clearing only on final receipt', async () => {
+  it('continues with a fresh ID, server token and the exact panel set, accepting a final receipt without operationNo', async () => {
     const flow = await ready(); await flow.scan('P2');
     const bind = vi.spyOn(api, 'bind').mockImplementationOnce(async (_box, _version, _codes, options) => confirmation(options!.requestId!))
       .mockImplementationOnce(async (_box, _version, _codes, options) => receipt(options!.requestId!));

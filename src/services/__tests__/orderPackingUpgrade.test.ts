@@ -21,7 +21,7 @@ function confirmation(id: string): BoxBindingConfirmation {
     box: box().box, confirmationToken: 'server-token-not-client-generated', message: '本次存在混料，混装仅用于缴库，不参与生产配送，是否继续？' };
 }
 function receipt(id: string, quantity = 2): BoxReceipt {
-  return { requestId: id, operationNo: 'OP-1', affectedCount: 1, processedTime: '2026-10-12T02:00:00Z',
+  return { requestId: id, affectedCount: 1, processedTime: '2026-10-12T02:00:00Z',
     box: { boxCode: 'BOX-1', version: 3, materialQuantity: quantity } };
 }
 async function ready(value = box()) {
@@ -32,7 +32,7 @@ beforeEach(() => { hooks.show.length = hooks.hide.length = 0; vi.stubGlobal('uni
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('order packing 2026-10-12.1', () => {
-  it('appends to quantity bindings without requiring an all-unbind or adding a per-piece identity', async () => {
+  it('appends to quantity bindings without an all-unbind or per-piece identity and accepts a receipt without operationNo', async () => {
     const flow = await ready(boundBox());
     expect(flow.review.value).toBeNull(); expect(flow.box.value?.totalQuantity).toBe(3); expect(flow.canSubmit.value).toBe(true);
     const bind = vi.spyOn(api, 'bindByOrder').mockImplementation(async (_box, _version, _order, _qty, _panel, options) => receipt(options!.requestId!, 5));

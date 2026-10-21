@@ -100,7 +100,7 @@ export function useOrderPacking() {
     });
   }
   function validReceipt(value: BoxReceipt, code: string, version: number, id?: string) {
-    return value && !('resultType' in value) && (id === undefined || value.requestId === id) && text(value.operationNo) &&
+    return value && !('resultType' in value) && (id === undefined || value.requestId === id) &&
       integer(value.affectedCount, 0) && Number.isFinite(Date.parse(value.processedTime)) && value.box?.boxCode === code &&
       integer(value.box.version) && value.box.version > version && integer(value.box.materialQuantity, 0);
   }
