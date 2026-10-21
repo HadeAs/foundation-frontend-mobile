@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { onLaunch } from '@dcloudio/uni-app';
+import { onLaunch, onShow } from '@dcloudio/uni-app';
 import { startAppUpdatePolling } from './services/appUpdate';
 
 onLaunch(() => {
+  void startAppUpdatePolling();
+});
+
+onShow(() => {
   void startAppUpdatePolling();
 });
 </script>

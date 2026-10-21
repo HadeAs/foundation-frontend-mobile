@@ -6,6 +6,52 @@ export const APP_WGT_FILE_ID_CONFIG_KEY = 'foundation.app.wgt-file-id';
 const VERSION_PATTERN = /^\d+(?:\.\d+)*$/;
 const FILE_ID_PATTERN = /^[1-9]\d*$/;
 const UPDATE_POLL_INTERVAL_MS = 60_000;
+export const APP_UPDATE_DIAGNOSTICS_KEY = 'foundation.app.update-diagnostics';
+
+interface UpdateDiagnostic {
+  time: string;
+  stage: string;
+  result: string;
+  httpStatus?: number;
+}
+
+class UpdateCheckError extends Error {}
+
+// Only fixed reason codes/statuses are persisted, never request headers or server messages.
+function recordUpdateDiagnostic(stage: string, result: string, httpStatus?: number): void {
+  const entry: UpdateDiagnostic = { time: new Date().toISOString(), stage, result, httpStatus };
+  try {
+    console.info(`[app-update] ${JSON.stringify(entry)}`);
+    const stored: unknown = uni.getStorageSync(APP_UPDATE_DIAGNOSTICS_KEY);
+    const entries = Array.isArray(stored) ? stored : [];
+    uni.setStorageSync(APP_UPDATE_DIAGNOSTICS_KEY, [...entries.slice(-59), entry]);
+  } catch {
+    // Diagnostic storage must never prevent checking or installing an update.
+  }
+}
+
+function withCheckTimeout<T>(
+  stage: string,
+  timeout: number,
+  execute: (resolve: (value: T) => void, reject: (error: unknown) => void) => void
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new UpdateCheckError(`${stage}_timeout`)), timeout);
+    const finish = (value: T) => {
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const fail = (error: unknown) => {
+      clearTimeout(timer);
+      reject(error);
+    };
+    try {
+      execute(finish, fail);
+    } catch (error) {
+      fail(error);
+    }
+  });
+}
 
 interface ApiResult<T> {
   code?: number;
@@ -40,6 +86,7 @@ export type UpdateDecision =
 
 let checking = false;
 let pollingTimer: ReturnType<typeof setInterval> | null = null;
+let pollingGeneration = 0;
 
 function parseVersion(version: string): number[] {
   if (!VERSION_PATTERN.test(version)) {
@@ -122,8 +169,12 @@ function getRuntimeInfo(): Promise<AppRuntimeInfo> {
   const systemInfo = uni.getSystemInfoSync();
   const appid = plus.runtime.appid || '';
   const appVersion = plus.runtime.version || '0.0.0';
-  return new Promise((resolve) => {
+  return withCheckTimeout('runtime', 10_000, (resolve, reject) => {
     plus.runtime.getProperty(appid, (widgetInfo) => {
+      if (!widgetInfo || typeof widgetInfo.version !== 'string') {
+        reject(new UpdateCheckError('invalid_runtime_response'));
+        return;
+      }
       resolve({
         appid,
         platform: systemInfo.platform.toLowerCase(),
@@ -136,7 +187,7 @@ function getRuntimeInfo(): Promise<AppRuntimeInfo> {
 }
 
 function requestConfigValue(baseUrl: string, key: string, token: string): Promise<string> {
-  return new Promise((resolve, reject) => {
+  return withCheckTimeout('config', 15_000, (resolve, reject) => {
     apiRequest({
       url: `${baseUrl}/api/v1/system/configs/value/${encodeURIComponent(key)}`,
       method: 'GET',
@@ -144,6 +195,11 @@ function requestConfigValue(baseUrl: string, key: string, token: string): Promis
       timeout: 10_000,
       success: (response) => {
         const body = response.data as ApiResult<string>;
+        recordUpdateDiagnostic(key, 'response', response.statusCode);
+        if (!body || typeof body !== 'object' || (body.data != null && typeof body.data !== 'string')) {
+          reject(new UpdateCheckError('invalid_config_response'));
+          return;
+        }
         if (
           response.statusCode >= 200
           && response.statusCode < 300
@@ -152,9 +208,9 @@ function requestConfigValue(baseUrl: string, key: string, token: string): Promis
           resolve(body.data?.trim() || '');
           return;
         }
-        reject(new Error(body.message || `更新检查失败（HTTP ${response.statusCode}）`));
+        reject(new UpdateCheckError(`config_rejected_http_${response.statusCode}`));
       },
-      fail: reject
+      fail: () => reject(new UpdateCheckError('config_network_failure'))
     });
   });
 }
@@ -172,10 +228,13 @@ async function requestLatestUpdate(
     return null;
   }
   if (!version) {
-    throw new Error(`系统参数 ${APP_LATEST_VERSION_CONFIG_KEY} 为空`);
+    throw new UpdateCheckError('missing_latest_version');
+  }
+  if (!VERSION_PATTERN.test(version)) {
+    throw new UpdateCheckError('invalid_latest_version');
   }
   if (!FILE_ID_PATTERN.test(fileId)) {
-    throw new Error(`无效 WGT 文件 ID：${fileId || '空'}`);
+    throw new UpdateCheckError('invalid_wgt_file_id');
   }
 
   return {
@@ -292,7 +351,9 @@ function showIncompatibleUpdate(reason: string): void {
 }
 
 async function applyUpdate(update: AppUpdateInfo, baseUrl: string): Promise<void> {
+  recordUpdateDiagnostic('confirmation', 'waiting');
   if (!await showConfirm(update)) {
+    recordUpdateDiagnostic('confirmation', 'deferred');
     return;
   }
 
@@ -300,16 +361,21 @@ async function applyUpdate(update: AppUpdateInfo, baseUrl: string): Promise<void
   do {
     const waiting = plus.nativeUI.showWaiting('下载更新 0%', { back: 'none' });
     try {
+      recordUpdateDiagnostic('download', 'started');
       const filePath = await downloadWgt(downloadUrl, update.version, waiting);
       waiting.setTitle('正在安装更新...');
+      recordUpdateDiagnostic('install', 'started');
       await installWgt(filePath);
       waiting.close();
 
+      recordUpdateDiagnostic('restart_confirmation', 'waiting');
       if (await showRestartPrompt(Boolean(update.mandatory))) {
+        recordUpdateDiagnostic('restart', 'confirmed');
         plus.runtime.restart();
       }
       return;
     } catch (error) {
+      recordUpdateDiagnostic('apply', 'failed');
       waiting.close();
       if (!await showUpdateError(error, Boolean(update.mandatory))) {
         return;
@@ -325,38 +391,52 @@ export async function checkForAppUpdate(): Promise<void> {
   }
 
   checking = true;
+  const generation = pollingGeneration;
   try {
+    const token = getAccessToken();
+    recordUpdateDiagnostic('check', 'started');
     const baseUrl = getCurrentApiBaseUrl();
     if (!baseUrl) {
       return;
     }
 
+    recordUpdateDiagnostic('runtime', 'reading');
     const runtime = await getRuntimeInfo();
+    if (generation !== pollingGeneration || token !== getAccessToken()) {
+      return;
+    }
+    recordUpdateDiagnostic('config', 'reading');
     const update = await requestLatestUpdate(baseUrl, runtime);
+    if (generation !== pollingGeneration || token !== getAccessToken() || baseUrl !== getCurrentApiBaseUrl()) {
+      return;
+    }
     if (!update) {
+      recordUpdateDiagnostic('check', 'not_configured');
       return;
     }
 
     const decision = evaluateUpdate(update, runtime);
+    recordUpdateDiagnostic('decision', decision.status);
     if (decision.status === 'incompatible') {
       showIncompatibleUpdate(decision.reason);
       return;
     }
     if (decision.status === 'skip') {
-      console.info(`[app-update] ${decision.reason}`);
       return;
     }
 
     await applyUpdate(update, baseUrl);
   } catch (error) {
-    console.warn(`[app-update] ${getErrorMessage(error)}`);
+    recordUpdateDiagnostic('check', error instanceof UpdateCheckError ? error.message : 'unexpected_failure');
   } finally {
     checking = false;
+    recordUpdateDiagnostic('check', 'finished');
   }
   // #endif
 }
 
 export function stopAppUpdatePolling(): void {
+  pollingGeneration += 1;
   if (pollingTimer) {
     clearInterval(pollingTimer);
     pollingTimer = null;
@@ -365,18 +445,20 @@ export function stopAppUpdatePolling(): void {
 
 export async function startAppUpdatePolling(): Promise<void> {
   // #ifdef APP-PLUS
-  stopAppUpdatePolling();
   if (!getAccessToken()) {
+    stopAppUpdatePolling();
     return;
   }
 
-  pollingTimer = setInterval(() => {
-    if (!getAccessToken()) {
-      stopAppUpdatePolling();
-      return;
-    }
-    void checkForAppUpdate();
-  }, UPDATE_POLL_INTERVAL_MS);
+  if (!pollingTimer) {
+    pollingTimer = setInterval(() => {
+      if (!getAccessToken()) {
+        stopAppUpdatePolling();
+        return;
+      }
+      void checkForAppUpdate();
+    }, UPDATE_POLL_INTERVAL_MS);
+  }
   await checkForAppUpdate();
   // #endif
 }
