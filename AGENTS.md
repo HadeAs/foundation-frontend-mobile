@@ -24,6 +24,8 @@ Vitest runs in `jsdom` and discovers `src/**/*.test.ts`. Name suites after their
 
 Default to affected tests, for example `npm test -- src/services/__tests__/warehouseApplication.test.ts`; use `-t` to select relevant contract cases. Reserve the full suite for broad shared changes or an explicit request, rather than running it after every menu update.
 
+Store all future test-related documentation in `docs/tests/`, including test plans, reports, acceptance records, test evidence, and test configuration/data prerequisite checklists. Do not create these documents directly under `docs/`; keep their cross-document links valid. Test source code and fixtures remain in their existing source directories.
+
 ## Specification Maintenance
 
 Keep `docs/industrial-mobile-business-spec.md` and `docs/industrial-mobile-prototype-guidelines.md` synchronized with every feature or shared UI change. Remove superseded rules and update each affected change log in the same commit.

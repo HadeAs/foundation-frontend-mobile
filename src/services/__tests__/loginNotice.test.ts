@@ -7,7 +7,6 @@ import { login } from '../auth';
 const hooks = vi.hoisted(() => ({ hide: [] as (() => void)[] }));
 vi.mock('@dcloudio/uni-app', () => ({ onHide: (callback: () => void) => hooks.hide.push(callback) }));
 vi.mock('../auth', () => ({
-  API_ENVIRONMENTS: [{ id: 'test', label: '测试环境', baseUrl: 'http://test.local' }],
   login: vi.fn()
 }));
 vi.mock('../appUpdate', () => ({ startAppUpdatePolling: vi.fn() }));

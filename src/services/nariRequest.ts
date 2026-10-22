@@ -1,5 +1,6 @@
 import { getAccessToken, getCurrentApiBaseUrl } from './auth';
 import { apiRequest } from './apiTransport';
+import { getRequestBaseUrl } from './environment';
 
 const prefix = '/api/v1/business/nari-logistics';
 
@@ -10,8 +11,7 @@ export class ApiRequestError extends Error {
 export async function request<T>(path: string, method: 'GET' | 'POST', data: Record<string, unknown>): Promise<T> {
   const token = getAccessToken();
   if (!token) throw new Error('登录已失效，请重新登录');
-  // H5 follows the existing same-origin /api proxy; App uses the login environment.
-  const baseUrl = process.env.UNI_PLATFORM === 'h5' ? '' : getCurrentApiBaseUrl();
+  const baseUrl = getRequestBaseUrl(getCurrentApiBaseUrl());
   return new Promise((resolve, reject) => {
     apiRequest({
       url: `${baseUrl}${prefix}${path}`,

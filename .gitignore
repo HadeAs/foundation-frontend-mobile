@@ -7,3 +7,4 @@ unpackage/
 outputs/
 output/
 .playwright-cli/
+docs/tests/

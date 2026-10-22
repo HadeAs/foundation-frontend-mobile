@@ -4,7 +4,8 @@ import { useLocationBinding } from '../../composables/useLocationBinding';
 import { locationBindingApi as api, type LocationContainers, type RelatedTransportTask } from '../locationBinding';
 import { logisticsCancellationApi as cancellationApi, type CancellationResult } from '../logisticsCancellation';
 import { ApiRequestError } from '../nariRequest';
-import { API_ENVIRONMENTS, AUTH_SESSION_STORAGE_KEY } from '../auth';
+import { AUTH_SESSION_STORAGE_KEY } from '../auth';
+import { DEFAULT_API_BASE_URL } from '../environment';
 import BindingPage from '../../pages/location-binding/index.vue';
 import ScanInput from '../../components/ScanInput.vue';
 import { seedTestSession } from './helpers/authSession';
@@ -25,7 +26,7 @@ const cancellation = (id: string, status: CancellationResult['cancelStatus'] = '
 const receipt = (id: string) => ({ requestId: id, affectedCount: 1, processedTime: '2026-10-12T01:00:00Z' });
 const context = { locationCode: 'LOC-1', version: 2, container: { containerType: 'VEHICLE' as const, containerCode: 'CAR-1' }, containerVersion: 3 };
 const storage = new Map<string, unknown>();
-const storageKey = 'foundation.location-cancellations.real.' + API_ENVIRONMENTS[0].baseUrl + '.admin';
+const storageKey = 'foundation.location-cancellations.real.' + DEFAULT_API_BASE_URL + '.admin';
 async function ready(value = blocked()) {
   vi.spyOn(api, 'getLocation').mockResolvedValue(value); const flow = useLocationBinding(); await flow.scan('LOC-1'); return flow;
 }

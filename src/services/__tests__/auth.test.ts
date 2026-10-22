@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { API_ENVIRONMENTS, AUTH_SESSION_STORAGE_KEY, getAccessToken, getCurrentUser, login, logout } from '../auth';
+import { AUTH_SESSION_STORAGE_KEY, getAccessToken, getCurrentApiBaseUrl, getCurrentUser, login, logout } from '../auth';
+import { DEFAULT_API_BASE_URL, saveEnvironmentSettings } from '../environment';
 import { panelPackingApi } from '../panelPacking';
 import { apiRequest } from '../apiTransport';
 
@@ -43,7 +44,7 @@ describe('auth service', () => {
     respondWith(200, { code: 0, data: { department: { deptName: '真实库房部门' } } });
     expect(await login('operator01', 'secret')).toEqual({ ok: true });
     expect(requestMock).toHaveBeenCalledTimes(2);
-    expect(requestMock.mock.calls[0][0]).toMatchObject({ method: 'POST', url: `${API_ENVIRONMENTS[0].baseUrl}/api/v1/auth/login` });
+    expect(requestMock.mock.calls[0][0]).toMatchObject({ method: 'POST', url: `${DEFAULT_API_BASE_URL}/api/v1/auth/login` });
     expect(getAccessToken()).toBe('signed-token');
     expect(getCurrentUser()).toMatchObject({ name: '张三', account: 'operator01', department: '真实库房部门' });
     respondWith(200, { code: 0, data: { box: { containerCode: 'BOX-1' } } });
@@ -61,7 +62,7 @@ describe('auth service', () => {
     });
     await logout();
     expect(requestMock).toHaveBeenCalledTimes(5);
-    expect(requestMock.mock.calls[4][0]).toMatchObject({ method: 'POST', url: `${API_ENVIRONMENTS[0].baseUrl}/api/v1/auth/logout`, header: { Authorization: 'Bearer signed-token' } });
+    expect(requestMock.mock.calls[4][0]).toMatchObject({ method: 'POST', url: `${DEFAULT_API_BASE_URL}/api/v1/auth/logout`, header: { Authorization: 'Bearer signed-token' } });
     expect(getAccessToken()).toBe('');
     expect(storage.has(AUTH_SESSION_STORAGE_KEY)).toBe(false);
     await logout(); expect(requestMock).toHaveBeenCalledTimes(5);
@@ -135,14 +136,64 @@ describe('auth service', () => {
     }));
   });
 
-  it.each(['real', 'mock'])('does not send a request when the production address is empty (%s)', async (mode) => {
-    vi.stubEnv('VITE_API_MODE', mode);
-    const production = API_ENVIRONMENTS.find(({ id }) => id === 'production');
-
-    await expect(login('operator01', 'secret', production?.baseUrl)).resolves.toEqual({
+  it('does not fall back to default when the supplied custom address is empty', async () => {
+    await expect(login('operator01', 'secret', '')).resolves.toEqual({
       ok: false,
       message: '当前环境地址未配置'
     });
+    expect(requestMock).not.toHaveBeenCalled();
+  });
+
+  it.each(['app', 'h5'])('pins login, profile, business and logout to the custom origin on %s', async (platform) => {
+    vi.stubEnv('UNI_PLATFORM', platform);
+    respondWith(200, { code: 0, data: { token: 'custom-token', userId: 7, username: 'operator' } });
+    respondWith(200, { code: 0, data: { department: { deptName: '自定义环境部门' } } });
+    expect(await login('operator', 'secret', ' 192.168.0.172:18081/ ')).toEqual({ ok: true });
+    const origin = 'http://192.168.0.172:18081';
+    expect(getCurrentApiBaseUrl()).toBe(origin);
+    expect(storage.get(AUTH_SESSION_STORAGE_KEY)).toMatchObject({ baseUrl: origin });
+    expect(requestMock.mock.calls[0][0].url).toBe(`${origin}/api/v1/auth/login`);
+    expect(requestMock.mock.calls[1][0].url).toBe(`${origin}/api/v1/system/users/7`);
+    saveEnvironmentSettings({ enabled: false, address: 'http://192.168.0.173:18082' });
+    respondWith(200, { code: 0, data: { box: { containerCode: 'BOX-1' } } });
+    await panelPackingApi.getBox('BOX-1');
+    expect(requestMock.mock.calls[2][0].url).toBe(`${origin}/api/v1/business/nari-logistics/boxes/bindings`);
+    requestMock.mockImplementationOnce((options: UniNamespace.RequestOptions) => {
+      options.complete?.({ errMsg: 'request:ok' }); return requestTask;
+    });
+    await logout();
+    expect(requestMock.mock.calls[3][0].url).toBe(`${origin}/api/v1/auth/logout`);
+  });
+
+  it('stores the canonical default address on H5 while routing through the same-origin proxy', async () => {
+    vi.stubEnv('UNI_PLATFORM', 'h5');
+    respondWith(200, { code: 0, data: { token: 'signed-token', userId: 7, username: 'operator' } });
+    respondWith(200, { code: 0, data: {} });
+    await login('operator', 'secret');
+    expect(getCurrentApiBaseUrl()).toBe(DEFAULT_API_BASE_URL);
+    expect(storage.get(AUTH_SESSION_STORAGE_KEY)).toMatchObject({ baseUrl: DEFAULT_API_BASE_URL });
+    respondWith(200, { code: 0, data: {} });
+    await panelPackingApi.getBox('BOX-1');
+    expect(requestMock.mock.calls[2][0].url).toBe('/api/v1/business/nari-logistics/boxes/bindings');
+    requestMock.mockImplementationOnce((options: UniNamespace.RequestOptions) => {
+      options.complete?.({ errMsg: 'request:ok' }); return requestTask;
+    });
+    await logout();
+    expect(requestMock.mock.calls[3][0].url).toBe('/api/v1/auth/logout');
+  });
+
+  it('keeps old H5 sessions with an empty base URL on the default environment', async () => {
+    vi.stubEnv('UNI_PLATFORM', 'h5');
+    storage.set(AUTH_SESSION_STORAGE_KEY, { token: 'legacy-token', baseUrl: '', user: { account: 'operator' } });
+    saveEnvironmentSettings({ enabled: true, address: 'http://192.168.0.172:18081' });
+    expect(getCurrentApiBaseUrl()).toBe(DEFAULT_API_BASE_URL);
+    respondWith(200, { code: 0, data: {} });
+    await panelPackingApi.getBox('BOX-1');
+    expect(requestMock.mock.calls[0][0].url).toBe('/api/v1/business/nari-logistics/boxes/bindings');
+  });
+
+  it('does not send credentials to an invalid address', async () => {
+    expect((await login('operator', 'secret', 'http://192.168.0.172/api')).ok).toBe(false);
     expect(requestMock).not.toHaveBeenCalled();
   });
 

@@ -1,4 +1,5 @@
 import { apiRequest } from './apiTransport';
+import { DEFAULT_API_BASE_URL, getRequestBaseUrl, normalizeEnvironmentAddress } from './environment';
 
 interface ApiResult<T> {
   code?: number;
@@ -49,11 +50,6 @@ export interface LoginResult {
   message?: string;
 }
 
-export const API_ENVIRONMENTS = [
-  { id: 'test', label: '测试环境', baseUrl: 'http://192.168.0.171:18080' },
-  { id: 'production', label: '生产环境', baseUrl: '' }
-] as const;
-
 export const AUTH_SESSION_STORAGE_KEY = 'foundation.mobile.auth-session';
 
 function readStoredSession(): StoredSession | null {
@@ -100,10 +96,6 @@ function requestUserDetail(baseUrl: string, userId: number, token: string) {
   });
 }
 
-function getRequestBaseUrl(baseUrl: string): string {
-  return process.env.UNI_PLATFORM === 'h5' ? '' : baseUrl;
-}
-
 async function getDepartmentName(baseUrl: string, userId: number, token: string): Promise<string> {
   if (!userId) {
     return '未分配部门';
@@ -128,7 +120,7 @@ function formatApiMessage(body: ApiResult<unknown> | undefined, fallback: string
 export async function login(
   account: string,
   password: string,
-  baseUrl: string = API_ENVIRONMENTS[0].baseUrl
+  baseUrl: string = DEFAULT_API_BASE_URL
 ): Promise<LoginResult> {
   const username = account.trim();
   if (!username || !password) {
@@ -138,7 +130,10 @@ export async function login(
     return { ok: false, message: '当前环境地址未配置' };
   }
 
-  const requestBaseUrl = getRequestBaseUrl(baseUrl);
+  let normalizedBaseUrl: string;
+  try { normalizedBaseUrl = normalizeEnvironmentAddress(baseUrl); }
+  catch (error) { return { ok: false, message: (error as Error).message }; }
+  const requestBaseUrl = getRequestBaseUrl(normalizedBaseUrl);
   try {
     const response = await requestLogin(requestBaseUrl, username, password);
     const body = response.data as ApiResult<LoginResponse>;
@@ -163,7 +158,7 @@ export async function login(
       token: data.token,
       expiresAt: data.expiresAt,
       refreshExpiresAt: data.refreshExpiresAt,
-      baseUrl: requestBaseUrl,
+      baseUrl: normalizedBaseUrl,
       user
     };
     uni.setStorageSync(AUTH_SESSION_STORAGE_KEY, session);
@@ -183,7 +178,7 @@ export async function logout(): Promise<void> {
 
   await new Promise<void>((resolve) => {
     uni.request({
-      url: `${session.baseUrl}/api/v1/auth/logout`,
+      url: `${getRequestBaseUrl(session.baseUrl || DEFAULT_API_BASE_URL)}/api/v1/auth/logout`,
       method: 'POST',
       header: { Authorization: `Bearer ${session.token}` },
       timeout: 5_000,
@@ -203,5 +198,5 @@ export function getAccessToken(): string {
 }
 
 export function getCurrentApiBaseUrl(): string {
-  return readStoredSession()?.baseUrl || API_ENVIRONMENTS[0].baseUrl;
+  return readStoredSession()?.baseUrl || DEFAULT_API_BASE_URL;
 }

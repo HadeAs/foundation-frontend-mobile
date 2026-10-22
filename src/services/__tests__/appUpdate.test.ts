@@ -128,7 +128,7 @@ describe('app update service', () => {
     expect(request).toHaveBeenCalledTimes(4);
   });
 
-  it('downloads, installs, and restarts after the user confirms', async () => {
+  it.each(['http://192.168.0.171:18080', 'http://192.168.0.172:18081'])('updates from session server %s after confirmation', async (baseUrl) => {
     const install = vi.fn((_path, _options, success: () => void) => success());
     const restart = vi.fn();
     const setTitle = vi.fn();
@@ -167,7 +167,7 @@ describe('app update service', () => {
     vi.stubGlobal('uni', {
       getStorageSync: () => ({
         token: 'signed-token',
-        baseUrl: 'http://192.168.0.171:18080',
+        baseUrl,
         user: { account: 'admin' }
       }),
       getSystemInfoSync: () => ({
@@ -202,12 +202,12 @@ describe('app update service', () => {
     expect(request).toHaveBeenCalledTimes(2);
     for (const key of ['foundation.app.latest-version', 'foundation.app.wgt-file-id']) {
       expect(request).toHaveBeenCalledWith(expect.objectContaining({
-        url: `http://192.168.0.171:18080/api/v1/system/configs/value/${key}`,
+        url: `${baseUrl}/api/v1/system/configs/value/${key}`,
         header: { Authorization: 'Bearer signed-token' }
       }));
     }
     expect(createDownload).toHaveBeenCalledWith(
-      'http://192.168.0.171:18080/api/v1/files/42/download',
+      `${baseUrl}/api/v1/files/42/download`,
       expect.objectContaining({ filename: '_doc/foundation-app-1.0.1.wgt' }),
       expect.any(Function)
     );

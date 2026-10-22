@@ -2,8 +2,8 @@
     "name" : "工业移动端",
     "appid" : "__UNI__EF475D9",
     "description" : "简易版工业系统移动端",
-    "versionName" : "1.0.3",
-    "versionCode" : 103,
+    "versionName" : "1.0.4",
+    "versionCode" : 104,
     "vueVersion" : "3",
     "uniStatistics" : {
         "enable" : false

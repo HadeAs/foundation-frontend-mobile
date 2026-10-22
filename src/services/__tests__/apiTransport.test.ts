@@ -34,7 +34,7 @@ describe('real API transport', () => {
     });
     await expect(request('/traffic/areas', 'GET', { page: 1, size: 20 })).resolves.toEqual({ records: [] });
     expect(network).toHaveBeenCalledWith(expect.objectContaining({
-      url: `${platform === 'h5' ? '' : 'https://api.example.test'}/api/v1/business/nari-logistics/traffic/areas`,
+      url: 'https://api.example.test/api/v1/business/nari-logistics/traffic/areas',
       method: 'GET', data: { page: 1, size: 20 }, header: { Authorization: 'Bearer test-token', 'Content-Type': 'application/json' }
     }));
   });
