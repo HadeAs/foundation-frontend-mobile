@@ -1,13 +1,13 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "南瑞物流与基座 API（前端完整整合候选）",
+    "title": "南瑞物流、基座与第三方调度 API（完整整合候选）",
     "version": "1.0.0",
-    "description": "2026-10-21.3 产线所属楼层候选：产线CRUD的areaId替换为floorId，生产计划校验产线→楼层→工厂；包含V75保留数据迁移。运行接口来自本次AMD64导出镜像；45项PDA公开契约和既有已知缺口保留。未完成独立前端页面联调或现场外部系统验收，联合评审／冻结待完成。",
-    "x-design-revision": "2026-10-21.3",
+    "description": "2026-10-29.1：新增MES/WMS专用连接配置查询与保存2项，明文输入／加密保存，保留原319项契约。新增接口来自本轮源码隔离运行时，尚未部署；原接口路径／模型保留原候选来源；通用参数四项写接口补充受管键限制说明。前端原型、联合评审和本次冻结待完成。\n\n2026-10-29.2用户确认：库房发货同箱允许多个L单及不同物料、批次、订单；按实际逐板明细返回和重建，不要求箱级三项同质。箱级每项摘要仅在该属性全箱唯一时填写，多值置空，数量按去重后的实际板件计算。原始WMS三列快照保留全部L单及重复行，清理前仍复核原始多重集。相同板件跨箱或不同lCode的来源冲突、坏码、范围外绑定、版本及任务保护继续拒绝。查询不写入／不清理；本轮仅源码及隔离测试，未对真实WMS执行提交或清理。\n\n2026-10-30.1新增9项第三方扫码/变量上报及Token/映射/留痕管理接口；原321项保持。仅源码及隔离测试候选，不代表日常运行时或镜像已更新。自动扫码不允许混料，位置仅有无物，线首线尾开关独立；空框装车逐箱回调计数、缺箱等待超时空车返程。\n\n2026-10-30.2新增平台长期Token管理4项，总334项；旧330项保持。基座前端只调用平台接口，业务接入范围由后端SPI注册，原Token与鉴权保持；基座V8仅新增菜单/管理员页面授权，未部署。\n2026-10-30.3平台集成Token显式接口授权：新增interfaces查询及authorization保存2项，合计336项；原平台创建/列表增量增加apiCodes与authorizationVersion，未更改PDA及旧业务接入路径。V9只建授权配置表，未部署。\n\n2026-10-30.4用户确认统一导入：保留原336项，合入5项厂商出站候选，总341项。336项由物流系统提供，5项由海康/斯坦德提供，操作级servers与独立认证边界保留；不新增物流Controller，不改变现有业务字段，不把完整整合稿用于业务生成。厂商正式协议及现有Apifox旧样例差异仍待比对，本轮未调用生产或修改云端。\n2026-10-30.5海康调试参数按DFPServer实际代码校准：字段大小写、S01、type00、ctnrTyp1、可变字符串优先级及旧点位格式均有来源；新增参数化示例，341项数量及服务地址/认证分离保持。后端现有直传策略和运行数据不改。\n2026-10-30.6按用户要求同步斯坦德站点/流程/取消模拟入参，核对DFPServer来源；priority误限0枚举放开，整合341项及厂商服务/认证边界保持，未调用真实调度。\n2026-10-30.7前端适配交付：保留341项完整范围和原来源；平台Token接口、设备接入与调度请求结构复核。海康已确认本地库位编码追加一次${05}、type00、由调度维护映射；斯坦德三个接口及海康用户确认通过，不等于回调实车全流程验收。本次本机18081不可访问，未重新导出运行时，不宣称对应旧镜像含最新能力。详见前端适配交付说明。",
+    "x-design-revision": "2026-10-30.7",
     "x-foundation-head": "94d3229516d1473a7c139c29ccc3af923963131a",
     "x-source-worktree-dirty": true,
-    "x-origin": "exported-candidate-image-runtime-and-local-pda-contract-not-jointly-frozen",
+    "x-origin": "preserved-336-foundation-hosted-operations-plus-5-vendor-hosted-outbound-candidates",
     "x-implementation-counts": {
       "local": 35,
       "partial": 10,
@@ -15,9 +15,9 @@
       "total": 45
     },
     "x-contract-checkpoints": {
-      "requirements": "Confirmed by user: replace production line areaId with floorId, preserve data and associations",
-      "review": "Backend implemented and verified; external frontend review pending",
-      "freeze": "2026-10-21.3 candidate; not jointly frozen"
+      "requirements": "2026-10-29 用户确认先完成后端专用查询/保存、兼容密文、契约及前端说明；前端表单原型未提供",
+      "review": "后端隔离测试通过；前后端联合评审待完成",
+      "freeze": "2026-10-29.1 新增范围为候选，尚未联合冻结；不改变原已确认范围"
     },
     "x-merged-sources": [
       {
@@ -37,6 +37,33 @@
       {
         "file": "nari-logistics.frontend.openapi.json",
         "scope": "45 PDA public contracts preserved; current local implementation, pending joint acceptance"
+      },
+      {
+        "file": "/Users/zhangruixuan/foundation-backups/nari-jdbc-contract-20261029-121146/foundation.frontend-runtime.candidate.openapi.json",
+        "endpoint": "/v3/api-docs/frontend-runtime",
+        "capturedDate": "2026-10-29",
+        "scope": "only GET/PUT /business/nari-logistics/jdbc-configs/{profile} and referenced schemas merged; old 319 operations preserved; annotate managed-key restrictions on four existing generic write operations",
+        "runtime": "isolated Spring Boot MockMvc / disposable MySQL; not a deployed image"
+      },
+      {
+        "file": "第三方对接/nari-logistics.integration.candidate.openapi.json",
+        "revision": "2026-10-30.1",
+        "operations": 9,
+        "source": "当前人工业务源码；仅隔离验证，未部署，非运行镜像快照"
+      },
+      {
+        "file": "../system-management/long-tokens.candidate.openapi.json",
+        "revision": "2026-10-30.3",
+        "operations": 6,
+        "source": "显式接口授权候选，需求已确认，联合评审/冻结待完成，未部署"
+      },
+      {
+        "file": "第三方对接/nari-logistics.agv.candidate.openapi.json",
+        "revision": "2026-10-15.6",
+        "scope": "5 OUTBOUND候选并入完整导入稿；2 INBOUND回调已存在且保持原样",
+        "operationsAdded": 5,
+        "runtimeHostedByFoundation": false,
+        "designRevision": "2026-10-30.6"
       }
     ],
     "x-compatibility": {
@@ -46,11 +73,15 @@
       "localPdaSchemas": 84
     },
     "x-operation-counts": {
-      "foundation": 110,
+      "foundation": 116,
       "nariCrud": 162,
       "pda": 45,
       "vendorCallbacks": 2,
-      "total": 319
+      "connectionConfig": 2,
+      "deviceIntegrationAndManagement": 9,
+      "foundationHosted": 336,
+      "vendorOutbound": 5,
+      "total": 341
     },
     "x-historical-source": {
       "revision": "2026-10-15.1",
@@ -78,7 +109,12 @@
         }
       ]
     },
-    "x-agv-outbound-contract": "nari-logistics.agv.candidate.openapi.json (5 outbound operations; not hosted by foundation)",
+    "x-agv-outbound-contract": {
+      "source": "第三方对接/nari-logistics.agv.candidate.openapi.json",
+      "mergedOperations": 5,
+      "hostedByFoundation": false,
+      "description": "已纳入本文件，无需重复导入来源契约；保留厂商地址和认证，不生成本地接口"
+    },
     "x-contract-gap-summary": [
       "缴库／WMS清理／发货缺少可机器判别的原请求检查点与恢复动作",
       "UNKNOWN／中断人工核查闭环与回执保留／过期协议未实现",
@@ -87,8 +123,7 @@
       "远端删除不按申请隔离；按已确认箱码谓词执行",
       "治具初始化复用异步任务：SUCCESS为成功且没有结果文件／successRows响应字段；缺必填scanCode仍返回500，为已复现待修错误映射。"
     ],
-    "x-build-time": "2026-10-21T03:43:28.543Z",
-    "x-image": {
+    "x-base-contract-image": {
       "tag": "foundation-backend:1.0.0-94d3229516d1-candidate-20261021114230",
       "id": "sha256:df1d781bb1200e5412aa4c86d90d461a56a5acd17a1bf5f9f5da1527194e4353",
       "platform": "linux/amd64",
@@ -100,6 +135,72 @@
         "business": 75
       },
       "deployment": "isolated disposable test runtime only; daily database unchanged"
+    },
+    "x-base-contract-build-time": "2026-10-21T03:43:28.543Z",
+    "x-behavior-checkpoints": {
+      "2026-10-29.2": {
+        "requirements": "用户确认库房发货允许同箱多L单、多物料／批次／订单；字段、页面交互和SQL范围不变",
+        "review": "后端实现及隔离验证；独立前端联合复核待完成，无新增原型交互",
+        "freeze": "行为候选，尚未联合冻结；保留既有已确认范围"
+      }
+    },
+    "x-integration-checkpoints": {
+      "requirements": "用户确认简化方案及实施范围",
+      "review": "完整质量检查及最终210项受影响回归通过；浏览器E2E10/13通过，3项开发中心断言失败保留；配置原型/前后端联合评审待完成",
+      "freeze": "本次9项为未冻结候选，既有范围保持"
+    },
+    "x-platform-long-token-checkpoints": {
+      "requirements": "用户明确只做平台页面，并允许最小平台后端；保留原Token及业务接口兼容",
+      "review": "平台页面、4项API及迁移隔离验证；联合前端评审待完成",
+      "freeze": "2026-10-30.2新增范围候选未冻结，原范围不变"
+    },
+    "x-vendor-merge-checkpoints": {
+      "requirements": "2026-10-30用户要求调度接口并入同一完整文件，不再另行导入",
+      "review": "本轮仅整合与分类，不改变原336项操作/模型；结构、引用、服务地址和认证边界验证；厂商正式协议与云端旧样例差异仍待联合比对",
+      "freeze": "文件整合不代表厂商协议冻结或生产验收，既有未受影响范围保持"
+    },
+    "x-vendor-pending-comparison": [
+      "两家正式任务类型、容器类型、位置码映射及回执格式",
+      "斯坦德orderState映射；未配置时不结算，测试DONE等值不是官方约定",
+      "FLOW业务与起终点匹配、附空框／高低车接力参数、FLOW取消",
+      "厂商回调登录Token或其他机间认证，当前保留基座登录",
+      "取货后取消／失败／发送中断及未知人工恢复、两厂商交管协议"
+    ],
+    "x-hik-request-source-verification": {
+      "branch": "wms_v1.0",
+      "head": "0c4dfb976376dbb34e7d46464012964c669d0919",
+      "verifiedDate": "2026-10-30",
+      "builder": "DFP.LES.Service/Service/CallBackLesService.cs:66-116",
+      "dto": "DFP.LES.Service/LES/DTO/HiKRobotRequest.cs",
+      "positionPolicy": "Reference format documented in examples; foundation runtime retains existing raw logistics-code policy"
+    },
+    "x-hik-adaptation-checkpoints": {
+      "requirements": "用户要求查DFPServer并适配海康下发运单入参；当前上下文为Apifox调试",
+      "review": "参考DTO/构造逻辑与当前后端逐字段核对；结构/示例及本机HTTP验证，联合厂商评审待完成",
+      "freeze": "候选校准，不作为生产协议已冻结；未变更后端点位策略"
+    },
+    "x-standard-request-source-verification": {
+      "branch": "wms_v1.0",
+      "head": "0c4dfb976376dbb34e7d46464012964c669d0919",
+      "verifiedDate": "2026-10-30",
+      "stationBuilder": "DFP.LES.Service/Service/CallBackLesService.cs:157-185",
+      "flowBuilder": "DFP.LES.Service/Service/CallBackLesService.cs:130-149",
+      "cancelBuilder": "DFP.LES.Service/Service/CallBackLesService.cs:271-285",
+      "dtos": [
+        "DFP.LES.Service/LES/DTO/RiotRequest.cs",
+        "DFP.LES.Service/LES/DTO/RiotNewRequest.cs",
+        "DFP.LES.Service/LES/DTO/RiotRequestOfOperate.cs"
+      ]
+    },
+    "x-frontend-handoff": {
+      "date": "2026-10-30",
+      "reviewedSourceHead": "a86c0ffbb3f7bdf847cc18765c0f2fdd25029372",
+      "status": "candidate-pending-joint-review-and-freeze",
+      "runtimeVerified": false,
+      "runtimeReason": "本机18081未监听；本次未启动服务，不将静态整合稿当作同运行时镜像快照",
+      "scope": "341 operations: 336 foundation-hosted + 5 vendor-hosted outbound",
+      "deployment": "未部署、未构建或导出镜像；原历史来源元数据保留",
+      "sourceNote": "交付前基于本提交已有完整稿核对；本次仅更新交付元数据及说明"
     }
   },
   "servers": [
@@ -274,6 +375,14 @@
     {
       "name": "交管区域",
       "description": "交管区域业务接口"
+    },
+    {
+      "name": "第三方调度 / 海康（物流调用厂商）",
+      "description": "外部厂商提供的候选接口；单独设置厂商服务地址和认证，不继承物流系统登录。"
+    },
+    {
+      "name": "第三方调度 / 斯坦德（物流调用厂商）",
+      "description": "外部厂商提供的候选接口；单独设置厂商服务地址和认证，不继承物流系统登录。"
     }
   ],
   "paths": {
@@ -2183,7 +2292,12 @@
               }
             }
           }
-        }
+        },
+        "description": "2026-10-29：受管连接参数 nari.jdbc.mes／nari.jdbc.wms（含大小写变体）禁止通过本通用接口创建、改名、更新或删除，返回HTTP 400；改用 /api/v1/business/nari-logistics/jdbc-configs/{profile}。普通参数语义不变。",
+        "x-managed-config-keys": [
+          "nari.jdbc.mes",
+          "nari.jdbc.wms"
+        ]
       },
       "delete": {
         "tags": [
@@ -2261,7 +2375,12 @@
               }
             }
           }
-        }
+        },
+        "description": "2026-10-29：受管连接参数 nari.jdbc.mes／nari.jdbc.wms（含大小写变体）禁止通过本通用接口创建、改名、更新或删除，返回HTTP 400；改用 /api/v1/business/nari-logistics/jdbc-configs/{profile}。普通参数语义不变。",
+        "x-managed-config-keys": [
+          "nari.jdbc.mes",
+          "nari.jdbc.wms"
+        ]
       }
     },
     "/api/v1/system/code-rules/{ruleId}": {
@@ -11269,7 +11388,12 @@
               }
             }
           }
-        }
+        },
+        "description": "2026-10-29：受管连接参数 nari.jdbc.mes／nari.jdbc.wms（含大小写变体）禁止通过本通用接口创建、改名、更新或删除，返回HTTP 400；改用 /api/v1/business/nari-logistics/jdbc-configs/{profile}。普通参数语义不变。",
+        "x-managed-config-keys": [
+          "nari.jdbc.mes",
+          "nari.jdbc.wms"
+        ]
       }
     },
     "/api/v1/system/configs/refresh": {
@@ -11400,7 +11524,12 @@
               }
             }
           }
-        }
+        },
+        "description": "2026-10-29：受管连接参数 nari.jdbc.mes／nari.jdbc.wms（含大小写变体）禁止通过本通用接口创建、改名、更新或删除，返回HTTP 400；改用 /api/v1/business/nari-logistics/jdbc-configs/{profile}。普通参数语义不变。",
+        "x-managed-config-keys": [
+          "nari.jdbc.mes",
+          "nari.jdbc.wms"
+        ]
       }
     },
     "/api/v1/system/code-rules": {
@@ -16259,7 +16388,7 @@
           "二、库房作业 / 成品发货"
         ],
         "summary": "提交成品发货",
-        "description": "2026-10-19核对：没有按原发货UUID查询处理状态／执行人工恢复的PDA接口。对象查询展示当前箱范围和WMS来源，不能作为原发货请求的终态证明。后台未决巡检只读，不解锁、不补发、不制造成功。\nLES换绑成功后WMS明确未写入或回滚：内部FAILED；原UUID＋完整原请求（包括旧version）仅重试原WMS清理，复核LES范围和原始远端多重集，不重新换绑。来源变更整批不删，保留LES重建和保护，原请求不采用新的WMS内容，缺少人工解决入口。\n远端提交未知或本地结果保存中断可能保持UNKNOWN／SENDING，禁止重删；成功且本地结果持久化后才返回／回放原发货回执，才可按canCreateLogisticsTask决定后续独立建运输任务。\n目前未配置南瑞业务回执的自动过期清理，不等于承诺永久可重放；归档、删除、缺失或损坏没有自动恢复／过期解锁协议。不得因等候时长、404或普通对象查询换新UUID。重放保留期限及人工核实完成后如何恢复原回执仍待设计，不借用基座异步文件保留天数。\n远端在同一事务复核原箱码＋lCode＋板件码完整多重集（保留重复次数），再对mes_material_records按boxCode整批DELETE，无status／lCode删除条件，不表述为仅删当前物流申请。\n\n既有正常流程及校验：\n当前实现（2026-10-15.4）：正常提交已实现，UNKNOWN／中断和来源变更的人工核查恢复待补，因此标PARTIAL。复核scanType／scanCode对应对象、最新容器version及完整箱范围，从mes_material_records按箱码读取真实板件与lCode；先完整校验，后在短LES事务关闭所选箱旧有效关系并保留历史，按实际逐码重建、更新摘要及箱／父车聚合版本。板件仍绑定在所选范围之外的箱时拒绝，不自动解绑范围外板件。\n\n本地内容与发送依据提交后，独立WMS事务锁定并复核箱码＋lCode＋板件码的完整原始多重集，按DELETE FROM mes_material_records WHERE boxCode=?整批删除，不加status。目标须InnoDB且允许读取引擎元数据。若读取后来源变化，整批不删并保留LES重建结果等待核查。\n\n明确清理失败时保留原requestId及完整原请求（包括旧version）重试，仅补做清理，不重新取号、换绑或使用新WMS内容；不可用新requestId重做。SENDING／UNKNOWN阻止重删，人工恢复入口待补。成功同请求回放原回执；本地结果保存失败可停SENDING，也不能自动重删。WMS清理未明确完成期间，相关箱／父车及结构配置受保护。\n\nshippingNo复用基座操作编码规则；本接口不创建物流任务。成功后仅有可信斯坦德停车起点的料车canCreateLogisticsTask=true，可带shippingNo走既有物流创建接口；该接口复核发料成功及固定聚合版本，仍只建QUEUED，不代表调度已受理。箱场景后续人工绑车及独立运输继续使用原功能。\n\n全部约定步骤成功才200/code=0。503可能已经完成LES重建，不能当成整体回滚；前端保留原请求用于安全重试。运行接口只检查登录；本次未联合冻结／部署或现场联调。\n\n编号边界（2026-10-20.1）：shippingNo 是业务单据编号，仍由后端读取 nari.numbering.operation-rule 对应的启用规则生成；前端不提交编码规则。此参数不再用于普通操作回执。",
+        "description": "2026-10-29.2用户确认：库房发货同箱允许多个L单及不同物料、批次、订单；按实际逐板明细返回和重建，不要求箱级三项同质。箱级每项摘要仅在该属性全箱唯一时填写，多值置空，数量按去重后的实际板件计算。原始WMS三列快照保留全部L单及重复行，清理前仍复核原始多重集。相同板件跨箱或不同lCode的来源冲突、坏码、范围外绑定、版本及任务保护继续拒绝。查询不写入／不清理；本轮仅源码及隔离测试，未对真实WMS执行提交或清理。\n\n2026-10-19核对：没有按原发货UUID查询处理状态／执行人工恢复的PDA接口。对象查询展示当前箱范围和WMS来源，不能作为原发货请求的终态证明。后台未决巡检只读，不解锁、不补发、不制造成功。\nLES换绑成功后WMS明确未写入或回滚：内部FAILED；原UUID＋完整原请求（包括旧version）仅重试原WMS清理，复核LES范围和原始远端多重集，不重新换绑。来源变更整批不删，保留LES重建和保护，原请求不采用新的WMS内容，缺少人工解决入口。\n远端提交未知或本地结果保存中断可能保持UNKNOWN／SENDING，禁止重删；成功且本地结果持久化后才返回／回放原发货回执，才可按canCreateLogisticsTask决定后续独立建运输任务。\n目前未配置南瑞业务回执的自动过期清理，不等于承诺永久可重放；归档、删除、缺失或损坏没有自动恢复／过期解锁协议。不得因等候时长、404或普通对象查询换新UUID。重放保留期限及人工核实完成后如何恢复原回执仍待设计，不借用基座异步文件保留天数。\n远端在同一事务复核原箱码＋lCode＋板件码完整多重集（保留重复次数），再对mes_material_records按boxCode整批DELETE，无status／lCode删除条件，不表述为仅删当前物流申请。\n\n既有正常流程及校验：\n当前实现（2026-10-15.4）：正常提交已实现，UNKNOWN／中断和来源变更的人工核查恢复待补，因此标PARTIAL。复核scanType／scanCode对应对象、最新容器version及完整箱范围，从mes_material_records按箱码读取真实板件与lCode；先完整校验，后在短LES事务关闭所选箱旧有效关系并保留历史，按实际逐码重建、更新摘要及箱／父车聚合版本。板件仍绑定在所选范围之外的箱时拒绝，不自动解绑范围外板件。\n\n本地内容与发送依据提交后，独立WMS事务锁定并复核箱码＋lCode＋板件码的完整原始多重集，按DELETE FROM mes_material_records WHERE boxCode=?整批删除，不加status。目标须InnoDB且允许读取引擎元数据。若读取后来源变化，整批不删并保留LES重建结果等待核查。\n\n明确清理失败时保留原requestId及完整原请求（包括旧version）重试，仅补做清理，不重新取号、换绑或使用新WMS内容；不可用新requestId重做。SENDING／UNKNOWN阻止重删，人工恢复入口待补。成功同请求回放原回执；本地结果保存失败可停SENDING，也不能自动重删。WMS清理未明确完成期间，相关箱／父车及结构配置受保护。\n\nshippingNo复用基座操作编码规则；本接口不创建物流任务。成功后仅有可信斯坦德停车起点的料车canCreateLogisticsTask=true，可带shippingNo走既有物流创建接口；该接口复核发料成功及固定聚合版本，仍只建QUEUED，不代表调度已受理。箱场景后续人工绑车及独立运输继续使用原功能。\n\n全部约定步骤成功才200/code=0。503可能已经完成LES重建，不能当成整体回滚；前端保留原请求用于安全重试。运行接口只检查登录；本次未联合冻结／部署或现场联调。\n\n编号边界（2026-10-20.1）：shippingNo 是业务单据编号，仍由后端读取 nari.numbering.operation-rule 对应的启用规则生成；前端不提交编码规则。此参数不再用于普通操作回执。",
         "operationId": "nari_shipping_submit",
         "parameters": [],
         "responses": {
@@ -16484,17 +16613,18 @@
         },
         "x-implementation": {
           "status": "PARTIAL",
-          "behavior": "真实WMS分拣重建LES、旧关系留史；独立WMS事务按箱码清理；防重、明确失败仅补清理、范围保护及真实发料凭据已实现。",
+          "behavior": "真实WMS分拣重建LES、旧关系留史；独立WMS事务按箱码清理；防重、明确失败仅补清理、范围保护及真实发料凭据已实现。 同箱允许多L单及混物料／批次／订单，混装箱摘要按各属性唯一性计算。",
           "prerequisites": "WMS配置、兼容驱动、InnoDB和读取／删除／元数据权限；UNKNOWN／中断与分拣来源变更人工恢复入口待补。",
           "handler": "NariShipping.submit",
-          "sourceScope": "compiled-source-identical-to-exported-candidate-image; local-tests; not-site-verified"
+          "sourceScope": "local-source-and-isolated-tests-2026-10-29.2-not-deployed"
         },
         "x-contract-gap-review": {
           "reviewedAt": "2026-10-19",
           "status": "known-gaps-not-implemented",
           "responseStructureChanged": false,
           "note": "内部检查点不等于已暴露响应字段；不得依赖中文message判别恢复动作。"
-        }
+        },
+        "x-behavior-revision": "2026-10-29.2"
       }
     },
     "/api/v1/business/nari-logistics/receiving/confirm": {
@@ -27922,7 +28052,7 @@
           "二、库房作业 / 成品发货"
         ],
         "summary": "查询成品发货对象",
-        "description": "当前实现（2026-10-15.4）：本地查询已实现，需WMS独立加密配置和兼容专有驱动。识别BOX／两类料车／绑定容器的位置，固定箱范围后从mes_material_records按boxCode参数化读取boxCode、lCode、mesMaterialCode，不加status或lCode过滤。前后复核LES范围及聚合版本，不跨网络持有本地锁；不清LES关系、不删除WMS。\n\n物料、批次、订单从实际唯一码解析，每码1件；完全相同的重复来源行展示去重，原始多重集留给提交复核。同一码跨箱或lCode冲突、坏码、单箱不同物料／批次／订单整体拒绝；不同箱可以是不同订单。名称／单位无可靠来源则省略，不额外调用MES名称查询。某箱无本次WMS内容时展示零数并不给整批提交资格，不回退LES历史。\n\n查询不代表已经发料；提交仍重新取WMS并校验当前版本。运行接口保留登录、角色只控制页面／路由；待现场联调及联合评审。\n\n2026-10-21.1：OPERATION业务单据规则未就绪时资格不可用；查询不消耗编号。",
+        "description": "2026-10-29.2用户确认：库房发货同箱允许多个L单及不同物料、批次、订单；按实际逐板明细返回和重建，不要求箱级三项同质。箱级每项摘要仅在该属性全箱唯一时填写，多值置空，数量按去重后的实际板件计算。原始WMS三列快照保留全部L单及重复行，清理前仍复核原始多重集。相同板件跨箱或不同lCode的来源冲突、坏码、范围外绑定、版本及任务保护继续拒绝。查询不写入／不清理；本轮仅源码及隔离测试，未对真实WMS执行提交或清理。\n\n当前实现（2026-10-15.4）：本地查询已实现，需WMS独立加密配置和兼容专有驱动。识别BOX／两类料车／绑定容器的位置，固定箱范围后从mes_material_records按boxCode参数化读取boxCode、lCode、mesMaterialCode，不加status或lCode过滤。前后复核LES范围及聚合版本，不跨网络持有本地锁；不清LES关系、不删除WMS。\n\n物料、批次、订单从实际唯一码解析，每码1件；完全相同的重复来源行展示去重，原始多重集留给提交复核。同一码跨箱或lCode冲突、坏码整体拒绝；同箱允许多个L单及不同物料、批次和订单。名称／单位无可靠来源则省略，不额外调用MES名称查询。某箱无本次WMS内容时展示零数并不给整批提交资格，不回退LES历史。\n\n查询不代表已经发料；提交仍重新取WMS并校验当前版本。运行接口保留登录、角色只控制页面／路由；待现场联调及联合评审。\n\n2026-10-21.1：OPERATION业务单据规则未就绪时资格不可用；查询不消耗编号。",
         "operationId": "nari_shipping_objects_query",
         "parameters": [
           {
@@ -28148,11 +28278,12 @@
         "x-review-issues": [],
         "x-implementation": {
           "status": "LOCAL",
-          "behavior": "位置／车／箱范围与版本复核；真实WMS分拣全量只读、解析、去重与资格投影，无删除或LES换绑。",
-          "prerequisites": "nari.jdbc.wms加密配置、兼容NdsDriver、mes_material_records读取权限及真实分拣数据；未实际连接专有驱动。",
+          "behavior": "位置／车／箱范围与版本复核；真实WMS分拣全量只读、解析、去重与资格投影，无删除或LES换绑。 同箱允许多L单及混物料／批次／订单，混装箱摘要按各属性唯一性计算。",
+          "prerequisites": "nari.jdbc.wms加密配置、兼容NdsDriver、mes_material_records读取权限及真实分拣数据；WMS只读取数已由用户确认通过；本轮变更的现场业务验收未执行。",
           "handler": "NariShipping.query",
-          "sourceScope": "compiled-source-identical-to-exported-candidate-image; local-tests; not-site-verified"
-        }
+          "sourceScope": "local-source-and-isolated-tests-2026-10-29.2-not-deployed"
+        },
+        "x-behavior-revision": "2026-10-29.2"
       }
     },
     "/api/v1/business/nari-logistics/receiving/tasks": {
@@ -30811,7 +30942,7 @@
           "三、物流作业 / 缴库发起"
         ],
         "summary": "查询箱内物料明细",
-        "description": "当前实现（2026-10-15.4）：SHIPPING分支已接入WMS mes_material_records按箱码读取，返回sourceSystem=WMS、实际逐板码及解析属性；查询不写LES、不删除WMS。其余场景继续读取对应LES真实当前／冻结快照。来源失败不返回部分结果，缺名称／单位省略。\n\n认证：运行接口只检查登录；角色控制页面及路由。请求及响应结构保持。",
+        "description": "2026-10-29.2用户确认：库房发货同箱允许多个L单及不同物料、批次、订单；按实际逐板明细返回和重建，不要求箱级三项同质。箱级每项摘要仅在该属性全箱唯一时填写，多值置空，数量按去重后的实际板件计算。原始WMS三列快照保留全部L单及重复行，清理前仍复核原始多重集。相同板件跨箱或不同lCode的来源冲突、坏码、范围外绑定、版本及任务保护继续拒绝。查询不写入／不清理；本轮仅源码及隔离测试，未对真实WMS执行提交或清理。\n\n当前实现（2026-10-15.4）：SHIPPING分支已接入WMS mes_material_records按箱码读取，返回sourceSystem=WMS、实际逐板码及解析属性；查询不写LES、不删除WMS。其余场景继续读取对应LES真实当前／冻结快照。来源失败不返回部分结果，缺名称／单位省略。\n\n认证：运行接口只检查登录；角色控制页面及路由。请求及响应结构保持。",
         "operationId": "nari_boxes_materials_query",
         "parameters": [
           {
@@ -31061,11 +31192,12 @@
         "x-review-issues": [],
         "x-implementation": {
           "status": "LOCAL",
-          "behavior": "按业务场景分别读取LES当前／成功或送达快照；SHIPPING从WMS mes_material_records按箱码读取实际分拣板件，不使用LES历史替代。",
+          "behavior": "按业务场景分别读取LES当前／成功或送达快照；SHIPPING从WMS mes_material_records按箱码读取实际分拣板件，不使用LES历史替代。 同箱允许多L单及混物料／批次／订单，混装箱摘要按各属性唯一性计算。",
           "prerequisites": "对应真实业务事实；SHIPPING需WMS独立配置、兼容驱动及分拣读取权限。",
           "handler": "NariPdaFacade.materials / NariShipping.materials",
-          "sourceScope": "compiled-source-identical-to-exported-candidate-image; local-tests; not-site-verified"
-        }
+          "sourceScope": "local-source-and-isolated-tests-2026-10-29.2-not-deployed"
+        },
+        "x-behavior-revision": "2026-10-29.2"
       }
     },
     "/api/v1/business/nari-logistics/boxes/bindings": {
@@ -31524,6 +31656,1763 @@
               }
             }
           }
+        }
+      }
+    },
+    "/api/v1/business/nari-logistics/jdbc-configs/{profile}": {
+      "get": {
+        "tags": [
+          "南瑞物流 / 外部连接配置"
+        ],
+        "summary": "查询 MES/WMS 连接配置",
+        "description": "profile 为 MES 或 WMS；不返回明文密码、密码密文或运行密钥，不连接远端数据库。",
+        "operationId": "nariJdbcConfigGet",
+        "parameters": [
+          {
+            "name": "profile",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "MES",
+                "WMS"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultNariJdbcConfig"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "profile": "MES",
+                    "configured": true,
+                    "enabled": true,
+                    "jdbcUrl": "jdbc:nds://host:18600/database?appname=application",
+                    "username": "database_user",
+                    "driverClassName": "sgcc.nds.jdbc.driver.NdsDriver",
+                    "passwordSet": true,
+                    "version": 1
+                  },
+                  "timestamp": "2026-10-29T04:00:00Z",
+                  "traceId": "example-only"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "现有配置无效，或运行密钥／密文校验失败；不连接远端",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          }
+        },
+        "x-design-status": "candidate-not-jointly-frozen",
+        "x-source": "2026-10-29 isolated MockMvc frontend-runtime; not deployed",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "南瑞物流 / 外部连接配置"
+        ],
+        "summary": "保存 MES/WMS 连接配置",
+        "description": "明文密码仅用于服务端加密，留空保留原密文；已有配置须提交version。保存只更新本地参数，不验证远端连接、不执行远端业务。",
+        "operationId": "nariJdbcConfigSave",
+        "parameters": [
+          {
+            "name": "profile",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "MES",
+                "WMS"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NariJdbcConfigSave"
+              },
+              "example": {
+                "enabled": true,
+                "jdbcUrl": "jdbc:nds://host:18600/database?appname=application",
+                "username": "database_user",
+                "driverClassName": "sgcc.nds.jdbc.driver.NdsDriver",
+                "version": 1
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultNariJdbcConfig"
+                },
+                "example": {
+                  "code": 0,
+                  "message": "ok",
+                  "data": {
+                    "profile": "MES",
+                    "configured": true,
+                    "enabled": true,
+                    "jdbcUrl": "jdbc:nds://host:18600/database?appname=application",
+                    "username": "database_user",
+                    "driverClassName": "sgcc.nds.jdbc.driver.NdsDriver",
+                    "passwordSet": true,
+                    "version": 1
+                  },
+                  "timestamp": "2026-10-29T04:00:00Z",
+                  "traceId": "example-only"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "现有配置无效，或运行密钥／密文校验失败；不连接远端",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "版本冲突或并发创建冲突，请重新查询",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          }
+        },
+        "x-design-status": "candidate-not-jointly-frozen",
+        "x-source": "2026-10-29 isolated MockMvc frontend-runtime; not deployed",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/business/nari-logistics/integration/box-scans": {
+      "post": {
+        "operationId": "nari_ext_scan",
+        "tags": [
+          "第三方设备上报"
+        ],
+        "summary": "第三方扫码过滤绑箱",
+        "security": [
+          {
+            "NariIntegrationToken": []
+          }
+        ],
+        "description": "仅专用长期接入Token；普通用户登录Token不接受。 候选2026-10-30.1，需求已确认，联合评审/冻结待完成。",
+        "responses": {
+          "200": {
+            "description": "业务结果；扫码拒绝/报警也以data.status=REJECTED返回，须检查业务字段",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ExtScanResult"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效"
+          },
+          "401": {
+            "description": "无有效凭据"
+          },
+          "403": {
+            "description": "凭据不允许访问该接口"
+          },
+          "409": {
+            "description": "版本或配置冲突"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtScanRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/business/nari-logistics/integration/variable-values": {
+      "post": {
+        "operationId": "nari_ext_values",
+        "tags": [
+          "第三方设备上报"
+        ],
+        "summary": "第三方变量值上报",
+        "security": [
+          {
+            "NariIntegrationToken": []
+          }
+        ],
+        "description": "仅专用长期接入Token；普通用户登录Token不接受。 候选2026-10-30.1，需求已确认，联合评审/冻结待完成。",
+        "responses": {
+          "200": {
+            "description": "业务结果；扫码拒绝/报警也以data.status=REJECTED返回，须检查业务字段",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ExtVariableResult"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效"
+          },
+          "401": {
+            "description": "无有效凭据"
+          },
+          "403": {
+            "description": "凭据不允许访问该接口"
+          },
+          "409": {
+            "description": "版本或配置冲突"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtVariableRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/business/nari-logistics/integration-management/tokens": {
+      "post": {
+        "operationId": "nari_ext_token_create",
+        "tags": [
+          "第三方接入配置"
+        ],
+        "summary": "创建长期接入Token",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "使用现有用户登录Token；长期接入Token不能调用。 候选2026-10-30.1，需求已确认，联合评审/冻结待完成。",
+        "responses": {
+          "200": {
+            "description": "业务结果；扫码拒绝/报警也以data.status=REJECTED返回，须检查业务字段",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ExtTokenCreated"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效"
+          },
+          "401": {
+            "description": "无有效凭据"
+          },
+          "403": {
+            "description": "凭据不允许访问该接口"
+          },
+          "409": {
+            "description": "版本或配置冲突"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtTokenName"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "nari_ext_token_list",
+        "tags": [
+          "第三方接入配置"
+        ],
+        "summary": "查询接入Token元数据",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "使用现有用户登录Token；长期接入Token不能调用。 候选2026-10-30.1，需求已确认，联合评审/冻结待完成。",
+        "responses": {
+          "200": {
+            "description": "业务结果；扫码拒绝/报警也以data.status=REJECTED返回，须检查业务字段",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ExtTokenMetadata"
+                      }
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效"
+          },
+          "401": {
+            "description": "无有效凭据"
+          },
+          "403": {
+            "description": "凭据不允许访问该接口"
+          },
+          "409": {
+            "description": "版本或配置冲突"
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "afterId",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/business/nari-logistics/integration-management/tokens/{id}/revoke": {
+      "post": {
+        "operationId": "nari_ext_token_revoke",
+        "tags": [
+          "第三方接入配置"
+        ],
+        "summary": "停用接入Token",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "使用现有用户登录Token；长期接入Token不能调用。 候选2026-10-30.1，需求已确认，联合评审/冻结待完成。",
+        "responses": {
+          "200": {
+            "description": "业务结果；扫码拒绝/报警也以data.status=REJECTED返回，须检查业务字段",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "nullable": true
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效"
+          },
+          "401": {
+            "description": "无有效凭据"
+          },
+          "403": {
+            "description": "凭据不允许访问该接口"
+          },
+          "409": {
+            "description": "版本或配置冲突"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtVersion"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/business/nari-logistics/integration-management/mappings": {
+      "get": {
+        "operationId": "nari_ext_mapping_list",
+        "tags": [
+          "第三方接入配置"
+        ],
+        "summary": "查询变量映射",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "使用现有用户登录Token；长期接入Token不能调用。 候选2026-10-30.1，需求已确认，联合评审/冻结待完成。",
+        "responses": {
+          "200": {
+            "description": "业务结果；扫码拒绝/报警也以data.status=REJECTED返回，须检查业务字段",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ExtMapping"
+                      }
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效"
+          },
+          "401": {
+            "description": "无有效凭据"
+          },
+          "403": {
+            "description": "凭据不允许访问该接口"
+          },
+          "409": {
+            "description": "版本或配置冲突"
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "afterId",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "nari_ext_mapping_create",
+        "tags": [
+          "第三方接入配置"
+        ],
+        "summary": "创建变量映射",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "使用现有用户登录Token；长期接入Token不能调用。 候选2026-10-30.1，需求已确认，联合评审/冻结待完成。",
+        "responses": {
+          "200": {
+            "description": "业务结果；扫码拒绝/报警也以data.status=REJECTED返回，须检查业务字段",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ExtMapping"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效"
+          },
+          "401": {
+            "description": "无有效凭据"
+          },
+          "403": {
+            "description": "凭据不允许访问该接口"
+          },
+          "409": {
+            "description": "版本或配置冲突"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtMappingRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/business/nari-logistics/integration-management/mappings/{id}": {
+      "put": {
+        "operationId": "nari_ext_mapping_update",
+        "tags": [
+          "第三方接入配置"
+        ],
+        "summary": "修改变量映射",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "使用现有用户登录Token；长期接入Token不能调用。 候选2026-10-30.1，需求已确认，联合评审/冻结待完成。",
+        "responses": {
+          "200": {
+            "description": "业务结果；扫码拒绝/报警也以data.status=REJECTED返回，须检查业务字段",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ExtMapping"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效"
+          },
+          "401": {
+            "description": "无有效凭据"
+          },
+          "403": {
+            "description": "凭据不允许访问该接口"
+          },
+          "409": {
+            "description": "版本或配置冲突"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtMappingRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/business/nari-logistics/integration-management/events": {
+      "get": {
+        "operationId": "nari_ext_event_list",
+        "tags": [
+          "第三方接入配置"
+        ],
+        "summary": "游标查询接入处理留痕",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "使用现有用户登录Token；长期接入Token不能调用。 候选2026-10-30.1，需求已确认，联合评审/冻结待完成。",
+        "responses": {
+          "200": {
+            "description": "业务结果；扫码拒绝/报警也以data.status=REJECTED返回，须检查业务字段",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ExtEvent"
+                      }
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "输入无效"
+          },
+          "401": {
+            "description": "无有效凭据"
+          },
+          "403": {
+            "description": "凭据不允许访问该接口"
+          },
+          "409": {
+            "description": "版本或配置冲突"
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "afterId",
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "minimum": 0
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/system/long-tokens/scopes": {
+      "get": {
+        "operationId": "system_long_token_scopes",
+        "summary": "查询长期Token接入范围",
+        "tags": [
+          "平台长期Token"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "仅现有用户登录凭据可管理；第三方长期接入Token不能调用。需求确认，候选未冻结；仅隔离验证，未部署。",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PlatformLongTokenScope"
+                      }
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "范围/参数无效"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "接入Token无后台访问权限"
+          },
+          "409": {
+            "description": "凭据版本已变化，刷新后核对，不自动重发"
+          }
+        }
+      }
+    },
+    "/api/v1/system/long-tokens": {
+      "get": {
+        "operationId": "system_long_token_page",
+        "summary": "分页查询长期Token元数据",
+        "tags": [
+          "平台长期Token"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "仅现有用户登录凭据可管理；第三方长期接入Token不能调用。需求确认，候选未冻结；仅隔离验证，未部署。",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PlatformLongTokenPage"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "范围/参数无效"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "接入Token无后台访问权限"
+          },
+          "409": {
+            "description": "凭据版本已变化，刷新后核对，不自动重发"
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scopeCode",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1,
+              "maximum": 1000000
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "in": "query",
+            "name": "keyword",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "in": "query",
+            "name": "enabled",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "system_long_token_create",
+        "summary": "创建长期Token（明文仅返回一次）",
+        "tags": [
+          "平台长期Token"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "仅现有用户登录凭据可管理；第三方长期接入Token不能调用。需求确认，候选未冻结；仅隔离验证，未部署。",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PlatformLongTokenCreated"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "范围/参数无效"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "接入Token无后台访问权限"
+          },
+          "409": {
+            "description": "凭据版本已变化，刷新后核对，不自动重发"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformLongTokenCreateRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/long-tokens/{scopeCode}/{tokenId}/revoke": {
+      "post": {
+        "operationId": "system_long_token_revoke",
+        "summary": "停用长期Token",
+        "tags": [
+          "平台长期Token"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "仅现有用户登录凭据可管理；第三方长期接入Token不能调用。需求确认，候选未冻结；仅隔离验证，未部署。",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "nullable": true
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "范围/参数无效"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "接入Token无后台访问权限"
+          },
+          "409": {
+            "description": "凭据版本已变化，刷新后核对，不自动重发"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformLongTokenRevokeRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scopeCode",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tokenId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/system/long-tokens/interfaces": {
+      "get": {
+        "operationId": "system_long_token_interfaces",
+        "summary": "查询后端声明的可授权接口",
+        "tags": [
+          "平台长期Token"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "仅现有用户登录凭据可管理；第三方长期接入Token不能调用。需求确认，候选未冻结；仅隔离验证，未部署。",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PlatformLongTokenApi"
+                      }
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "范围/参数无效"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "接入Token无后台访问权限"
+          },
+          "409": {
+            "description": "凭据版本已变化，刷新后核对，不自动重发"
+          }
+        }
+      }
+    },
+    "/api/v1/system/long-tokens/{scopeCode}/{tokenId}/authorization": {
+      "put": {
+        "operationId": "system_long_token_authorization_update",
+        "summary": "修改长期Token允许调用的接口",
+        "tags": [
+          "平台长期Token"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "仅现有用户登录凭据可管理；第三方长期接入Token不能调用。需求确认，候选未冻结；仅隔离验证，未部署。",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PlatformLongTokenMetadata"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "范围/参数无效"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "接入Token无后台访问权限"
+          },
+          "409": {
+            "description": "凭据版本已变化，刷新后核对，不自动重发"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformLongTokenAuthorizationRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scopeCode",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tokenId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/rcms/services/rest/hikRpcService/genAgvSchedulingTask": {
+      "post": {
+        "operationId": "nari_outbound_hikvision_create",
+        "tags": [
+          "第三方调度 / 海康（物流调用厂商）"
+        ],
+        "summary": "海康下发运单（调用调度）",
+        "description": "位置码直接用物流码，不沿旧项目ExternalCode／${05}拼接；由调度维护映射。taskTyp默认S01、ctnrTyp默认1可配置，正式车型及业务类型待比对。 HTTP成功且业务code=0仅表示受理。网络／应答异常不重发，使用原任务号及操作记录核查。\n本接口由厂商调度提供，不部署在物流后端；使用本操作servers指定的厂商地址占位，导入后配置现场真实地址。security=[]用于避免继承物流登录Token，不代表厂商无需认证；认证须按厂商实际要求单独配置。现有Apifox旧海康样例存在字段大小写、任务类型和位置类型差异，正式报文仍待现场比对。\n2026-10-30.5参考DFPServer已核对：字段名/值与点位拼接规则见参数描述及3个调试样例。后端仍直传物流位置码，本次未自动恢复ExternalCode映射或后缀拼接。",
+        "x-direction": "OUTBOUND",
+        "x-hosted-by-foundation": false,
+        "servers": [
+          {
+            "url": "https://hikvision.example.invalid",
+            "description": "厂商完整baseUrl由本地数据库系统参数配置，此为无效占位地址"
+          }
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NariAgvHikCreate"
+              },
+              "examples": {
+                "finalPositionCodes": {
+                  "summary": "推荐调试：填写厂商最终完整点位码",
+                  "value": {
+                    "taskTyp": "S01",
+                    "positionCodePath": [
+                      {
+                        "positionCode": "{{hikOriginPositionCode}}",
+                        "type": "00"
+                      },
+                      {
+                        "positionCode": "{{hikDestinationPositionCode}}",
+                        "type": "00"
+                      }
+                    ],
+                    "priority": "0",
+                    "ctnrTyp": "1",
+                    "ctnrCode": "{{hikContainerCode}}",
+                    "taskCode": "{{hikTaskCode}}",
+                    "reqCode": "{{hikCreateReqCode}}",
+                    "reqTime": "{{hikReqTime}}",
+                    "clientCode": "SyncService"
+                  }
+                },
+                "dfpWithoutSlots": {
+                  "summary": "复现DFPServer普通点位，无装载位",
+                  "value": {
+                    "taskTyp": "S01",
+                    "positionCodePath": [
+                      {
+                        "positionCode": "{{hikOriginExternalCode}}${05}",
+                        "type": "00"
+                      },
+                      {
+                        "positionCode": "{{hikDestinationExternalCode}}${05}",
+                        "type": "00"
+                      }
+                    ],
+                    "priority": "0",
+                    "ctnrTyp": "1",
+                    "ctnrCode": "{{hikContainerCode}}",
+                    "taskCode": "{{hikTaskCode}}",
+                    "reqCode": "{{hikCreateReqCode}}",
+                    "reqTime": "{{hikReqTime}}",
+                    "clientCode": "SyncService"
+                  }
+                },
+                "dfpWithSlots": {
+                  "summary": "复现DFPServer两端含装载位，后缀变量仅填原PodCode最后一段",
+                  "value": {
+                    "taskTyp": "S01",
+                    "positionCodePath": [
+                      {
+                        "positionCode": "{{hikOriginExternalCode}}-{{hikOriginSlotSuffix}}${05}",
+                        "type": "00"
+                      },
+                      {
+                        "positionCode": "{{hikDestinationExternalCode}}-{{hikDestinationSlotSuffix}}${05}",
+                        "type": "00"
+                      }
+                    ],
+                    "priority": "0",
+                    "ctnrTyp": "1",
+                    "ctnrCode": "{{hikContainerCode}}",
+                    "taskCode": "{{hikTaskCode}}",
+                    "reqCode": "{{hikCreateReqCode}}",
+                    "reqTime": "{{hikReqTime}}",
+                    "clientCode": "SyncService"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "厂商业务回执，结构待正式文档比对",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NariAgvHikReply"
+                }
+              }
+            }
+          }
+        },
+        "x-service-provider": "HIKVISION",
+        "x-status": "CANDIDATE_PENDING_VENDOR_VERIFICATION",
+        "x-contract-source": "第三方对接/nari-logistics.agv.candidate.openapi.json",
+        "x-verified-legacy-source": {
+          "branch": "wms_v1.0",
+          "head": "0c4dfb976376dbb34e7d46464012964c669d0919",
+          "verifiedDate": "2026-10-30",
+          "builder": "DFP.LES.Service/Service/CallBackLesService.cs:66-116",
+          "dto": "DFP.LES.Service/LES/DTO/HiKRobotRequest.cs",
+          "positionPolicy": "Reference format documented in examples; foundation runtime retains existing raw logistics-code policy"
+        }
+      }
+    },
+    "/rcms/services/rest/hikRpcService/cancelTask": {
+      "post": {
+        "operationId": "nari_outbound_hikvision_cancel",
+        "tags": [
+          "第三方调度 / 海康（物流调用厂商）"
+        ],
+        "summary": "海康取消运单（调用调度）",
+        "description": "成功仅认为取消受理，最终状态由回调确认，取货后取消保留实物核查。 HTTP成功且业务code=0仅表示受理。网络／应答异常不重发，使用原任务号及操作记录核查。\n本接口由厂商调度提供，不部署在物流后端；使用本操作servers指定的厂商地址占位，导入后配置现场真实地址。security=[]用于避免继承物流登录Token，不代表厂商无需认证；认证须按厂商实际要求单独配置。现有Apifox旧海康样例存在字段大小写、任务类型和位置类型差异，正式报文仍待现场比对。",
+        "x-direction": "OUTBOUND",
+        "x-hosted-by-foundation": false,
+        "servers": [
+          {
+            "url": "https://hikvision.example.invalid",
+            "description": "厂商完整baseUrl由本地数据库系统参数配置，此为无效占位地址"
+          }
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NariAgvHikCancel"
+              },
+              "examples": {
+                "cancelSameTask": {
+                  "summary": "取消本次创建的同一任务，不复制旧示例任务号",
+                  "value": {
+                    "taskCode": "{{hikTaskCode}}",
+                    "reqCode": "{{hikCancelReqCode}}",
+                    "reqTime": "{{hikReqTime}}",
+                    "clientCode": "SyncService",
+                    "forceCancel": "0"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "厂商业务回执，结构待正式文档比对",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NariAgvHikReply"
+                }
+              }
+            }
+          }
+        },
+        "x-service-provider": "HIKVISION",
+        "x-status": "CANDIDATE_PENDING_VENDOR_VERIFICATION",
+        "x-contract-source": "第三方对接/nari-logistics.agv.candidate.openapi.json"
+      }
+    },
+    "/api/fcs/v1/foreign/orders/byStation": {
+      "post": {
+        "operationId": "nari_outbound_standard_create",
+        "tags": [
+          "第三方调度 / 斯坦德（物流调用厂商）"
+        ],
+        "summary": "斯坦德创建站点运输任务（调用调度）",
+        "description": "起终点使用物流位置码；本地taskNo作为orderCode，容器整车保持原装载关系。 HTTP成功且业务code=0仅表示受理。网络／应答异常不重发，使用原任务号及操作记录核查。\n本接口由厂商调度提供，不部署在物流后端；使用本操作servers指定的厂商地址占位，导入后配置现场真实地址。security=[]用于避免继承物流登录Token，不代表厂商无需认证；认证须按厂商实际要求单独配置。现有Apifox旧海康样例存在字段大小写、任务类型和位置类型差异，正式报文仍待现场比对。\n2026-10-30.6按DFPServer实际组参补模拟示例和字段来源；priority为整数，站点不追加海康后缀。样例不自动发送，现场站点/模板需确认。",
+        "x-direction": "OUTBOUND",
+        "x-hosted-by-foundation": false,
+        "servers": [
+          {
+            "url": "https://standard.example.invalid",
+            "description": "厂商完整baseUrl由本地数据库系统参数配置，此为无效占位地址"
+          }
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NariAgvStandardCreate"
+              },
+              "examples": {
+                "stationSimulation": {
+                  "summary": "模拟站点运输：站点未核实，不自动发送",
+                  "value": {
+                    "orderCode": "TEST_STD_20261030_161312_257c5a77",
+                    "startCode": "1F010102",
+                    "endCode": "1F020101",
+                    "priority": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "厂商业务回执，结构待正式文档比对",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NariAgvStandardReply"
+                }
+              }
+            }
+          }
+        },
+        "x-service-provider": "STANDARD",
+        "x-status": "CANDIDATE_PENDING_VENDOR_VERIFICATION",
+        "x-contract-source": "第三方对接/nari-logistics.agv.candidate.openapi.json",
+        "x-verified-legacy-source": {
+          "branch": "wms_v1.0",
+          "head": "0c4dfb976376dbb34e7d46464012964c669d0919",
+          "verifiedDate": "2026-10-30",
+          "stationBuilder": "DFP.LES.Service/Service/CallBackLesService.cs:157-185",
+          "flowBuilder": "DFP.LES.Service/Service/CallBackLesService.cs:130-149",
+          "cancelBuilder": "DFP.LES.Service/Service/CallBackLesService.cs:271-285",
+          "dtos": [
+            "DFP.LES.Service/LES/DTO/RiotRequest.cs",
+            "DFP.LES.Service/LES/DTO/RiotNewRequest.cs",
+            "DFP.LES.Service/LES/DTO/RiotRequestOfOperate.cs"
+          ]
+        }
+      }
+    },
+    "/api/fcs/v1/foreign/orders/flow/{flowCode}": {
+      "post": {
+        "operationId": "nari_outbound_standard_flow",
+        "tags": [
+          "第三方调度 / 斯坦德（物流调用厂商）"
+        ],
+        "summary": "斯坦德创建流程任务（调用调度）",
+        "description": "flowCode由业务系统参数维护，可按businessCode选择flows。请求不传起终点，远端模板业务及站点适用性需核对；不据此假设已支持附空框。 HTTP成功且业务code=0仅表示受理。网络／应答异常不重发，使用原任务号及操作记录核查。\n本接口由厂商调度提供，不部署在物流后端；使用本操作servers指定的厂商地址占位，导入后配置现场真实地址。security=[]用于避免继承物流登录Token，不代表厂商无需认证；认证须按厂商实际要求单独配置。现有Apifox旧海康样例存在字段大小写、任务类型和位置类型差异，正式报文仍待现场比对。\n2026-10-30.6按DFPServer实际组参补模拟示例和字段来源；priority为整数，站点不追加海康后缀。样例不自动发送，现场站点/模板需确认。",
+        "x-direction": "OUTBOUND",
+        "x-hosted-by-foundation": false,
+        "servers": [
+          {
+            "url": "https://standard.example.invalid",
+            "description": "厂商完整baseUrl由本地数据库系统参数配置，此为无效占位地址"
+          }
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NariAgvStandardFlow"
+              },
+              "examples": {
+                "flowSimulation": {
+                  "summary": "模拟流程运输：URL的flowCode需单独确认",
+                  "value": {
+                    "upperId": "TEST_STD_FLOW_20261030_161312_fd26128f",
+                    "priority": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "厂商业务回执，结构待正式文档比对",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NariAgvStandardReply"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "flowCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,128}$"
+            }
+          }
+        ],
+        "x-service-provider": "STANDARD",
+        "x-status": "CANDIDATE_PENDING_VENDOR_VERIFICATION",
+        "x-contract-source": "第三方对接/nari-logistics.agv.candidate.openapi.json",
+        "x-verified-legacy-source": {
+          "branch": "wms_v1.0",
+          "head": "0c4dfb976376dbb34e7d46464012964c669d0919",
+          "verifiedDate": "2026-10-30",
+          "stationBuilder": "DFP.LES.Service/Service/CallBackLesService.cs:157-185",
+          "flowBuilder": "DFP.LES.Service/Service/CallBackLesService.cs:130-149",
+          "cancelBuilder": "DFP.LES.Service/Service/CallBackLesService.cs:271-285",
+          "dtos": [
+            "DFP.LES.Service/LES/DTO/RiotRequest.cs",
+            "DFP.LES.Service/LES/DTO/RiotNewRequest.cs",
+            "DFP.LES.Service/LES/DTO/RiotRequestOfOperate.cs"
+          ]
+        }
+      }
+    },
+    "/api/fcs/v1/foreign/orders/operate": {
+      "post": {
+        "operationId": "nari_outbound_standard_cancel",
+        "tags": [
+          "第三方调度 / 斯坦德（物流调用厂商）"
+        ],
+        "summary": "斯坦德取消站点运输任务（调用调度）",
+        "description": "仅候选BY_STATION取消；FLOW在旧分流缺失，当前503不调用。不新增暂停／继续API。 HTTP成功且业务code=0仅表示受理。网络／应答异常不重发，使用原任务号及操作记录核查。\n本接口由厂商调度提供，不部署在物流后端；使用本操作servers指定的厂商地址占位，导入后配置现场真实地址。security=[]用于避免继承物流登录Token，不代表厂商无需认证；认证须按厂商实际要求单独配置。现有Apifox旧海康样例存在字段大小写、任务类型和位置类型差异，正式报文仍待现场比对。\n2026-10-30.6按DFPServer实际组参补模拟示例和字段来源；priority为整数，站点不追加海康后缀。样例不自动发送，现场站点/模板需确认。",
+        "x-direction": "OUTBOUND",
+        "x-hosted-by-foundation": false,
+        "servers": [
+          {
+            "url": "https://standard.example.invalid",
+            "description": "厂商完整baseUrl由本地数据库系统参数配置，此为无效占位地址"
+          }
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NariAgvStandardCancel"
+              },
+              "examples": {
+                "cancelSameStationOrder": {
+                  "summary": "取消上述同一站点任务",
+                  "value": {
+                    "upperIdList": [
+                      "TEST_STD_20261030_161312_257c5a77"
+                    ],
+                    "val": "CANCEL_ORDER"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "厂商业务回执，结构待正式文档比对",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NariAgvStandardReply"
+                }
+              }
+            }
+          }
+        },
+        "x-service-provider": "STANDARD",
+        "x-status": "CANDIDATE_PENDING_VENDOR_VERIFICATION",
+        "x-contract-source": "第三方对接/nari-logistics.agv.candidate.openapi.json",
+        "x-verified-legacy-source": {
+          "branch": "wms_v1.0",
+          "head": "0c4dfb976376dbb34e7d46464012964c669d0919",
+          "verifiedDate": "2026-10-30",
+          "stationBuilder": "DFP.LES.Service/Service/CallBackLesService.cs:157-185",
+          "flowBuilder": "DFP.LES.Service/Service/CallBackLesService.cs:130-149",
+          "cancelBuilder": "DFP.LES.Service/Service/CallBackLesService.cs:271-285",
+          "dtos": [
+            "DFP.LES.Service/LES/DTO/RiotRequest.cs",
+            "DFP.LES.Service/LES/DTO/RiotNewRequest.cs",
+            "DFP.LES.Service/LES/DTO/RiotRequestOfOperate.cs"
+          ]
         }
       }
     }
@@ -47287,6 +49176,893 @@
           "container",
           "containerVersion"
         ]
+      },
+      "NariJdbcConfigSave": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "jdbcUrl": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "password": {
+            "type": "string",
+            "description": "仅输入新密码；不传、null或空字符串保留原密码；首次保存必填",
+            "maxLength": 128,
+            "minLength": 0,
+            "writeOnly": true,
+            "nullable": true
+          },
+          "driverClassName": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "description": "已有配置保存必填当前版本；首次创建不传",
+            "nullable": true
+          }
+        },
+        "required": [
+          "driverClassName",
+          "enabled",
+          "jdbcUrl",
+          "username"
+        ]
+      },
+      "NariJdbcConfig": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "type": "string"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "jdbcUrl": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "driverClassName": {
+            "type": "string"
+          },
+          "passwordSet": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        }
+      },
+      "ApiResultNariJdbcConfig": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/NariJdbcConfig"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "traceId": {
+            "type": "string"
+          }
+        }
+      },
+      "ExtScanRequest": {
+        "type": "object",
+        "properties": {
+          "boxCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "panelCodes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1000,
+            "items": {},
+            "description": "实际板件码数组。非字符串、坏码、重复或已绑定码逐项过滤留痕；合法混料整批拒绝并报警。"
+          }
+        },
+        "required": [
+          "boxCode",
+          "panelCodes"
+        ]
+      },
+      "ExtVariableValue": {
+        "type": "object",
+        "properties": {
+          "variableCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "value": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          }
+        },
+        "required": [
+          "variableCode",
+          "value"
+        ]
+      },
+      "ExtVariableRequest": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/ExtVariableValue"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "ExtTokenName": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "ExtVersion": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "version"
+        ]
+      },
+      "ExtMappingRequest": {
+        "type": "object",
+        "properties": {
+          "tokenId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "variableCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "LOCATION",
+              "LINE_HEAD",
+              "LINE_TAIL"
+            ]
+          },
+          "targetCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "修改时必填；新增不传"
+          }
+        },
+        "required": [
+          "tokenId",
+          "variableCode",
+          "kind",
+          "targetCode",
+          "enabled"
+        ]
+      },
+      "ExtScanResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUCCEEDED",
+              "PARTIAL",
+              "NO_CHANGE",
+              "REJECTED"
+            ]
+          },
+          "eventId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "boxCode": {
+            "type": "string"
+          },
+          "bound": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "filtered": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "type": "integer"
+                },
+                "panelCode": {},
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": []
+            }
+          },
+          "rejected": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "alarm": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "ExtVariableResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "variableCode": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "APPLIED",
+                    "UNMAPPED"
+                  ]
+                },
+                "value": {
+                  "type": "integer"
+                },
+                "kind": {
+                  "type": "string"
+                }
+              },
+              "required": []
+            }
+          }
+        },
+        "required": []
+      },
+      "ExtTokenCreated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "token": {
+            "type": "string",
+            "description": "仅创建响应显示一次；不自动过期，停用后立即失效，绝不写入示例值"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": []
+      },
+      "ExtTokenMetadata": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "token_name": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "created_time": {
+            "type": "string"
+          },
+          "revoked_time": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": []
+      },
+      "ExtMapping": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "token_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "variable_code": {
+            "type": "string"
+          },
+          "mapping_kind": {
+            "type": "string"
+          },
+          "target_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "target_key": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "reported_value": {
+            "type": "integer",
+            "nullable": true
+          },
+          "received_time": {
+            "type": "string",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "ExtEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "token_id": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "event_type": {
+            "type": "string"
+          },
+          "event_status": {
+            "type": "string"
+          },
+          "input_json": {
+            "type": "string"
+          },
+          "result_json": {
+            "type": "string"
+          },
+          "received_time": {
+            "type": "string"
+          }
+        },
+        "required": []
+      },
+      "PlatformLongTokenScope": {
+        "type": "object",
+        "properties": {
+          "scopeCode": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scopeCode",
+          "name",
+          "description"
+        ]
+      },
+      "PlatformLongTokenMetadata": {
+        "type": "object",
+        "properties": {
+          "tokenId": {
+            "type": "string",
+            "description": "接入范围内唯一的凭据编号，按字符串传输"
+          },
+          "name": {
+            "type": "string"
+          },
+          "scopeCode": {
+            "type": "string"
+          },
+          "scopeName": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "createdTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revokedTime": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "apiCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "实际授权接口代码；空数组表示无接口权限。声明移除后不再放行"
+          },
+          "authorizationVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "授权配置版本；旧凭据未配置时为0，与凭据version独立"
+          }
+        },
+        "required": []
+      },
+      "PlatformLongTokenCreated": {
+        "type": "object",
+        "properties": {
+          "metadata": {
+            "$ref": "#/components/schemas/PlatformLongTokenMetadata"
+          },
+          "token": {
+            "type": "string",
+            "description": "仅本次创建响应包含明文，关闭后不可找回，不得写入浏览器持久存储"
+          }
+        },
+        "required": [
+          "metadata",
+          "token"
+        ]
+      },
+      "PlatformLongTokenCreateRequest": {
+        "type": "object",
+        "properties": {
+          "scopeCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "apiCodes": {
+            "type": "array",
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            },
+            "description": "显式授权；空数组无权限；未提供时仅兼容原设备上报两接口，不自动包含未来新增接口"
+          }
+        },
+        "required": [
+          "scopeCode",
+          "name"
+        ]
+      },
+      "PlatformLongTokenRevokeRequest": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "version"
+        ]
+      },
+      "PlatformLongTokenPage": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlatformLongTokenMetadata"
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "current": {
+            "type": "integer"
+          },
+          "pages": {
+            "type": "integer"
+          }
+        },
+        "required": []
+      },
+      "PlatformLongTokenApi": {
+        "type": "object",
+        "required": [
+          "apiCode",
+          "scopeCode",
+          "name",
+          "method",
+          "path"
+        ],
+        "properties": {
+          "apiCode": {
+            "type": "string"
+          },
+          "scopeCode": {
+            "type": "string",
+            "description": "接口所属分组；区别于凭据提供者scopeCode，不限制管理员显式跨分组授权"
+          },
+          "name": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "PlatformLongTokenAuthorizationRequest": {
+        "type": "object",
+        "required": [
+          "apiCodes",
+          "authorizationVersion",
+          "version"
+        ],
+        "properties": {
+          "apiCodes": {
+            "type": "array",
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            },
+            "description": "显式授权；空数组无权限；未提供时仅兼容原设备上报两接口，不自动包含未来新增接口"
+          },
+          "authorizationVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "凭据版本，防止与停用并发冲突"
+          }
+        }
+      },
+      "NariAgvHikReply": {
+        "type": "object",
+        "properties": {
+          "reqCode": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "description": "0受理；非0待核查，不推断未产生远端效果"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {}
+        }
+      },
+      "NariAgvStandardFlow": {
+        "type": "object",
+        "properties": {
+          "upperId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "DFPServer BillNumber；流程号来自CustomBusinessId并放URL flowCode。请求不传起终点，按远端模板执行；本轮不确认生产流程11。"
+          },
+          "priority": {
+            "type": "integer",
+            "example": 0,
+            "description": "整数。DFPServer int.Parse(PriorityLevel ?? \"0\")，不是固定枚举0；当前后端准备逻辑默认整数0。现场范围待厂商确认。"
+          }
+        },
+        "required": [
+          "upperId",
+          "priority"
+        ]
+      },
+      "NariAgvHikCancel": {
+        "type": "object",
+        "properties": {
+          "taskCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "DFPServer BillNumber；当前对应物流task_no。大小写为taskCode，不是taskcode；取消必须使用本次创建的同一任务号。"
+          },
+          "reqCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "DFPServer Guid.NewGuid().ToString().Replace(\"-\",\"\")，32位无短横线UUID；每次独立请求唯一，生产未知结果不自动重发。"
+          },
+          "reqTime": {
+            "type": "string",
+            "description": "DFPServer当前时间yyyy-MM-dd HH:mm:ss；当前后端按Asia/Shanghai生成。"
+          },
+          "clientCode": {
+            "type": "string",
+            "enum": [
+              "SyncService"
+            ],
+            "description": "DFPServer DTO默认SyncService；当前后端相同。"
+          },
+          "forceCancel": {
+            "type": "string",
+            "enum": [
+              "0"
+            ]
+          }
+        },
+        "required": [
+          "taskCode",
+          "reqCode",
+          "reqTime",
+          "clientCode",
+          "forceCancel"
+        ]
+      },
+      "NariAgvStandardCancel": {
+        "type": "object",
+        "properties": {
+          "upperIdList": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "description": "填本次BY_STATION创建的orderCode，旧代码使用同一BillNumber；不改为tid，也不据此认定FLOW可取消。"
+          },
+          "val": {
+            "type": "string",
+            "enum": [
+              "CANCEL_ORDER"
+            ]
+          }
+        },
+        "required": [
+          "upperIdList",
+          "val"
+        ]
+      },
+      "NariAgvStandardCreate": {
+        "type": "object",
+        "properties": {
+          "orderCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "DFPServer BillNumber；本系统task_no。取消时把同一值放upperIdList，不使用响应tid。"
+          },
+          "startCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "DFPServer StartLocation.LocationCode；不使用ExternalCode，不追加海康${05}后缀。例中1F010102仅沿用用户位置码模拟，须确认斯坦德站点实际存在。"
+          },
+          "endCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "DFPServer EndLocation.LocationCode；不追加海康${05}后缀。例中1F020101仅作模拟站点。"
+          },
+          "priority": {
+            "type": "integer",
+            "example": 0,
+            "description": "整数。DFPServer int.Parse(PriorityLevel ?? \"0\")，不是固定枚举0；当前后端准备逻辑默认整数0。现场范围待厂商确认。"
+          }
+        },
+        "required": [
+          "orderCode",
+          "startCode",
+          "endCode",
+          "priority"
+        ]
+      },
+      "NariAgvStandardReply": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "msgDetail": {
+            "type": "string"
+          },
+          "tid": {
+            "type": "string",
+            "description": "跟踪标识保存于业务回执，不推定等于调度订单号"
+          }
+        }
+      },
+      "NariAgvHikCreate": {
+        "type": "object",
+        "properties": {
+          "taskTyp": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "DFPServer TaskTyp固定S01；当前后端从nari.agv.hikvision.taskType读取，默认S01。字段大小写为taskTyp，不是tasktyp。空框上车任务类型仍单独配置。",
+            "example": "S01"
+          },
+          "positionCodePath": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "$ref": "#/components/schemas/NariAgvHikPosition"
+            },
+            "description": "严格起点、终点两项。DFPServer点位=ExternalCode＋可选装载位最后一段（带前导-）＋字面量${05}；每项type仍为00。当前后端按既有约定直传物流位置码，不自动查ExternalCode或拼后缀。Apifox这里填厂商最终完整点位字符串。"
+          },
+          "priority": {
+            "type": "string",
+            "description": "DFPServer来自WmsAgvLogistics.PriorityLevel，缺失用字符串0；非固定为0。当前后端普通准备逻辑固定字符串0，Apifox直调可按实际调度优先级填写。",
+            "minLength": 1,
+            "example": "0"
+          },
+          "ctnrTyp": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "DFPServer固定字符串1；当前后端containerType默认1。",
+            "example": "1"
+          },
+          "ctnrCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "DFPServer Container.ContainerCode；当前对应物流容器编码。"
+          },
+          "taskCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "DFPServer BillNumber；当前对应物流task_no。大小写为taskCode，不是taskcode；取消必须使用本次创建的同一任务号。"
+          },
+          "reqCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "DFPServer Guid.NewGuid().ToString().Replace(\"-\",\"\")，32位无短横线UUID；每次独立请求唯一，生产未知结果不自动重发。"
+          },
+          "reqTime": {
+            "type": "string",
+            "description": "DFPServer当前时间yyyy-MM-dd HH:mm:ss；当前后端按Asia/Shanghai生成。"
+          },
+          "clientCode": {
+            "type": "string",
+            "enum": [
+              "SyncService"
+            ],
+            "description": "DFPServer DTO默认SyncService；当前后端相同。"
+          }
+        },
+        "required": [
+          "taskTyp",
+          "positionCodePath",
+          "priority",
+          "ctnrTyp",
+          "ctnrCode",
+          "taskCode",
+          "reqCode",
+          "reqTime",
+          "clientCode"
+        ]
+      },
+      "NariAgvHikPosition": {
+        "type": "object",
+        "properties": {
+          "positionCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "海康最终完整点位码；本现场确认使用物流库位编码追加一次字面量${05}，由海康维护映射。新系统不读ExternalCode、不拼装载位末段。直调厂商需自行填最终字符串；type固定00。"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "00"
+            ],
+            "description": "DFPServer创建路径项固定00；${05}属于positionCode字符串后缀，非此字段。"
+          }
+        },
+        "required": [
+          "positionCode",
+          "type"
+        ]
       }
     },
     "securitySchemes": {
@@ -47295,6 +50071,12 @@
         "scheme": "bearer",
         "bearerFormat": "Signed Token",
         "description": "复用基座 /api/v1/auth/login、/refresh、/me；不新增业务登录，不假设为 JWT。"
+      },
+      "NariIntegrationToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "nari_ext_opaque",
+        "description": "256位随机长期Token，仅两个设备上报接口可用；库内只存SHA-256摘要，可停用"
       }
     }
   },

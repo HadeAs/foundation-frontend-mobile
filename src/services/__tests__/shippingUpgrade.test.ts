@@ -26,6 +26,97 @@ beforeEach(() => {
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
+// Public shipping responses contain deduplicated panel lines, not raw WMS lCode/source rows.
+function mixedSnapshot(type: 'BOX' | 'VEHICLE' = 'BOX', location = false): ShippingObject {
+  const data = snapshot(type, location);
+  data.boxes[0].materials = [
+    { lineType: 'PANEL', panelCode: '1'.padStart(38, '0'), materialCode: 'MAT-1', materialBatch: '000031', orderNo: 'SO-1', quantity: 1 },
+    { lineType: 'PANEL', panelCode: '2'.padStart(38, '0'), materialCode: 'MAT-1', materialBatch: '000032', orderNo: 'SO-2', materialName: '板件二', unit: '件', quantity: 1 },
+    { lineType: 'PANEL', panelCode: '3'.padStart(38, '0'), materialCode: 'MAT-2', orderNo: 'SO-3', quantity: 1 }
+  ];
+  data.boxes[0].materialQuantity = 3;
+  data.totalMaterialQuantity = data.boxes.reduce((sum, box) => sum + box.materialQuantity, 0);
+  return data;
+}
+
+describe('shipping mixed-box contract 2026-10-29.2', () => {
+  it.each(['BOX', 'VEHICLE', 'LOCATION'] as const)('accepts mixed materials, batches and orders through %s and submits only the whole-object identity', async scanType => {
+    const data = mixedSnapshot(scanType === 'BOX' ? 'BOX' : 'VEHICLE', scanType === 'LOCATION');
+    vi.spyOn(api, 'getObject').mockResolvedValue(data);
+    const submit = vi.spyOn(api, 'submit').mockImplementation(async input => receipt(input));
+    const flow = useShipping(); await flow.scan(data.scanCode);
+    expect(flow.canSubmit.value).toBe(true);
+    expect(flow.object.value?.boxes).toEqual(data.boxes);
+    expect(flow.object.value?.totalMaterialQuantity).toBe(scanType === 'BOX' ? 3 : 5);
+    expect(submit).not.toHaveBeenCalled();
+    await flow.submit();
+    expect(submit).toHaveBeenCalledOnce();
+    expect(submit).toHaveBeenCalledWith({ requestId: expect.any(String), scanType, scanCode: data.scanCode,
+      object: { containerType: data.object.containerType, containerCode: data.object.containerCode }, version: 7 });
+    expect(flow.object.value).toBeNull(); expect(flow.notice.value?.text).toContain('成品发货成功');
+  });
+  it.each(['BOX', 'VEHICLE'] as const)('renders every mixed panel independently in the %s list or WMS detail', async type => {
+    const data = mixedSnapshot(type);
+    vi.spyOn(api, 'getObject').mockResolvedValue(data);
+    const getMaterials = vi.spyOn(api, 'getMaterials').mockResolvedValue({ box: { containerType: 'BOX', containerCode: 'BOX-1', version: 99 },
+      sourceSystem: 'WMS', materials: data.boxes[0].materials, totalQuantity: 3 });
+    const submit = vi.spyOn(api, 'submit').mockImplementation(async input => receipt(input));
+    const wrapper = mount(ShippingPage, { global: { stubs: { 'scroll-view': { template: '<div><slot /></div>' } } } });
+    try {
+      hooks.show.forEach(fn => fn()); wrapper.findComponent(ScanInput).vm.$emit('scan', data.scanCode); await flushPromises();
+      if (type === 'VEHICLE') {
+        expect(wrapper.findAll('.box-row')).toHaveLength(3);
+        await wrapper.get('.box-row').trigger('tap'); await flushPromises();
+        expect(getMaterials).toHaveBeenCalledOnce(); expect(getMaterials).toHaveBeenCalledWith('BOX-1');
+        expect(wrapper.get('.detail-summary').text()).toBe('BOX-1 · 3 件');
+        expect(wrapper.get('.footer .primary').attributes('disabled')).toBeDefined();
+      }
+      const rows = wrapper.findAll('.material-row');
+      expect(rows).toHaveLength(3);
+      expect(rows.map(row => row.get('.material-code').text())).toEqual(data.boxes[0].materials.map(row => row.panelCode));
+      expect(rows.map(row => row.findAll('.material-sub').map(sub => sub.text()))).toEqual([
+        ['MAT-1', '订单 SO-1', '批次 000031'], ['MAT-1 · 板件二', '订单 SO-2', '批次 000032'], ['MAT-2', '订单 SO-3']
+      ]);
+      expect(rows.map(row => row.get('.material-quantity').text())).toEqual(['1', '1 件', '1']);
+      expect(submit).not.toHaveBeenCalled();
+      if (type === 'VEHICLE') await wrapper.get('.detail-footer button').trigger('tap');
+      await wrapper.get('.footer .primary').trigger('tap'); await flushPromises();
+      expect(submit.mock.lastCall?.[0].version).toBe(7);
+      expect(wrapper.find('.object-card').exists()).toBe(false);
+    } finally { wrapper.unmount(); }
+  });
+  it.each(['same-box duplicate', 'cross-box duplicate', 'box quantity', 'object quantity'])('still blocks invalid mixed content: %s', async field => {
+    const data = mixedSnapshot('VEHICLE');
+    if (field === 'same-box duplicate') data.boxes[0].materials[1].panelCode = data.boxes[0].materials[0].panelCode;
+    if (field === 'cross-box duplicate') data.boxes[1].materials[0].panelCode = data.boxes[0].materials[0].panelCode;
+    if (field === 'box quantity') { data.boxes[0].materialQuantity++; data.totalMaterialQuantity++; }
+    if (field === 'object quantity') data.totalMaterialQuantity++;
+    vi.spyOn(api, 'getObject').mockResolvedValue(data); const submit = vi.spyOn(api, 'submit');
+    const flow = useShipping(); await flow.scan(data.scanCode); await flow.submit();
+    expect(flow.object.value).toBeNull(); expect(flow.canSubmit.value).toBe(false);
+    expect(flow.notice.value?.error).toBe(true); expect(submit).not.toHaveBeenCalled();
+  });
+  it('preserves the original mixed-object request after an unknown WMS result and retries only on user action', async () => {
+    const data = mixedSnapshot(); vi.spyOn(api, 'getObject').mockResolvedValue(data);
+    const submit = vi.spyOn(api, 'submit').mockRejectedValueOnce(new ApiRequestError('WMS 清理结果未知', 503))
+      .mockImplementation(async input => receipt(input));
+    const flow = useShipping(); await flow.scan(data.scanCode); await flow.submit();
+    const original = { ...submit.mock.calls[0][0], object: { ...submit.mock.calls[0][0].object } };
+    expect(submit).toHaveBeenCalledOnce(); expect(flow.pending.value?.input).toEqual(original);
+    expect(flow.materials.value).toEqual(data.boxes[0].materials); expect(flow.notice.value?.error).toBe(true);
+    await flow.submit();
+    expect(submit.mock.calls[1][0]).toEqual(original); expect(flow.pending.value).toBeNull(); expect(flow.object.value).toBeNull();
+  });
+  it('shows backend source-conflict rejection without falling back to the previously scanned mixed box', async () => {
+    const data = mixedSnapshot();
+    const reason = '相同板件存在不同 lCode 来源冲突';
+    vi.spyOn(api, 'getObject').mockResolvedValueOnce(data).mockRejectedValueOnce(new ApiRequestError(reason, 409));
+    const submit = vi.spyOn(api, 'submit'); const flow = useShipping(); await flow.scan(data.scanCode); await flow.scan('BOX-CONFLICT');
+    expect(flow.object.value).toBeNull(); expect(flow.materials.value).toEqual([]);
+    expect(flow.notice.value).toEqual({ text: reason, error: true }); await flow.submit(); expect(submit).not.toHaveBeenCalled();
+  });
+});
+
 describe('shipping 2026-10-12.1', () => {
   it('accepts optional material display fields without rejecting complete WMS content', async () => {
     vi.spyOn(api, 'getObject').mockResolvedValue(snapshot()); const flow = useShipping(); await flow.scan('BOX-1');
