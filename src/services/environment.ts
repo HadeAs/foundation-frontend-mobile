@@ -1,4 +1,4 @@
-export const DEFAULT_API_BASE_URL = 'http://192.168.0.171:18080';
+export const DEFAULT_API_BASE_URL = 'http://172.25.2.25:8080';
 export const ENVIRONMENT_STORAGE_KEY = 'foundation.mobile.custom-environment';
 
 export interface EnvironmentSettings { enabled: boolean; address: string }

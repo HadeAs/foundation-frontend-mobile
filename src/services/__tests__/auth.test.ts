@@ -97,7 +97,7 @@ describe('auth service', () => {
 
     expect(result).toEqual({ ok: true });
     expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({
-      url: 'http://192.168.0.171:18080/api/v1/auth/login',
+      url: `${DEFAULT_API_BASE_URL}/api/v1/auth/login`,
       method: 'POST',
       data: { username: 'operator01', password: 'secret' }
     }));
@@ -110,7 +110,7 @@ describe('auth service', () => {
       department: '仓储部'
     });
     expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({
-      url: 'http://192.168.0.171:18080/api/v1/system/users/7',
+      url: `${DEFAULT_API_BASE_URL}/api/v1/system/users/7`,
       method: 'GET',
       header: { Authorization: 'Bearer signed-token' }
     }));
@@ -229,7 +229,7 @@ describe('auth service', () => {
     await logout();
 
     expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({
-      url: 'http://192.168.0.171:18080/api/v1/auth/logout',
+      url: `${DEFAULT_API_BASE_URL}/api/v1/auth/logout`,
       method: 'POST',
       header: { Authorization: 'Bearer signed-token' }
     }));

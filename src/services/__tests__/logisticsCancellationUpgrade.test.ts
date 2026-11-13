@@ -154,7 +154,7 @@ describe('logistics cancellation 2026-10-12.1', () => {
     expect(vi.mocked(api.query)).toHaveBeenCalledTimes(before); expect(flow.notice.value).toBeNull(); expect(result).toHaveBeenCalledOnce();
   });
   it('does not silently discard or overwrite malformed persisted real correlations and blocks new cancellation', async () => {
-    const key = 'foundation.cancellations.real.http://192.168.0.171:18080.admin';
+    const key = 'foundation.cancellations.real.http://172.25.2.25:8080.admin';
     const stored = [{ taskId: task().taskId, taskNo: task().taskNo, requestId: 'not-a-uuid', status: 'UNKNOWN', reason: '旧记录需核实' }]; storage.set(key, stored);
     vi.spyOn(api, 'query').mockResolvedValue(page()); const flow = makeFlow(); await flow.query(); flow.open(task());
     const cancel = vi.spyOn(api, 'cancel'); await flow.confirm(); expect(cancel).not.toHaveBeenCalled(); expect(storage.get(key)).toBe(stored);
@@ -169,7 +169,7 @@ describe('logistics cancellation 2026-10-12.1', () => {
     expect(flow.isPending(task().taskId)).toBe(true); flow.open(task()); await flow.confirm(); expect(api.cancel).toHaveBeenCalledOnce();
   });
   it.each([null, 'corrupted'])('does not treat a malformed non-array real record as empty: %s', async stored => {
-    const key = 'foundation.cancellations.real.http://192.168.0.171:18080.admin'; storage.set(key, stored);
+    const key = 'foundation.cancellations.real.http://172.25.2.25:8080.admin'; storage.set(key, stored);
     const flow = await ready(); const cancel = vi.spyOn(api, 'cancel'); await flow.confirm();
     expect(flow.storageError.value).toBe(true); expect(cancel).not.toHaveBeenCalled(); expect(storage.get(key)).toBe(stored);
   });

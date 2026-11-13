@@ -152,7 +152,7 @@ async function handleLogin() {
     <view v-if="addressDialog" class="address-mask">
       <view class="address-dialog" role="dialog" aria-modal="true" aria-label="自定义环境地址">
         <view class="address-title">自定义环境地址</view>
-        <text class="address-hint">输入 IP 和端口，例如 192.168.0.171:18080；省略协议时使用 HTTP。</text>
+        <text class="address-hint">输入 IP 和端口，例如 172.25.2.25:8080；省略协议时使用 HTTP。</text>
         <input v-model="addressDraft" class="login-input address-input" aria-label="服务器 IP 地址"
           placeholder="IP:端口 或 http(s)://IP:端口" :maxlength="128" :focus="addressDialog" @confirm="saveAddress" />
         <text v-if="addressError" class="address-error" role="alert">{{ addressError }}</text>
