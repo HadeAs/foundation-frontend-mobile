@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { onHide, onShow } from '@dcloudio/uni-app';
 import manifest from '../../manifest.json';
-import { getAccessToken, getCurrentUser, logout } from '../../services/auth';
+import { getAccessToken, getCurrentApiBaseUrl, getCurrentUser, logout } from '../../services/auth';
 import { stopAppUpdatePolling } from '../../services/appUpdate';
+import OperationNotice from '../../components/OperationNotice.vue';
+import { mobileMenusApi, type MobileMenu, type MobileMenuGroup } from '../../services/mobileMenus';
 
 const activeTab = ref<'menu' | 'profile'>('menu');
 const appVersion = ref(manifest.versionName);
@@ -13,22 +15,42 @@ const notice = ref('');
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 const avatarInitial = computed(() => Array.from(user.value?.name.trim() || '')[0]?.toUpperCase() || '用');
 const title = computed(() => activeTab.value === 'menu' ? '首页' : '个人信息');
-const groups = [
-  { name: '常规作业', menus: [
-    ['scan-line', '板件扫码绑箱'], ['list-plus', '板件快捷绑箱'], ['package-minus', '板件解绑'],
-    ['forklift', '装车'], ['unplug', '卸车'], ['truck', '料箱绑车'], ['unplug', '料箱解绑'], ['map-pin-check', '位置绑定'], ['clipboard-check', '缴库申请']
-  ] },
-  { name: '库房作业', menus: [
-    ['package-check', '物料接收'], ['clipboard-list', '待接收物料清单'], ['package-open', '成品发货']
-  ] },
-  { name: '物流作业', menus: [
-    ['route', '发起物流任务'], ['circle-x', '取消物流任务'], ['truck', '呼叫空载具'],
-    ['shield-check', '交通管制'], ['warehouse', '缴库发起'], ['package-open', '手动叫料']
-  ] }
-];
+const groups = ref<MobileMenuGroup[]>([]);
+const loadingMenus = ref(false);
+const menuError = ref('');
+let active = false;
+let menuGeneration = 0;
+let menuToken = '';
+let menuBaseUrl = '';
+function resetMenus() {
+  menuGeneration++;
+  groups.value = []; loadingMenus.value = false; menuError.value = ''; notice.value = '';
+  clearTimeout(noticeTimer);
+}
+async function loadMenus() {
+  if (!active || leaving.value) return;
+  resetMenus();
+  menuToken = getAccessToken(); menuBaseUrl = getCurrentApiBaseUrl();
+  if (!menuToken) { uni.reLaunch({ url: '/pages/login/index' }); return; }
+  const generation = menuGeneration;
+  const current = () => active && generation === menuGeneration && menuToken === getAccessToken() && menuBaseUrl === getCurrentApiBaseUrl();
+  loadingMenus.value = true;
+  try {
+    const result = await mobileMenusApi.getGroups();
+    if (current()) groups.value = result;
+  } catch (error) {
+    if (current()) {
+      menuError.value = error instanceof Error ? error.message : '菜单加载失败，请重试';
+      notice.value = menuError.value;
+      noticeTimer = setTimeout(() => { notice.value = ''; }, 6500);
+    }
+  } finally { if (current()) loadingMenus.value = false; }
+}
 
 onShow(() => {
-  if (!getAccessToken()) { uni.reLaunch({ url: '/pages/login/index' }); return; }
+  active = true;
+  void loadMenus();
+  if (!getAccessToken()) return;
   user.value = getCurrentUser();
   if (typeof plus !== 'undefined') {
     plus.runtime.getProperty(plus.runtime.appid || '', (info) => {
@@ -36,28 +58,12 @@ onShow(() => {
     });
   }
 });
-function openMenu(name: string) {
-  if (name === '料箱解绑') { uni.navigateTo({ url: '/pages/box-vehicle-unbinding/index' }); return; }
-  if (name === '料箱绑车') { uni.navigateTo({ url: '/pages/box-vehicle-binding/index' }); return; }
-  if (name === '手动叫料') { uni.navigateTo({ url: '/pages/material-call/index' }); return; }
-  if (name === '物料接收') { uni.navigateTo({ url: '/pages/receiving/index' }); return; }
-  if (name === '缴库发起') { uni.navigateTo({ url: '/pages/warehouse-logistics/index' }); return; }
-  if (name === '交通管制') { uni.navigateTo({ url: '/pages/traffic-control/index' }); return; }
-  if (name === '呼叫空载具') { uni.navigateTo({ url: '/pages/empty-vehicle/index' }); return; }
-  if (name === '取消物流任务') { uni.navigateTo({ url: '/pages/logistics-cancel/index' }); return; }
-  if (name === '发起物流任务') { uni.navigateTo({ url: '/pages/logistics-create/index' }); return; }
-  if (name === '成品发货') { uni.navigateTo({ url: '/pages/shipping/index' }); return; }
-  if (name === '待接收物料清单') { uni.navigateTo({ url: '/pages/pending-receiving/index' }); return; }
-  if (name === '板件扫码绑箱') { uni.navigateTo({ url: '/pages/panel-packing/index' }); return; }
-  if (name === '板件快捷绑箱') { uni.navigateTo({ url: '/pages/order-packing/index' }); return; }
-  if (name === '板件解绑') { uni.navigateTo({ url: '/pages/panel-unbinding/index' }); return; }
-  if (name === '装车') { uni.navigateTo({ url: '/pages/vehicle-loading/index' }); return; }
-  if (name === '卸车') { uni.navigateTo({ url: '/pages/vehicle-unloading/index' }); return; }
-  if (name === '位置绑定') { uni.navigateTo({ url: '/pages/location-binding/index' }); return; }
-  if (name === '缴库申请') { uni.navigateTo({ url: '/pages/warehouse-application/index' }); return; }
-  clearTimeout(noticeTimer);
-  notice.value = `${name}尚未开发，将按菜单顺序逐项开放`;
-  noticeTimer = setTimeout(() => { notice.value = ''; }, 3500);
+function openMenu(menu: MobileMenu) {
+  if (!active || loadingMenus.value || leaving.value) return;
+  if (menuToken !== getAccessToken() || menuBaseUrl !== getCurrentApiBaseUrl()) { void loadMenus(); return; }
+  if (groups.value.some(group => group.menus.some(item => item.id === menu.id && item.path === menu.path))) {
+    uni.navigateTo({ url: menu.path });
+  }
 }
 function switchTab(tab: 'menu' | 'profile') {
   activeTab.value = tab;
@@ -66,25 +72,32 @@ function switchTab(tab: 'menu' | 'profile') {
 async function handleLogout() {
   if (leaving.value) return;
   leaving.value = true;
+  resetMenus();
   stopAppUpdatePolling();
   await logout();
   uni.reLaunch({ url: '/pages/login/index' });
 }
-onUnmounted(() => clearTimeout(noticeTimer));
+onHide(() => { active = false; resetMenus(); });
+onUnmounted(() => { active = false; resetMenus(); });
 </script>
 
 <template>
   <view class="home-page">
     <view class="home-nav"><text>{{ title }}</text></view>
-    <view class="notice-anchor"><view v-if="notice" class="notice" role="status" aria-live="polite">{{ notice }}</view></view>
+    <OperationNotice :text="notice" error />
     <scroll-view class="home-body" scroll-y>
       <view v-if="activeTab === 'menu'" class="menu-content">
-        <view v-for="group in groups" :key="group.name" class="menu-group">
+        <view v-if="loadingMenus" class="menu-state" role="status">正在加载菜单…</view>
+        <view v-else-if="menuError" class="menu-state">
+          <text>菜单加载失败</text><button class="menu-retry" @tap="loadMenus">重新加载</button>
+        </view>
+        <view v-else-if="!groups.length" class="menu-state">暂无可用菜单，请联系管理员分配 PDA 菜单权限</view>
+        <view v-for="group in groups" :key="group.id" class="menu-group">
           <view class="menu-heading">{{ group.name }}</view>
           <view class="menu-grid">
-            <button v-for="[icon, name] in group.menus" :key="name" class="menu-entry" @tap="openMenu(name)">
-              <image :src="`/static/icons/menu/${icon}.svg`" class="menu-icon" mode="aspectFit" aria-hidden="true" />
-              <text>{{ name }}</text>
+            <button v-for="menu in group.menus" :key="menu.id" class="menu-entry" @tap="openMenu(menu)">
+              <image :src="`/static/icons/menu/${menu.icon}.svg`" class="menu-icon" mode="aspectFit" aria-hidden="true" />
+              <text>{{ menu.name }}</text>
             </button>
           </view>
         </view>
@@ -149,6 +162,6 @@ button:focus-visible { outline: 2px solid #0d9496; outline-offset: -3px; }
 .info-row text:first-child { color: #71878a; flex-shrink: 0; }
 .info-row text:last-child { min-width: 0; font-weight: 500; text-align: right; overflow-wrap: anywhere; }
 .logout-button { margin-top: 12px; min-height: 40px; border: 1px solid #b8d6d6; border-radius: 7px; background: white; color: #355b60; font-size: 14px; font-weight: 500; display: flex; align-items: center; justify-content: center; }
-.notice-anchor { height: 0; position: relative; z-index: 10; }
-.notice { position: absolute; top: 6px; left: 10px; right: 10px; padding: 10px 12px; border: 1px solid #0d949650; border-radius: 6px; background: rgba(232, 247, 247, 0.96); box-shadow: 0 4px 12px #20454a22; color: #086c6e; font-size: 13px; }
+.menu-state { padding: 28px 12px; text-align: center; color: #71878a; line-height: 1.6; }
+.menu-retry { margin: 12px auto 0; width: 120px; padding: 10px; background: white; color: #087779; border: 1px solid #b8d6d6; border-radius: 7px; font-size: 14px; }
 </style>

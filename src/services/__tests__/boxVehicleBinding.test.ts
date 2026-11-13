@@ -5,6 +5,7 @@ import { boxVehicleBindingApi as api, type DirectVehicleBindings, type DirectBox
 import { ApiRequestError } from '../nariRequest';
 import BindingPage from '../../pages/box-vehicle-binding/index.vue';
 import HomePage from '../../pages/home/index.vue';
+import { mobileMenusApi } from '../mobileMenus';
 import ScanInput from '../../components/ScanInput.vue';
 import pages from '../../pages.json';
 import { seedTestSession } from './helpers/authSession';
@@ -146,9 +147,13 @@ describe('box vehicle direct binding', () => {
     const bind = vi.spyOn(api, 'bind'); await flow.submit(); expect(bind).not.toHaveBeenCalled();
   });
   it('opens the new menu and renders locked dialogs, readonly rows, deletes and fixed footer', async () => {
+    vi.spyOn(mobileMenusApi, 'getGroups').mockResolvedValue([{ id: 1, name: '常规作业', menus: [
+      { id: 2, name: '料箱绑车', path: '/pages/box-vehicle-binding/index', icon: 'truck' }
+    ] }]);
     const home = mount(HomePage, { global: { stubs: { 'scroll-view': { template: '<div><slot /></div>' } } } });
+    hooks.show.forEach(show => show()); await vi.dynamicImportSettled();
     await home.findAll('.menu-entry').find((button) => button.text() === '料箱绑车')!.trigger('tap');
-    expect(uni.navigateTo).toHaveBeenCalledWith({ url: '/pages/box-vehicle-binding/index' }); expect(home.findAll('.menu-entry')).toHaveLength(18);
+    expect(uni.navigateTo).toHaveBeenCalledWith({ url: '/pages/box-vehicle-binding/index' }); expect(home.findAll('.menu-entry')).toHaveLength(1);
     home.unmount(); hooks.show.length = 0;
     expect(pages.pages.find((page) => page.path === 'pages/box-vehicle-binding/index')?.style.disableScroll).toBe(true);
     vi.spyOn(api, 'getVehicle').mockResolvedValue(vehicle(true)); vi.spyOn(api, 'getBox').mockResolvedValue(candidate('BOX-OTHER', true));

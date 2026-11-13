@@ -1,9 +1,9 @@
 {
-    "name" : "工业移动端",
+    "name" : "南瑞物流",
     "appid" : "__UNI__EF475D9",
-    "description" : "简易版工业系统移动端",
-    "versionName" : "1.0.4",
-    "versionCode" : 104,
+    "description" : "南瑞生产中心物流管理系统",
+    "versionName" : "1.0.5",
+    "versionCode" : 105,
     "vueVersion" : "3",
     "uniStatistics" : {
         "enable" : false
@@ -13,6 +13,15 @@
         "nvueCompiler" : "uni-app",
         "compilerVersion" : 3,
         "distribute" : {
+            "icons" : {
+                "android" : {
+                    "mdpi" : "static/app-icons/icon-48.png",
+                    "hdpi" : "src/static/app-icons/icon-72.png",
+                    "xhdpi" : "src/static/app-icons/icon-96.png",
+                    "xxhdpi" : "src/static/app-icons/icon-144.png",
+                    "xxxhdpi" : "src/static/app-icons/icon-192.png"
+                }
+            },
             "android" : {
                 "permissions" : [ "<uses-permission android:name=\"android.permission.CAMERA\"/>" ]
             },

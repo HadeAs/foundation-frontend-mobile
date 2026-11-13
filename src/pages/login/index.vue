@@ -107,8 +107,8 @@ async function handleLogin() {
   <view class="login-page">
     <view class="login-notice"><OperationNotice :text="notice" error /></view>
     <view class="login-panel">
-      <view class="login-logo">LOGO</view>
-      <view class="login-title">工业移动端</view>
+      <image class="login-logo" src="/static/login-logo.png" mode="aspectFit" aria-label="应用标志" />
+      <view class="login-title">南瑞物流管理系统</view>
 
       <input v-model="account" class="login-input" placeholder="账号" />
       <input
@@ -152,7 +152,7 @@ async function handleLogin() {
     <view v-if="addressDialog" class="address-mask">
       <view class="address-dialog" role="dialog" aria-modal="true" aria-label="自定义环境地址">
         <view class="address-title">自定义环境地址</view>
-        <text class="address-hint">输入 IP 和端口，例如 172.25.2.25:8080；省略协议时使用 HTTP。</text>
+        <text class="address-hint">输入 IP 和端口，例如 172.25.2.25:8088；省略协议时使用 HTTP。</text>
         <input v-model="addressDraft" class="login-input address-input" aria-label="服务器 IP 地址"
           placeholder="IP:端口 或 http(s)://IP:端口" :maxlength="128" :focus="addressDialog" @confirm="saveAddress" />
         <text v-if="addressError" class="address-error" role="alert">{{ addressError }}</text>
@@ -186,16 +186,11 @@ async function handleLogin() {
 }
 
 .login-logo {
-  width: 128rpx;
+  width: 256rpx;
   height: 128rpx;
-  border: 2rpx dashed #9fb0c4;
-  border-radius: 16rpx;
+  max-width: 100%;
   margin: 0 auto 24rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #64748b;
-  font-size: 24rpx;
+  display: block;
 }
 
 .login-title {

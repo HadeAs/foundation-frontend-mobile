@@ -6,6 +6,7 @@ import { vehicleLoadingApi } from '../vehicleLoading';
 import { ApiRequestError } from '../nariRequest';
 import UnbindingPage from '../../pages/box-vehicle-unbinding/index.vue';
 import HomePage from '../../pages/home/index.vue';
+import { mobileMenusApi } from '../mobileMenus';
 import ScanInput from '../../components/ScanInput.vue';
 import pages from '../../pages.json';
 import { seedTestSession } from './helpers/authSession';
@@ -152,9 +153,13 @@ describe('box vehicle direct unbinding', () => {
   it('opens the menu and renders checkboxes, count, confirmation, disabled state and clear without extra controls', async () => {
     const stubs = { 'scroll-view': { template: '<div><slot /></div>' }, checkbox: { template: '<span class="checkbox-stub" />' },
       'checkbox-group': { template: '<div class="checkbox-group-stub"><slot /></div>' } };
+    vi.spyOn(mobileMenusApi, 'getGroups').mockResolvedValue([{ id: 1, name: '常规作业', menus: [
+      { id: 2, name: '料箱解绑', path: '/pages/box-vehicle-unbinding/index', icon: 'unplug' }
+    ] }]);
     const home = mount(HomePage, { global: { stubs } });
+    hooks.show.forEach(show => show()); await vi.dynamicImportSettled();
     await home.findAll('.menu-entry').find((button) => button.text() === '料箱解绑')!.trigger('tap');
-    expect(uni.navigateTo).toHaveBeenCalledWith({ url: '/pages/box-vehicle-unbinding/index' }); expect(home.findAll('.menu-entry')).toHaveLength(18);
+    expect(uni.navigateTo).toHaveBeenCalledWith({ url: '/pages/box-vehicle-unbinding/index' }); expect(home.findAll('.menu-entry')).toHaveLength(1);
     home.unmount(); hooks.show.length = 0;
     expect(pages.pages.find((page) => page.path === 'pages/box-vehicle-unbinding/index')?.style.disableScroll).toBe(true);
     vi.spyOn(api, 'getVehicle').mockResolvedValue(vehicle());

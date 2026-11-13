@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import MaterialCallPage from '../../pages/material-call/index.vue';
 import HomePage from '../../pages/home/index.vue';
+import { mobileMenusApi } from '../mobileMenus';
 import pages from '../../pages.json';
 import ScanInput from '../../components/ScanInput.vue';
 import { useMaterialCall } from '../../composables/useMaterialCall';
@@ -527,11 +528,15 @@ describe('manual material call Mock workflow', () => {
       expect(submit).toHaveBeenCalledTimes(2); expect(submit.mock.calls.every(([value]) => value.requestId === id)).toBe(true);
     } finally { wrapper.unmount(); }
   });
-  it('adds an open homepage menu and route and keeps the confirmation button disabled until a box is checked', async () => {
+  it('opens an authorized homepage menu and keeps the confirmation button disabled until a box is checked', async () => {
+    vi.spyOn(mobileMenusApi, 'getGroups').mockResolvedValue([{ id: 1, name: '物流作业', menus: [
+      { id: 2, name: '手动叫料', path: '/pages/material-call/index', icon: 'package-open' }
+    ] }]);
     const home = mount(HomePage, { global: { stubs: { 'scroll-view': { template: '<div><slot /></div>' } } } });
+    hooks.show.forEach(show => show()); await vi.advanceTimersByTimeAsync(0);
     const menu = home.findAll('button').find((button) => button.text() === '手动叫料')!;
     await menu.trigger('tap'); expect(uni.navigateTo).toHaveBeenCalledWith({ url: '/pages/material-call/index' });
-    expect(home.findAll('.menu-entry')).toHaveLength(18); home.unmount(); hooks.show.length = 0;
+    expect(home.findAll('.menu-entry')).toHaveLength(1); home.unmount(); hooks.show.length = 0;
     expect(pages.pages.find((page) => page.path === 'pages/material-call/index')?.style.disableScroll).toBe(true);
     const wrapper = mount(MaterialCallPage, { global: { stubs: { 'scroll-view': { template: '<div><slot /></div>' },
       'checkbox-group': { template: '<div data-checkbox-group><slot /></div>' }, checkbox: true } } });

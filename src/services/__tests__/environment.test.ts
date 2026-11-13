@@ -5,7 +5,7 @@ afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe('environment settings', () => {
   it.each([
-    [' 172.25.2.25:8080/ ', DEFAULT_API_BASE_URL],
+    [' 172.25.2.25:8088/ ', DEFAULT_API_BASE_URL],
     ['192.168.0.172', 'http://192.168.0.172'],
     ['HTTPS://192.168.0.172:18443/', 'https://192.168.0.172:18443'],
     ['http://192.168.0.172:80', 'http://192.168.0.172'],
