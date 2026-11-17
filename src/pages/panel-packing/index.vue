@@ -10,7 +10,6 @@ import { usePanelPacking } from '../../composables/usePanelPacking';
 const { box, review, pending, mixed, busy, disabled, notice, canJoint, canSubmit, notify, clear, pause, resume,
   scan, keepBindings, unbindAll, getJoint, remove, submit, cancelMixed, continueMixed } = usePanelPacking();
 const input = ref('');
-const contentStateName = { UNKNOWN: '未确认', EMPTY: '已确认空载', LOADED: '已确认非空' };
 let active = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -64,7 +63,6 @@ onUnmounted(() => {
       <view v-if="box" class="card box-card">
         <view class="card-heading"><text>箱信息</text><text class="tag">已识别</text></view>
         <view class="info"><text>箱子编号</text><text>{{ box.box.containerCode }}</text></view>
-        <view class="info"><text>实际内容</text><text>{{ contentStateName[box.contentState] }}</text></view>
         <view class="counts"><text>已绑定 {{ box.totalQuantity }} 件</text><text>本次待绑定 {{ pending.length }} 件</text></view>
       </view>
       <view v-if="busy" class="processing" role="status">处理中…</view>

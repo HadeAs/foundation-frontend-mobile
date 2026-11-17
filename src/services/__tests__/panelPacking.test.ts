@@ -19,11 +19,11 @@ function receipt(version = 3) { return (options: UniNamespace.RequestOptions) =>
 beforeEach(() => { request.mockReset(); vi.stubGlobal('uni', { request }); vi.unstubAllEnvs(); });
 
 describe('板件扫码绑箱', () => {
-  it('uses real URLs, token and the H5 proxy', async () => {
+  it('uses the custom server URL and token directly on H5', async () => {
     vi.stubEnv('UNI_PLATFORM', 'h5');
     respond(box());
     await panelPackingApi.getBox('BOX-1');
-    expect(request).toHaveBeenCalledWith(expect.objectContaining({ url: '/api/v1/business/nari-logistics/boxes/bindings', method: 'GET', data: { boxCode: 'BOX-1' }, header: expect.objectContaining({ Authorization: 'Bearer test-token' }) }));
+    expect(request).toHaveBeenCalledWith(expect.objectContaining({ url: 'http://test.local/api/v1/business/nari-logistics/boxes/bindings', method: 'GET', data: { boxCode: 'BOX-1' }, header: expect.objectContaining({ Authorization: 'Bearer test-token' }) }));
   });
   it('scans box first, accepts mixed orders, blocks duplicates and submits only pending', async () => {
     const flow = usePanelPacking();

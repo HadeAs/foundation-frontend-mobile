@@ -459,7 +459,9 @@ function logisticsOptions(code: unknown): LogisticsOptions {
   }).sort((a, b) => a.location.floorCode.localeCompare(b.location.floorCode) || a.location.areaCode.localeCompare(b.location.areaCode) || a.location.locationCode.localeCompare(b.location.locationCode));
   const existing = [...logisticsHistory, ...emptyCallHistory, ...warehouseLogisticsHistory].some((entry) => !cancelledTasks.has(entry.result.task.taskId) && entry.result.task.container.containerType === resolved.object.containerType && entry.result.task.container.containerCode === resolved.object.containerCode);
   const reason = existing ? '该容器已存在未结束物流任务' : origin.locationCode === 'KW-LOG-BLOCKED' ? '当前对象状态不允许创建物流任务' : undefined;
-  return { object: resolved.object, origin, vendor, taskType, destinations, recommendedDestination: destinations.find((item) => item.recommended)?.location, eligibility: { allowed: !reason, reason } };
+  const returnReason = reason || (resolved.object.containerType !== 'VEHICLE' ? '当前容器不支持回库' : undefined);
+  return { object: resolved.object, origin, vendor, taskType, destinations, recommendedDestination: destinations.find((item) => item.recommended)?.location,
+    eligibility: { allowed: !reason, reason }, returnLineSideEligibility: returnReason ? { allowed: false, reason: returnReason } : { allowed: true, reason: null } };
 }
 function warehouseLogisticsOptions(raw: unknown): WarehouseLogisticsOptions {
   if (typeof raw !== 'string' || !raw.trim() || raw.length > 128) throw new Error('扫描编码无效');

@@ -3,7 +3,7 @@ import type { LogisticsOptions, LocationCandidate, TaskCreationResponse } from '
 import type { BoxContents, BoxMaterials } from './warehouseApplication';
 import type { ContainerRef } from './locationBinding';
 
-export interface WarehouseLogisticsOptions extends LogisticsOptions {
+export interface WarehouseLogisticsOptions extends Omit<LogisticsOptions, 'returnLineSideEligibility'> {
   recommendedDestination: LocationCandidate;
   boxes: BoxContents[];
   totalMaterialQuantity: number;

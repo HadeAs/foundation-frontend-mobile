@@ -9,7 +9,7 @@ import { useLogisticsCreation } from '../../composables/useLogisticsCreation';
 import { locationPath } from '../../services/logistics';
 import LocationCascade from '../../components/LocationCascade.vue';
 
-const { options, destination, candidates, choosing, busy, disabled, canSubmit, canReturn, notice, notify, clear, pause, resume, scan, openChoice, closeChoice, choose, submit, returnToWarehouse } = useLogisticsCreation();
+const { options, destination, candidates, choosing, busy, disabled, canSubmit, canReturn, returnUnavailableReason, notice, notify, clear, pause, resume, scan, openChoice, closeChoice, choose, submit, returnToWarehouse } = useLogisticsCreation();
 const contentStateNames = { UNKNOWN: '未确认', EMPTY: '已确认空载', LOADED: '已确认非空' };
 const input = ref('');
 let active = false;
@@ -62,6 +62,7 @@ onUnmounted(() => {
           <view class="info"><text>载具/容器</text><text>{{ options.object.containerCode }}</text></view>
           <view class="info"><text>起始位置</text><text>{{ options.origin.locationCode }} · {{ options.origin.locationName }}</text></view>
           <view class="info"><text>实际内容</text><text>{{ contentStateNames[options.object.contentState || 'UNKNOWN'] }}</text></view>
+          <view v-if="returnUnavailableReason" class="return-reason">回库不可用：{{ returnUnavailableReason }}</view>
         </view>
         <view class="card">
           <view class="card-heading"><text>目标位置</text><text>{{ candidates.length }} 个可选</text></view>
@@ -78,6 +79,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped lang="scss">
+.return-reason { padding: 0 16rpx 12rpx; color: #748d93; font-size: 24rpx; line-height: 1.5; overflow-wrap: anywhere; }
 .application-page { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; padding-top: var(--status-bar-height, 0px); color: #254b54; }
 .app-nav { flex-shrink: 0; height: 88rpx; grid-template-columns: 104rpx 1fr 104rpx; padding: 0 16rpx; gap: 0; }
 .app-nav__title { font-size: 32rpx; }

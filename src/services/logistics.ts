@@ -11,6 +11,7 @@ export interface LogisticsOptions {
   destinations: { location: LocationCandidate; recommended: boolean }[];
   recommendedDestination?: LocationCandidate;
   eligibility: Eligibility;
+  returnLineSideEligibility: { allowed: true; reason: null } | { allowed: false; reason: string };
 }
 export interface CreateLogisticsRequest {
   requestId: string;

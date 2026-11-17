@@ -13,7 +13,7 @@ const snapshot = (type: 'BOX' | 'VEHICLE' = 'VEHICLE'): LogisticsOptions => ({
   object: { containerType: type, containerCode: type === 'BOX' ? 'BOX-1' : 'CAR-1', version: 7 },
   origin: { locationCode: 'KW-1', locationName: '起始接驳位' }, vendor: type === 'BOX' ? 'HIKVISION' : 'STANDARD', taskType: 'GENERAL',
   destinations: [1, 2].map(index => ({ recommended: index === 1, location: { locationCode: 'DEST-' + index, locationName: '目标' + index,
-    floorCode: 'F' + index, floorName: index === 1 ? '一层' : '二层', areaCode: 'AREA-1', areaName: '库房区' } })), eligibility: { allowed: true }
+    floorCode: 'F' + index, floorName: index === 1 ? '一层' : '二层', areaCode: 'AREA-1', areaName: '库房区' } })), eligibility: { allowed: true }, returnLineSideEligibility: { allowed: true, reason: null }
 });
 const receipt = (input: CreateLogisticsRequest | ReturnLogisticsRequest): TaskCreationResponse => ({ requestId: input.requestId,
   task: { taskId: '9007199254741001', taskNo: 'WL-1', version: 3, vendor: input.vendor, taskType: input.taskType,
@@ -24,6 +24,45 @@ beforeEach(() => { hooks.show.length = hooks.hide.length = hooks.load.length = 0
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('logistics creation 2026-10-12.1', () => {
+  it.each([undefined, null, {}, { allowed: 'true', reason: null }, { allowed: true }, { allowed: true, reason: '不可用' },
+    { allowed: true, reason: 123 }, { allowed: false }, { allowed: false, reason: null }, { allowed: false, reason: ' ' },
+    { allowed: false, reason: '长'.repeat(501) }])('disables return for missing or malformed eligibility %j without blocking specified tasks', async eligibility => {
+    const data = snapshot(); Object.assign(data, { returnLineSideEligibility: eligibility });
+    vi.spyOn(api, 'getOptions').mockResolvedValue(data); const returning = vi.spyOn(api, 'returnToWarehouse');
+    const flow = useLogisticsCreation(); await flow.scan('KW-1');
+    expect(flow.canReturn.value).toBe(false); expect(flow.returnUnavailableReason.value).not.toBe('');
+    expect(flow.canSubmit.value).toBe(true); await flow.returnToWarehouse(); expect(returning).not.toHaveBeenCalled();
+  });
+  it('shows the disabled reason and restores return eligibility only after a fresh scan', async () => {
+    const data = snapshot(); data.returnLineSideEligibility = { allowed: false, reason: '线边库无空闲兼容库位' };
+    vi.spyOn(api, 'getOptions').mockResolvedValueOnce(data).mockResolvedValueOnce(snapshot());
+    const returning = vi.spyOn(api, 'returnToWarehouse');
+    const wrapper = mount(LogisticsPage, { global: { stubs: { picker: true } } });
+    try {
+      hooks.show.forEach(fn => fn()); wrapper.getComponent(ScanInput).vm.$emit('scan', 'KW-1'); await flushPromises();
+      expect(wrapper.get('.return-button').attributes('disabled')).toBeDefined();
+      expect(wrapper.get('.return-reason').text()).toBe('回库不可用：线边库无空闲兼容库位');
+      expect(wrapper.get('.footer .primary').attributes('disabled')).toBeUndefined();
+      await wrapper.get('.return-button').trigger('tap'); expect(returning).not.toHaveBeenCalled();
+      wrapper.getComponent(ScanInput).vm.$emit('scan', 'KW-1'); await flushPromises();
+      expect(wrapper.get('.return-button').attributes('disabled')).toBeUndefined(); expect(wrapper.find('.return-reason').exists()).toBe(false);
+    } finally { wrapper.unmount(); }
+  });
+  it('uses backend return eligibility independently of object type, manual targets and general eligibility', async () => {
+    const data = snapshot('BOX'); data.eligibility = { allowed: false, reason: '不支持手选目标' }; data.destinations = [];
+    vi.spyOn(api, 'getOptions').mockResolvedValue(data);
+    const returning = vi.spyOn(api, 'returnToWarehouse').mockImplementation(async input => receipt(input));
+    const flow = useLogisticsCreation(); await flow.scan('KW-1');
+    expect(flow.canSubmit.value).toBe(false); expect(flow.canReturn.value).toBe(true); await flow.returnToWarehouse();
+    expect(returning).toHaveBeenCalledOnce(); expect(returning.mock.lastCall?.[0]).not.toHaveProperty('returnLineSideEligibility');
+    expect(returning.mock.lastCall?.[0]).not.toHaveProperty('destinationLocationCode'); expect(flow.options.value).toBeNull();
+  });
+  it('preserves the scan and shows a fresh backend rejection if occupancy changes before return submission', async () => {
+    vi.spyOn(api, 'getOptions').mockResolvedValue(snapshot());
+    vi.spyOn(api, 'returnToWarehouse').mockRejectedValue(new ApiRequestError('回库目标已被占用，请重新扫描', 409));
+    const flow = useLogisticsCreation(); await flow.scan('KW-1'); await flow.returnToWarehouse();
+    expect(flow.options.value).not.toBeNull(); expect(flow.notice.value).toEqual({ text: '回库目标已被占用，请重新扫描', error: true });
+  });
   it('keeps the backend-resolved box and brand when scanning a location, without guessing the moving object', async () => {
     vi.spyOn(api, 'getOptions').mockResolvedValue(snapshot('BOX')); const create = vi.spyOn(api, 'create').mockImplementation(async input => receipt(input));
     const flow = useLogisticsCreation(); await flow.scan(' KW-1 '); await flow.submit();

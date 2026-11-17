@@ -95,6 +95,17 @@ describe('panel packing 2026-10-12.1', () => {
     flow.clear(); vi.mocked(api.getBox).mockResolvedValue({ ...box(), contentState }); await flow.scan('BOX-1');
     expect(flow.box.value).toBeNull(); expect(flow.notice.value?.error).toBe(true);
   });
+  it.each(['UNKNOWN', 'EMPTY', 'LOADED'] as const)('hides physical state on the packing card without changing backend state %s', async contentState => {
+    const data = { ...box(), empty: contentState === 'EMPTY', contentState };
+    vi.spyOn(api, 'getBox').mockResolvedValue(data);
+    const wrapper = mount(PackingPage, { global: { stubs: { 'scroll-view': { template: '<div><slot /></div>' } } } });
+    try {
+      hooks.show.forEach(show => show()); wrapper.getComponent(ScanInput).vm.$emit('scan', 'BOX-1'); await vi.dynamicImportSettled();
+      expect(wrapper.text()).toContain('BOX-1'); expect(wrapper.text()).not.toContain('实际内容');
+      expect(wrapper.text()).not.toContain('已确认非空'); expect(wrapper.text()).not.toContain('已确认空载');
+      expect(data.contentState).toBe(contentState); expect(data.bindings).toEqual([]);
+    } finally { wrapper.unmount(); }
+  });
   it('requires batches on bound lines, permits missing names/units, and permits absent candidate batches', async () => {
     const value = boundBox(); vi.spyOn(api, 'getBox').mockResolvedValue(value);
     const flow = usePanelPacking(); await flow.scan('BOX-1'); flow.keepBindings();

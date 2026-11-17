@@ -12,7 +12,15 @@ export function useLogisticsCreation() {
   const disabled = computed(() => busy.value || choosing.value);
   const candidates = computed(() => options.value?.destinations.map((item) => item.location) || []);
   const canSubmit = computed(() => !disabled.value && !!options.value?.eligibility.allowed && !!destination.value);
-  const canReturn = computed(() => !disabled.value && options.value?.object.containerType === 'VEHICLE');
+  const returnUnavailableReason = computed(() => {
+    if (!options.value) return '';
+    const eligibility = options.value.returnLineSideEligibility;
+    if (!eligibility || typeof eligibility.allowed !== 'boolean') return '未获取有效回库资格，请重新扫描';
+    if (eligibility.allowed && eligibility.reason === null) return '';
+    if (!eligibility.allowed && validReason(eligibility.reason)) return eligibility.reason;
+    return '回库资格信息不完整，请重新扫描';
+  });
+  const canReturn = computed(() => !disabled.value && options.value?.returnLineSideEligibility?.allowed === true && !returnUnavailableReason.value);
   let generation = 0;
   let active = true;
   let shippingNo: string | undefined;
@@ -132,5 +140,5 @@ export function useLogisticsCreation() {
       version: source.object.version, vendor: source.vendor, taskType: source.taskType,
       originLocationCode: source.origin.locationCode, destinationMode: 'RETURN_LINE_SIDE' }, '回库任务');
   }
-  return { options, destination, candidates, choosing, busy, disabled, notice, canSubmit, canReturn, notify, clear, pause, resume, scan, openChoice, closeChoice, choose, submit, returnToWarehouse };
+  return { options, destination, candidates, choosing, busy, disabled, notice, canSubmit, canReturn, returnUnavailableReason, notify, clear, pause, resume, scan, openChoice, closeChoice, choose, submit, returnToWarehouse };
 }
