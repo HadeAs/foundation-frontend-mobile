@@ -2,8 +2,8 @@
     "name" : "南瑞物流",
     "appid" : "__UNI__EF475D9",
     "description" : "南瑞生产中心物流管理系统",
-    "versionName" : "1.0.5",
-    "versionCode" : 105,
+    "versionName" : "1.0.6",
+    "versionCode" : 106,
     "vueVersion" : "3",
     "uniStatistics" : {
         "enable" : false
