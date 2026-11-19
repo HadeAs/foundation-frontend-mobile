@@ -9,7 +9,7 @@ import { usePdaScanner } from '../../composables/usePdaScanner';
 import { useWarehouseApplication } from '../../composables/useWarehouseApplication';
 import MaterialRows from '../../components/MaterialRows.vue';
 
-const { pending, storageError, object, materials, detail, busy, disabled, canSubmit, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, submit } = useWarehouseApplication();
+const { pending, storageError, object, orders, detail, busy, writing, disabled, canSubmit, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, submit } = useWarehouseApplication();
 const contentStateNames = { UNKNOWN: '未确认', EMPTY: '已确认空载', LOADED: '已确认非空' };
 const input = ref('');
 let active = false;
@@ -61,26 +61,36 @@ onUnmounted(() => {
       <view v-if="busy" class="processing" role="status">处理中…</view>
     </view>
     <view class="content">
-      <PendingSubmission v-if="pending || storageError" :code="pending?.input.object.containerCode" :request-id="pending?.input.requestId"
+      <PendingSubmission v-if="(pending && !writing) || storageError" :code="pending?.input.object.containerCode" :request-id="pending?.input.requestId"
         :reason="pending?.reason" :storage-error="storageError" :busy="busy" @reload="resume" />
       <view v-else-if="!object" class="card empty">请先扫描作业对象<view class="empty-hint">识别后查看关联信息，再确认提交</view></view>
       <view v-else-if="!object.totalMaterialQuantity" class="card empty">当前对象无可处理物料<view class="empty-hint">请核对对象或扫描其他容器</view></view>
       <view v-else class="card list-card">
-        <view class="card-heading"><text>{{ object.object.containerType === 'VEHICLE' ? '关联料箱' : '关联物料' }}</text><text>{{ object.object.containerType === 'VEHICLE' ? object.boxes.length + ' 箱' : object.totalMaterialQuantity + ' 件' }}</text></view>
+        <view class="card-heading"><text>关联物料</text><text>{{ object.totalMaterialQuantity }} 件</text></view>
         <scroll-view class="list-scroll" scroll-y :show-scrollbar="true">
+          <view v-for="order in orders" :key="order.orderNo" class="order-group">
+            <view class="order-heading"><text>订单 {{ order.orderNo }}</text><text>{{ order.quantity }} 件</text></view>
+            <view v-for="box in order.boxes" :key="box.boxCode">
+              <view v-if="object.object.containerType === 'VEHICLE'" class="box-rows">
+                <button class="box-row" :disabled="disabled" @tap="openMaterials(box.boxCode)">
+                  <text class="box-body">{{ box.boxCode }}</text><text class="box-action">查看物料 ›</text>
+                </button>
+              </view>
+              <MaterialRows :materials="box.materials" show-batch grouped-by-order />
+            </view>
+          </view>
           <view v-if="object.object.containerType === 'VEHICLE'" class="box-rows">
-            <button v-for="box in object.boxes" :key="box.boxCode" class="box-row" :disabled="disabled" @tap="openMaterials(box.boxCode)">
-              <view class="box-body"><view>{{ box.boxCode }}</view><view class="secondary">{{ box.materialQuantity }} 件物料</view></view>
+            <button v-for="box in object.boxes.filter(item => !item.materialQuantity)" :key="box.boxCode" class="box-row" :disabled="disabled" @tap="openMaterials(box.boxCode)">
+              <view class="box-body"><view>{{ box.boxCode }}</view><view class="secondary">0 件物料</view></view>
               <text class="box-action">查看物料 ›</text>
             </button>
           </view>
-          <MaterialRows v-else :materials="materials" show-batch />
         </scroll-view>
       </view>
     </view>
     <view class="footer">
       <button :disabled="disabled" @tap="clearPage">清空页面</button>
-      <button class="primary" :disabled="!canSubmit" @tap="submit">{{ pending ? '重试原请求' : '确认申请' }}</button>
+      <button class="primary" :disabled="!canSubmit" @tap="submit">{{ writing ? '提交中…' : pending ? '重试原请求' : '确认申请' }}</button>
     </view>
     <view v-if="detail" class="modal-mask">
       <view class="modal detail-modal" role="dialog" aria-modal="true" aria-label="箱内物料">
@@ -129,6 +139,10 @@ button:focus-visible { outline: 2px solid #0d9496; outline-offset: 2px; }
 .list-card { display: flex; flex-direction: column; min-height: 0; max-height: 100%; flex: 1; }
 .list-card > .card-heading { flex-shrink: 0; }
 .list-scroll { flex: 1; height: 0; min-height: 0; }
+.order-group + .order-group { border-top: 1px solid #dfebed; }
+.order-heading { display: flex; justify-content: space-between; align-items: center; gap: 12rpx; padding: 12rpx 16rpx; background: #edf6f6; font-size: 24rpx; font-weight: 600; }
+.order-heading text:first-child { min-width: 0; overflow-wrap: anywhere; }
+.order-heading text:last-child { flex-shrink: 0; }
 .box-rows { padding: 0 16rpx; }
 .box-row { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; height: auto; line-height: 1.4; padding: 20rpx 0; border: 0; border-bottom: 1px solid #dfebed; border-radius: 0; text-align: left; font-size: 28rpx; color: #254b54; font-weight: normal; }
 .box-row:last-child { border-bottom: 0; }

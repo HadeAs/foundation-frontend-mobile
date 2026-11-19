@@ -1,13 +1,25 @@
 <script setup lang="ts">
 import OperationNotice from '../../components/OperationNotice.vue';
 import { nextTick, onUnmounted, ref, watch } from 'vue';
-import { onShow, onHide } from '@dcloudio/uni-app';
+import { onShow, onHide, onLoad } from '@dcloudio/uni-app';
 import { usePendingReceiving } from '../../composables/usePendingReceiving';
-import { displayTaskTime } from '../../services/pendingReceiving';
+import { displayTaskTime, type PendingApplication } from '../../services/pendingReceiving';
 
 const flow = usePendingReceiving();
 const { vehicleCode, locationCode, items, total, loading, refreshing, error, notice, hasMore } = flow;
 const scrollTop = ref(0);
+const scannedCode = ref('');
+let opening = false;
+onLoad(query => { if (typeof query?.scanCode === 'string') scannedCode.value = query.scanCode; });
+function openApplication(row: PendingApplication) {
+  if (opening || !scannedCode.value) return;
+  opening = true;
+  uni.navigateTo({
+    url: `/pages/receiving/index?applicationId=${row.applicationId}&scanCode=${encodeURIComponent(scannedCode.value)}`,
+    fail: () => { notice.value = '无法打开物料接收，请重试'; },
+    complete: () => { opening = false; }
+  });
+}
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 watch(notice, (value) => {
   clearTimeout(noticeTimer);
@@ -34,7 +46,7 @@ function goBack() { uni.navigateBack({ delta: 1 }); }
     </view>
     <OperationNotice :text="notice" error />
     <view class="filters">
-      <input v-model="vehicleCode" placeholder="载具号" aria-label="载具号" :maxlength="128" confirm-type="search" @confirm="query" />
+      <input v-model="vehicleCode" placeholder="箱号或载具号" aria-label="箱号或载具号" :maxlength="128" confirm-type="search" @confirm="query" />
       <input v-model="locationCode" placeholder="库位号" aria-label="库位号" :maxlength="128" confirm-type="search" @confirm="query" />
       <button class="query-button" :disabled="loading" @tap="query">查询</button>
     </view>
@@ -44,10 +56,12 @@ function goBack() { uni.navigateBack({ delta: 1 }); }
         <scroll-view class="list-scroll" scroll-y refresher-enabled :refresher-triggered="refreshing" :scroll-top="scrollTop"
           :lower-threshold="60" @scrolltolower="flow.loadMore" @refresherrefresh="flow.refresh">
           <view class="rows">
-            <view v-for="task in items" :key="task.taskId" class="task-record">
-              <view class="task-number">任务号 {{ task.taskNo }}</view>
+            <view v-for="task in items" :key="task.applicationId" class="task-record">
+              <view class="record-heading"><text class="task-number">申请单号 {{ task.applicationNo }}</text>
+                <button v-if="scannedCode" class="view-application" @tap="openApplication(task)">选择此申请 ›</button>
+              </view>
               <view class="record-meta">{{ task.object.containerType === 'BOX' ? '箱号' : '载具号' }} {{ task.object.containerCode }}</view>
-              <view class="record-meta">库位号 {{ task.location?.locationCode || '—' }}</view>
+              <view class="record-meta">库位号 {{ task.object.location?.locationCode || '—' }}</view>
               <view class="record-meta">接收状态 <text class="receiving-progress">{{ task.statusName }} · {{ task.receivedBoxCount }}/{{ task.totalBoxCount }} 箱</text></view>
               <view class="record-meta">创建时间 {{ displayTaskTime(task.createdTime) }}</view>
             </view>
@@ -55,7 +69,7 @@ function goBack() { uni.navigateBack({ delta: 1 }); }
               <text v-if="loading">{{ refreshing ? '刷新中…' : '加载中…' }}</text>
               <button v-else-if="error" class="retry" @tap="flow.retry">加载失败，点击重试</button>
               <text v-else-if="!items.length">暂无待接收物料清单</text>
-              <text v-else>{{ hasMore ? '上滑加载更多' : '已加载全部任务' }}</text>
+              <text v-else>{{ hasMore ? '上滑加载更多' : '已加载全部申请' }}</text>
             </view>
           </view>
         </scroll-view>
@@ -84,6 +98,8 @@ input { min-width: 0; height: 76rpx; box-sizing: border-box; border: 1px solid #
 .rows { padding: 0 16rpx; }
 .task-record { padding: 18rpx 0; border-bottom: 1px solid #dfebed; overflow-wrap: anywhere; }
 .task-number { font-size: 28rpx; font-weight: 600; }
+.record-heading { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; }
+.view-application { flex-shrink: 0; height: auto; line-height: 1.6; border: 0; font-size: 24rpx; color: #087779; }
 .record-meta { margin-top: 6rpx; font-size: 24rpx; color: #748d93; line-height: 1.5; }
 .receiving-progress { color: #254b54; }
 .list-status { padding: 24rpx 0; text-align: center; font-size: 24rpx; color: #748d93; }

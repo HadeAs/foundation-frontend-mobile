@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { MaterialLine } from '../services/vehicleLoading';
-defineProps<{ materials: MaterialLine[]; showBatch?: boolean }>();
+defineProps<{ materials: MaterialLine[]; showBatch?: boolean; groupedByOrder?: boolean }>();
 </script>
 
 <template>
@@ -9,7 +9,8 @@ defineProps<{ materials: MaterialLine[]; showBatch?: boolean }>();
       <view class="material-body">
         <view class="material-code">{{ row.lineType === 'PANEL' ? row.panelCode : row.materialCode }}</view>
         <view v-if="row.lineType === 'PANEL' || row.materialName" class="material-sub">{{ row.lineType === 'PANEL' ? row.materialCode : '' }}{{ row.lineType === 'PANEL' && row.materialName ? ' · ' : '' }}{{ row.materialName }}</view>
-        <view class="material-sub">订单 {{ row.orderNo }}{{ row.orderLineNo ? ` / ${row.orderLineNo}` : '' }}</view>
+        <view v-if="!groupedByOrder" class="material-sub">订单 {{ row.orderNo }}{{ row.orderLineNo ? ` / ${row.orderLineNo}` : '' }}</view>
+        <view v-else-if="row.orderLineNo" class="material-sub">订单行 {{ row.orderLineNo }}</view>
         <view v-if="showBatch && row.materialBatch" class="material-sub">批次 {{ row.materialBatch }}</view>
         <view v-if="row.lineType === 'QUANTITY'" class="material-sub">数量汇总</view>
       </view>

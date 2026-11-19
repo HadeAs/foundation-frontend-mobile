@@ -16,7 +16,30 @@ export function useWarehouseApplication() {
   const disabled = computed(() => busy.value || writing.value || !!detail.value || !!pending.value || !!storageError.value);
   const canSubmit = computed(() => !busy.value && !writing.value && !detail.value && !storageError.value &&
     (!!pending.value || !!object.value?.eligibility.allowed && object.value.totalMaterialQuantity > 0));
-  const materials = computed(() => object.value?.object.containerType === 'BOX' ? object.value.boxes.flatMap((box) => box.materials) : []);
+  const orders = computed(() => {
+    const groups = new Map<string, { quantity: number; boxes: Map<string, MaterialLine[]> }>();
+    for (const box of object.value?.boxes ?? []) {
+      for (const material of box.materials) {
+        let group = groups.get(material.orderNo);
+        if (!group) {
+          group = { quantity: 0, boxes: new Map() };
+          groups.set(material.orderNo, group);
+        }
+        let rows = group.boxes.get(box.boxCode);
+        if (!rows) {
+          rows = [];
+          group.boxes.set(box.boxCode, rows);
+        }
+        rows.push(material);
+        group.quantity += material.quantity;
+      }
+    }
+    return Array.from(groups, ([orderNo, group]) => ({
+      orderNo,
+      quantity: group.quantity,
+      boxes: Array.from(group.boxes, ([boxCode, materials]) => ({ boxCode, materials }))
+    }));
+  });
   let generation = 0;
   let active = true;
   function notify(text: string, error = false) { notice.value = { text, error }; }
@@ -103,16 +126,18 @@ export function useWarehouseApplication() {
           if (!replay && error instanceof ApiRequestError && error.statusCode >= 400 && error.statusCode < 500 && ![408, 409].includes(error.statusCode)) saved.finish(input.requestId);
           throw error;
         }
-        if (!result || typeof result !== 'object' || 'resultType' in result || result.requestId !== input.requestId || result.wmsPendingCreated !== true || !text(result.applicationNo) || !Array.isArray(result.sapDocumentNos) ||
-          !result.sapDocumentNos.length || result.sapDocumentNos.length > 1000 || !result.sapDocumentNos.every(no => text(no)) ||
-          !text(result.processedTime) || !Number.isFinite(Date.parse(result.processedTime))) throw new Error('申请结果不完整，未能确认全部处理成功，请核实后重试');
+        if (result != null && (typeof result !== 'object' || Array.isArray(result) || 'resultType' in result ||
+          (result.requestId != null && result.requestId !== input.requestId))) {
+          throw new Error('申请回执与本次请求不一致，请核实后重试原请求');
+        }
         saved.finish(input.requestId);
         if (!current()) return;
         resetView();
-        notify(`缴库申请成功，缴库单号：${result.sapDocumentNos.join('、')}`);
+        const sapNos = Array.isArray(result?.sapDocumentNos) ? result.sapDocumentNos.filter(no => text(no)) : [];
+        notify(sapNos.length ? `缴库申请成功，缴库单号：${sapNos.join('、')}` : '缴库申请成功');
       } catch (error) { saved.failed(error); throw error; }
       finally { writing.value = false; }
     });
   }
-  return { pending, storageError, object, materials, detail, busy, disabled, canSubmit, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, submit };
+  return { pending, storageError, object, orders, detail, busy, writing, disabled, canSubmit, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, submit };
 }

@@ -60,12 +60,12 @@ describe('receiving', () => {
     flow.askClearWms();
     await finish(flow.submit(true));
     expect(transport).toHaveBeenCalledTimes(2);
-    expect(transport.mock.calls[0][0].data).toEqual({ requestId: expect.any(String), taskId: before.task!.taskId, version: before.task!.version,
+    expect(transport.mock.calls[0][0].data).toEqual({ requestId: expect.any(String), taskId: before.task!.taskId!, version: before.task!.version,
       object: { containerType: 'VEHICLE', containerCode: 'CAR-RECEIVE' } });
     expect(transport.mock.calls[1][0].data).toEqual({ scanCode: 'CAR-RECEIVE', taskId: before.task!.taskId });
     expect(flow.result.value).toBeNull();
     expect(flow.notice.value?.text).toContain('WMS 历史已清空');
-    const stale = api.confirm({ requestId: requestId(), taskId: before.task!.taskId, version: before.task!.version,
+    const stale = api.confirm({ requestId: requestId(), taskId: before.task!.taskId!, version: before.task!.version,
       object: { containerType: before.object.containerType, containerCode: before.object.containerCode } });
     const rejected = expect(stale).rejects.toThrow('接收任务已变化'); await finish(rejected);
     await finish(flow.scan('CAR-RECEIVE'));
@@ -92,7 +92,7 @@ describe('receiving', () => {
     const scope = await finish(api.query('CAR-RECEIVE'));
     const box = await finish(api.query(scope.boxes[0].boxCode));
     expect(box.task!.taskId).toBe(scope.task!.taskId); expect(box.task!.totalBoxCount).toBe(3); expect(box.boxes).toHaveLength(1);
-    const single = await finish(api.confirm({ requestId: requestId(), taskId: box.task!.taskId, version: box.task!.version,
+    const single = await finish(api.confirm({ requestId: requestId(), taskId: box.task!.taskId!, version: box.task!.version,
       object: { containerType: 'BOX', containerCode: box.object.containerCode }, remark: '先接收单箱' }));
     expect(single.affectedCount).toBe(1);
     const partial = await finish(api.query('CAR-RECEIVE'));
@@ -101,7 +101,7 @@ describe('receiving', () => {
     const receivedBox = await finish(api.query(box.object.containerCode));
     expect(receivedBox.task).toMatchObject({ status: 'PARTIAL', receivedBoxCount: 1, eligibility: { allowed: false, reason: '该箱已接收' } });
     expect((await finish(api.query(box.object.containerCode, single.taskId))).task!.eligibility.allowed).toBe(false);
-    const rest = await finish(api.confirm({ requestId: requestId(), taskId: single.taskId, version: partial.task!.version,
+    const rest = await finish(api.confirm({ requestId: requestId(), taskId: single.taskId!, version: partial.task!.version,
       object: { containerType: 'VEHICLE', containerCode: 'CAR-RECEIVE' }, remark: '剩余整批' }));
     expect(rest.affectedCount).toBe(2); expect(rest.version).toBe(single.version + 1);
     const finished = await finish(api.query('CAR-RECEIVE', rest.taskId));
@@ -177,7 +177,7 @@ describe('receiving', () => {
     }
     query.mockRestore(); await finish(flow.scan('CAR-RECEIVE'));
     vi.spyOn(api, 'confirm').mockResolvedValueOnce({ requestId: 'wrong', affectedCount: 3, processedTime: new Date().toISOString(),
-      taskId: valid.task!.taskId, object: { containerType: 'VEHICLE', containerCode: 'CAR-RECEIVE' }, version: valid.task!.version + 1 });
+      taskId: valid.task!.taskId!, object: { containerType: 'VEHICLE', containerCode: 'CAR-RECEIVE' }, version: valid.task!.version + 1 });
     await flow.submit();
     expect(flow.result.value).not.toBeNull(); expect(flow.notice.value?.text).toContain('未能确认成功');
   });
@@ -189,12 +189,12 @@ describe('receiving', () => {
     const detail = flow.openMaterials(flow.result.value!.boxes[0].boxCode); flow.clear(); await finish(detail);
     expect(flow.detail.value).toBeNull();
     await finish(flow.scan('CAR-RECEIVE'));
-    const submit = flow.submit(); flow.clear(); await finish(submit);
+    const submit = flow.submit(); flow.pause(); await finish(submit);
     expect(flow.result.value).toBeNull(); expect(flow.notice.value).toBeNull();
   });
   it('scopes WMS cleanup, replays identical requests and rejects UUID reuse for a different action', async () => {
     const data = await finish(api.query('CAR-RECEIVE'));
-    const input = { requestId: requestId(), taskId: data.task!.taskId, version: data.task!.version, object: { containerType: data.object.containerType, containerCode: data.object.containerCode } };
+    const input = { requestId: requestId(), taskId: data.task!.taskId!, version: data.task!.version, object: { containerType: data.object.containerType, containerCode: data.object.containerCode } };
     const invalid = api.clearWms({ ...input, object: { containerType: 'BOX', containerCode: 'BOX-NR-240818' } });
     await finish(expect(invalid).rejects.toThrow('清理对象与接收任务不匹配'));
     const first = await finish(api.clearWms(input));

@@ -3,6 +3,8 @@ import { flushPromises, mount } from '@vue/test-utils';
 import ShippingPage from '../../pages/shipping/index.vue';
 import ApplicationPage from '../../pages/warehouse-application/index.vue';
 import ReceivingPage from '../../pages/receiving/index.vue';
+import PendingReceivingPage from '../../pages/pending-receiving/index.vue';
+import { pendingReceivingApi } from '../pendingReceiving';
 import ScanInput from '../../components/ScanInput.vue';
 import { useShipping } from '../../composables/useShipping';
 import { useWarehouseApplication } from '../../composables/useWarehouseApplication';
@@ -16,8 +18,8 @@ import { ApiRequestError } from '../nariRequest';
 import { AUTH_SESSION_STORAGE_KEY } from '../auth';
 import { seedTestSession } from './helpers/authSession';
 
-const hooks = vi.hoisted(() => ({ show: [] as (() => void)[], hide: [] as (() => void)[] }));
-vi.mock('@dcloudio/uni-app', () => ({ onShow: (fn: () => void) => hooks.show.push(fn), onHide: (fn: () => void) => hooks.hide.push(fn) }));
+const hooks = vi.hoisted(() => ({ load: [] as ((query: Record<string, string>) => void)[], show: [] as (() => void)[], hide: [] as (() => void)[] }));
+vi.mock('@dcloudio/uni-app', () => ({ onLoad: (fn: typeof hooks.load[number]) => hooks.load.push(fn), onShow: (fn: () => void) => hooks.show.push(fn), onHide: (fn: () => void) => hooks.hide.push(fn) }));
 const time = '2026-10-19T01:00:00Z';
 const storage = new Map<string, unknown>();
 const snapshot = (): ApplicationObject => ({ scanType: 'BOX', scanCode: 'BOX-1', object: { containerType: 'BOX', containerCode: 'BOX-1', version: 7 },
@@ -27,7 +29,7 @@ const shippingReceipt = (input: ShippingRequest) => ({ requestId: input.requestI
   canCreateLogisticsTask: false, processedTime: time });
 const applicationReceipt = (requestId: string) => ({ requestId, applicationNo: 'APPLY-1', sapDocumentNos: ['SAP-1'], wmsPendingCreated: true, processedTime: time });
 beforeEach(() => {
-  hooks.show.length = hooks.hide.length = 0;
+  hooks.load.length = hooks.show.length = hooks.hide.length = 0;
   storage.clear();
   vi.stubGlobal('uni', { navigateBack: vi.fn(), getStorageSync: (key: string) => storage.get(key) ?? '', setStorageSync: (key: string, value: unknown) => storage.set(key, value) });
   seedTestSession();
@@ -106,6 +108,43 @@ it.each(['SAP部分成功，等待核实', 'MES_REJECTED，未产生外部效果
 const receiving = (version = 7): ReceivingResult => ({ object: snapshot().object, boxes: snapshot().boxes, totalMaterialQuantity: 1,
   task: { taskId: '101', taskNo: 'WL-1', version, object: snapshot().object, status: 'PENDING', statusName: '待接收', createdTime: time,
     totalBoxCount: 1, receivedBoxCount: 0, eligibility: { allowed: true } } });
+
+it('keeps the menu list read-only and carries the actual scanned box through application selection to manual confirmation', async () => {
+  const detail = receiving();
+  const { taskId, taskNo, eligibility, ...progress } = detail.task!;
+  const application = { ...progress, applicationId: '9007199254741003', applicationNo: 'JK-3', totalBoxCount: 2,
+    object: { containerType: 'VEHICLE' as const, containerCode: 'CAR-1', version: 2 } };
+  detail.task = { ...application, eligibility, version: 9 };
+  vi.spyOn(pendingReceivingApi, 'query').mockResolvedValue({ records: [application], size: 20, current: 1, pages: 1, total: 1 });
+  const query = vi.spyOn(receivingApi, 'query').mockResolvedValue(detail);
+  const confirm = vi.spyOn(receivingApi, 'confirm').mockImplementation(async input => ({ applicationId: application.applicationId,
+    requestId: input.requestId, object: input.object, version: 10, affectedCount: 1, processedTime: time }));
+  const navigateTo = vi.fn();
+  vi.stubGlobal('uni', { ...uni, navigateTo });
+  const options = { global: { stubs: { 'scroll-view': { template: '<div><slot /></div>' } } } };
+  const list = mount(PendingReceivingPage, options);
+  hooks.show.forEach(fn => fn()); await flushPromises();
+  expect(list.text()).toContain('JK-3');
+  expect(list.find('.view-application').exists()).toBe(false);
+  hooks.load.forEach(fn => fn({ scanCode: 'BOX-1' })); await flushPromises();
+  await list.get('.view-application').trigger('tap');
+  const url = new URL(navigateTo.mock.calls[0][0].url, 'https://example.test');
+  expect(url.pathname).toBe('/pages/receiving/index');
+  expect(query).not.toHaveBeenCalled();
+  list.unmount(); hooks.load.length = hooks.show.length = hooks.hide.length = 0;
+
+  const page = mount(ReceivingPage, options);
+  hooks.load.forEach(fn => fn(Object.fromEntries(url.searchParams))); hooks.show.forEach(fn => fn()); await flushPromises();
+  expect(query).toHaveBeenCalledWith('BOX-1', { applicationId: application.applicationId });
+  expect(page.text()).toContain('JK-3');
+  expect(page.text()).not.toContain('清空WMS历史');
+  expect(confirm).not.toHaveBeenCalled();
+  await page.get('.footer .primary').trigger('tap'); await flushPromises();
+  expect(confirm.mock.calls[0][0]).toEqual({ requestId: expect.any(String), applicationId: application.applicationId,
+    version: 9, object: { containerType: 'BOX', containerCode: 'BOX-1' } });
+  expect(page.text()).toContain('接收完成');
+  page.unmount();
+});
 describe('WMS cleanup version refresh', () => {
   it('does not consider a newer received task proof that an uncertain cleanup was rolled back', async () => {
     const fresh = receiving(99); Object.assign(fresh.task!, { status: 'RECEIVED', statusName: '已接收', receivedBoxCount: 1 });
@@ -157,7 +196,7 @@ describe('traffic receipt refresh', () => {
   });
 });
 
-it.each(['shipping', 'application', 'cleanup'] as const)('restores the %s pending card with scanning/clear locked, navigation available and explicit retry', async kind => {
+it.each(['shipping', 'application', 'cleanup', 'receiving'] as const)('restores the %s pending card with scanning/clear locked, navigation available and explicit retry', async kind => {
   let page;
   let send;
   if (kind === 'cleanup') {
@@ -165,6 +204,11 @@ it.each(['shipping', 'application', 'cleanup'] as const)('restores the %s pendin
     vi.spyOn(receivingApi, 'query').mockResolvedValue(receiving());
     send = vi.spyOn(receivingApi, 'clearWms').mockRejectedValue(new ApiRequestError('待核实', 503));
     const flow = useReceiving(); await flow.scan('BOX-1'); flow.askClearWms(); await flow.submit(true); flow.pause();
+  } else if (kind === 'receiving') {
+    page = ReceivingPage;
+    vi.spyOn(receivingApi, 'query').mockResolvedValue(receiving());
+    send = vi.spyOn(receivingApi, 'confirm').mockRejectedValue(new ApiRequestError('待核实', 503));
+    const flow = useReceiving(); await flow.scan('BOX-1'); await flow.submit(); flow.pause();
   } else if (kind === 'shipping') {
     page = ShippingPage;
     vi.spyOn(shippingApi, 'getObject').mockResolvedValue(snapshot());
@@ -189,7 +233,13 @@ it.each(['shipping', 'application', 'cleanup'] as const)('restores the %s pendin
     expect(wrapper.get('.modal-content').text()).toContain('可能影响同箱其他申请');
     expect(send).toHaveBeenCalledOnce();
     await wrapper.get('.modal-actions .danger').trigger('tap');
-  } else await wrapper.get('.footer .primary').trigger('tap');
+  } else {
+    if (kind === 'receiving') {
+      expect(wrapper.get('.footer .primary').text()).toBe('重试接收');
+      expect(wrapper.get('.footer .danger').attributes('disabled')).toBeDefined();
+    }
+    await wrapper.get('.footer .primary').trigger('tap');
+  }
   await flushPromises(); expect(send).toHaveBeenCalledTimes(2);
   expect(send.mock.calls[1]).toEqual(send.mock.calls[0]); wrapper.unmount();
 });

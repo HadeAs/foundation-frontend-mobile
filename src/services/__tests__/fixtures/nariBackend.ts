@@ -3,7 +3,7 @@ import type { Binding, BoxBindings, Panel } from '../../panelPacking';
 import type { LoadPair, VehicleSlot, Vehicle, LoadedBox, MaterialLine, VehicleLoads } from '../../vehicleLoading';
 import type { LocationContainers, ContainerRef, LocationContainer, LocationOperation } from '../../locationBinding';
 import type { ApplicationObject, BoxContents } from '../../warehouseApplication';
-import type { ReceivingTask } from '../../pendingReceiving';
+import type { ReceivingTask } from '../../receiving';
 import type { ReceivingResult, ReceivingRequest, ClearWmsRequest, ReceivingReceipt, ReceivingOperationReceipt } from '../../receiving';
 import type { ShippingObject, ShippingReceipt, ShippingRequest } from '../../shipping';
 import type { CreateLogisticsRequest, ReturnLogisticsRequest, LogisticsOptions, TaskCreationResponse, LocationCandidate, LogisticsTask } from '../../logistics';
@@ -23,7 +23,7 @@ let jointGroups: string[][];
 let nextId: number;
 let slots: Record<string, VehicleSlot>;
 let vehicles: Vehicle[];
-let receivingEntries: { task: ReceivingTask; boxes: BoxContents[]; wmsBindings: BoxContents[]; received: Map<string, string | undefined> }[];
+let receivingEntries: { applicationId: string; applicationNo: string; applicationVersion: number; task: ReceivingTask & { taskId: string; taskNo: string }; boxes: BoxContents[]; wmsBindings: BoxContents[]; received: Map<string, string | undefined> }[];
 let receivingHistory: Map<string, { action: string; input: ReceivingRequest | ClearWmsRequest; receipt: ReceivingReceipt; before: BoxContents[] }>;
 let shippingWms: Record<string, MaterialLine[]>;
 let shippingHistory: { request: ShippingRequest; receipt: ShippingReceipt; before: BoxContents[]; shipped: BoxContents[] }[];
@@ -158,7 +158,7 @@ export function resetMockData() {
       loadRelations[slotCode] = { id: String(nextId++), version: 1 };
     }
   }
-  for (const suffix of ['MES-FAIL', 'SAP-FAIL', 'WMS-FAIL', 'BLOCKED', 'DETAIL-FAIL']) {
+  for (const suffix of ['MES-FAIL', 'SAP-FAIL', 'BLOCKED', 'DETAIL-FAIL']) {
     const code = `BOX-APPLY-${suffix}`;
     boxes[code] = makeBox(code);
     boxes[code].bindings = [{ id: String(nextId++), version: 1, bindingMode: 'BY_ORDER', orderNo: 'SO-20260901-018', materialCode: 'MAT-7001', materialBatch: '000001', materialName: '控制模块', quantity: 5, unit: '件' }];
@@ -273,7 +273,7 @@ export function resetMockData() {
       if (code === 'CAR-RECEIVE' && j === 2) materials[0] = { lineType: 'QUANTITY', materialCode: 'MAT-7002', materialName: '连接板', orderNo: 'SO-20260901-019', quantity: 5, unit: '件' };
       return { boxCode, version: 1, materials, materialQuantity: materials.reduce((sum, row) => sum + row.quantity, 0) };
     });
-    return { task: {
+    return { applicationId: `9100000000000${String(index + 1).padStart(3, '0')}`, applicationNo: `JK-${index + 1}`, applicationVersion: 1, task: {
       taskId: `9007199254741${String(index + 1).padStart(3, '0')}`, taskNo: `RCV-20260917-${String(index + 1).padStart(4, '0')}`, version: 7,
       object, location: isBox ? undefined : { locationCode: `KW-03-0${index % 3 + 1}`, locationName: '缓存位' },
       status: 'PENDING', statusName: '待接收', createdTime: new Date(Date.UTC(2026, 8, 17, 2, Math.floor(index / 2))).toISOString(),
@@ -767,15 +767,18 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
   if (method === 'GET' && path === `${prefix}/receiving/pending-tasks`) {
     const page = Number(data.page ?? 1);
     const size = Number(data.size ?? 20);
-    if (!Number.isInteger(page) || page < 1 || page > 2147483647 || !Number.isInteger(size) || size < 1 || size > 200) throw new Error('分页参数无效');
+    if (!Number.isInteger(page) || page < 1 || page > 2147483647 || !Number.isInteger(size) || size < 1 || size > 100) throw new Error('分页参数无效');
     for (const field of ['vehicleCode', 'locationCode']) {
       if (data[field] !== undefined && (typeof data[field] !== 'string' || !(data[field] as string).trim() || (data[field] as string).length > 128)) throw new Error('查询条件无效');
     }
     if (data.vehicleCode === 'CAR-QUERY-FAIL') throw new Error('待接收物料清单查询失败，请稍后重试');
-    const tasks = receivingEntries.map((entry) => entry.task).filter((task) => task.status === 'PENDING' || task.status === 'PARTIAL');
-    const matches = tasks.filter((task) => (!data.vehicleCode || task.object.containerType === 'VEHICLE' && task.object.containerCode === data.vehicleCode) &&
-      (!data.locationCode || task.location?.locationCode === data.locationCode))
-      .sort((a, b) => b.createdTime.localeCompare(a.createdTime) || b.taskId.localeCompare(a.taskId));
+    const tasks = receivingEntries.filter(({ task }) => task.status !== 'RECEIVED').map(({ applicationId, applicationNo, applicationVersion, task }) => ({
+      applicationId, applicationNo, version: applicationVersion, object: { ...task.object, location: task.location }, status: task.status,
+      statusName: task.statusName, createdTime: task.createdTime, totalBoxCount: task.totalBoxCount, receivedBoxCount: task.receivedBoxCount
+    }));
+    const matches = tasks.filter((task) => (!data.vehicleCode || task.object.containerCode === data.vehicleCode) &&
+      (!data.locationCode || task.object.location?.locationCode === data.locationCode))
+      .sort((a, b) => b.createdTime.localeCompare(a.createdTime) || b.applicationId.localeCompare(a.applicationId));
     return { records: matches.slice((page - 1) * size, page * size), total: matches.length, size, current: page, pages: Math.ceil(matches.length / size) };
   }
   if (method === 'GET' && path === `${prefix}/warehouse-applications/objects`) {
@@ -838,6 +841,7 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
       ...(!cleanup ? { taskId: task.taskId, object: { ...input.object }, version: task.version + 1 } : {}) };
     if (cleanup) entry.wmsBindings = entry.wmsBindings.filter(box => !scope.some(item => item.boxCode === box.boxCode));
     else {
+      entry.applicationVersion++;
       for (const box of affected) entry.received.set(box.boxCode, (input as ReceivingRequest).remark);
       task.receivedBoxCount = entry.received.size;
       task.status = task.receivedBoxCount === task.totalBoxCount ? 'RECEIVED' : 'PARTIAL';
@@ -854,13 +858,12 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
     const current = applicationObject(target.containerCode);
     if (!current.eligibility.allowed) throw new Error(current.eligibility.reason);
     if (!current.totalMaterialQuantity) throw new Error('当前对象无可处理物料');
-    // Mock the ordered backend orchestration; no MES/SAP/WMS network calls or rollback guarantees.
+    // New applications stop after MES/SAP and the local record.
     if (target.containerCode === 'BOX-APPLY-MES-FAIL') throw new Error('MES 物料校验失败：物料未完工');
     if (target.containerCode === 'BOX-APPLY-SAP-FAIL') throw new Error('SAP 缴库单申请失败');
     const sapDocumentNos = [`SAP-MOCK-${nextId++}`];
-    if (target.containerCode === 'BOX-APPLY-WMS-FAIL') throw new Error('SAP 单据已申请，WMS 待上架新增失败，请核实后重试');
     return { requestId: data.requestId, applicationNo: `JK-MOCK-${nextId++}`, sapDocumentNos,
-      wmsPendingCreated: true, processedTime: new Date().toISOString() };
+      wmsPendingCreated: false, processedTime: new Date().toISOString() };
   }
   if (method === 'GET' && path === `${prefix}/shipping/objects`) {
     if ('scanType' in data || 'page' in data || 'size' in data) throw new Error('发货对象查询仅接收 scanCode');

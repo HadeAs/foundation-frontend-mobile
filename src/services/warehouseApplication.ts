@@ -29,5 +29,5 @@ export const warehouseApplicationApi = {
   getObject: (scanCode: string) => request<ApplicationObject>('/warehouse-applications/objects', 'GET', { scanCode }),
   getMaterials: (boxCode: string) => request<BoxMaterials>('/boxes/materials', 'GET', { boxCode, context: 'WAREHOUSE_APPLICATION' }),
   submit: (object: ContainerRef, version: number, id = requestId()) =>
-    request<ApplicationReceipt>('/warehouse-applications/submit', 'POST', { requestId: id, object, version })
+    request<Partial<ApplicationReceipt>>('/warehouse-applications/submit', 'POST', { requestId: id, object, version }, { acceptEmptyOk: true })
 };

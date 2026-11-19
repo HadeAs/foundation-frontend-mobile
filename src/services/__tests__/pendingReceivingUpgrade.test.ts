@@ -1,26 +1,26 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { pendingReceivingApi as api, type ReceivingTask, type ReceivingTaskPage } from '../pendingReceiving';
+import { pendingReceivingApi as api, type PendingApplication, type ReceivingTaskPage } from '../pendingReceiving';
 import { usePendingReceiving } from '../../composables/usePendingReceiving';
 
-const task = (id = '9007199254741001'): ReceivingTask => ({ taskId: id, taskNo: 'WL-' + id, version: 7,
+const task = (id = '9007199254741001'): PendingApplication => ({ applicationId: id, applicationNo: 'WL-' + id, version: 7,
   object: { containerType: 'VEHICLE', containerCode: 'CAR-1', version: 3 }, status: 'PARTIAL', statusName: '部分接收',
-  totalBoxCount: 3, receivedBoxCount: 1, createdTime: '2026-10-12T01:00:00Z', eligibility: { allowed: true } });
-const page = (records: ReceivingTask[], current = 1, total = records.length): ReceivingTaskPage => ({ records, current, total, size: 20, pages: Math.ceil(total / 20) });
+  totalBoxCount: 3, receivedBoxCount: 1, createdTime: '2026-10-12T01:00:00Z' });
+const page = (records: PendingApplication[], current = 1, total = records.length): ReceivingTaskPage => ({ records, current, total, size: 20, pages: Math.ceil(total / 20) });
 afterEach(() => { vi.restoreAllMocks(); });
 
 describe('pending receiving 2026-10-12.1', () => {
   it('rejects a malformed task identity without replacing the already loaded list', async () => {
     const query = vi.spyOn(api, 'query').mockResolvedValueOnce(page([task()], 1, 21));
     const flow = usePendingReceiving(); await flow.query();
-    const invalid = task(); Object.assign(invalid, { taskId: 9007199254741001, object: null });
+    const invalid = task(); Object.assign(invalid, { applicationId: 9007199254741001, object: null });
     query.mockResolvedValueOnce(page([invalid], 2, 21)); await flow.loadMore();
-    expect(flow.items.value).toHaveLength(1); expect(flow.page.value).toBe(1); expect(flow.notice.value).toContain('任务数据异常');
+    expect(flow.items.value).toHaveLength(1); expect(flow.page.value).toBe(1); expect(flow.notice.value).toContain('申请数据异常');
   });
   it('rejects inconsistent received-box progress instead of displaying a valid partial task', async () => {
     const invalid = task(); invalid.receivedBoxCount = 4;
     vi.spyOn(api, 'query').mockResolvedValue(page([invalid]));
     const flow = usePendingReceiving(); await flow.query();
-    expect(flow.items.value).toEqual([]); expect(flow.error.value).toContain('任务数据异常');
+    expect(flow.items.value).toEqual([]); expect(flow.error.value).toContain('申请数据异常');
   });
   it('does not issue requests from hidden-page refresh, pagination or query events', async () => {
     const query = vi.spyOn(api, 'query').mockResolvedValue(page([task()], 1, 21));
@@ -30,9 +30,8 @@ describe('pending receiving 2026-10-12.1', () => {
   });
   it('accepts partial BOX tasks and omitted optional summaries without inventing location or actual content', async () => {
     const value = task(); value.object = { containerType: 'BOX', containerCode: 'BOX-1', version: 3 };
-    value.eligibility = { allowed: false, reason: '该箱已接收，整批仍有剩余' };
     vi.spyOn(api, 'query').mockResolvedValue(page([value])); const flow = usePendingReceiving(); await flow.query();
-    expect(flow.items.value).toEqual([value]); expect(flow.items.value[0].location).toBeUndefined();
+    expect(flow.items.value).toEqual([value]); expect(flow.items.value[0].object.location).toBeUndefined();
     expect(flow.items.value[0].object.contentState).toBeUndefined(); expect(flow.notice.value).toBe('');
   });
   it('does not locally filter coherent backend records by eligibility or completed status', async () => {
@@ -41,19 +40,19 @@ describe('pending receiving 2026-10-12.1', () => {
     vi.spyOn(api, 'query').mockResolvedValue(page([value])); const flow = usePendingReceiving(); await flow.query();
     expect(flow.items.value).toEqual([value]); expect(flow.total.value).toBe(1);
   });
-  it.each(['identity', 'version', 'object', 'location', 'eligibility', 'time', 'status', 'missing count', 'zero count'])('rejects invalid required task data: %s', async field => {
+  it.each(['identity', 'version', 'object', 'location', 'application number', 'time', 'status', 'missing count', 'zero count'])('rejects invalid required task data: %s', async field => {
     const value = task();
-    if (field === 'identity') value.taskId = '01';
+    if (field === 'identity') value.applicationId = '01';
     if (field === 'version') value.version = 0;
     if (field === 'object') Object.assign(value, { object: null });
-    if (field === 'location') value.location = { locationCode: 'KW-1', locationName: '' };
-    if (field === 'eligibility') value.eligibility = { allowed: false };
+    if (field === 'location') value.object.location = { locationCode: 'KW-1', locationName: '' };
+    if (field === 'application number') value.applicationNo = '';
     if (field === 'time') value.createdTime = 'not a date';
     if (field === 'status') value.status = 'PENDING';
     if (field === 'missing count') delete (value as { totalBoxCount?: number }).totalBoxCount;
     if (field === 'zero count') value.totalBoxCount = 0;
     vi.spyOn(api, 'query').mockResolvedValue(page([value])); const flow = usePendingReceiving(); await flow.query();
-    expect(flow.items.value).toEqual([]); expect(flow.error.value).toContain('任务数据异常');
+    expect(flow.items.value).toEqual([]); expect(flow.error.value).toContain('申请数据异常');
   });
   it.each(['oversized', 'pages', 'total', 'page limit'])('rejects invalid pagination without applying partial records: %s', async field => {
     const value = page([task()]);
@@ -82,7 +81,7 @@ describe('pending receiving 2026-10-12.1', () => {
     const first = task('9007199254741002'); const second = task(); const updated = { ...second, version: 8, receivedBoxCount: 2 };
     vi.spyOn(api, 'query').mockResolvedValueOnce(page([first, second], 1, 21)).mockResolvedValueOnce(page([updated], 2, 21));
     const flow = usePendingReceiving(); await flow.query(); await flow.loadMore();
-    expect(flow.items.value.map(value => value.taskId)).toEqual([first.taskId, second.taskId]); expect(flow.items.value[1].receivedBoxCount).toBe(2);
+    expect(flow.items.value.map(value => value.applicationId)).toEqual([first.applicationId, second.applicationId]); expect(flow.items.value[1].receivedBoxCount).toBe(2);
   });
   it('accepts an empty beyond-last page when tasks disappear during pagination and waits for explicit refresh', async () => {
     const query = vi.spyOn(api, 'query').mockResolvedValueOnce(page([task()], 1, 21)).mockResolvedValueOnce(page([], 2));

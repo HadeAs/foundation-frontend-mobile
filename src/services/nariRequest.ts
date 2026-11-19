@@ -8,7 +8,9 @@ export class ApiRequestError extends Error {
   constructor(message: string, public readonly statusCode: number) { super(message); }
 }
 
-export async function request<T>(path: string, method: 'GET' | 'POST', data: Record<string, unknown>): Promise<T> {
+export function request<T>(path: string, method: 'GET' | 'POST', data: Record<string, unknown>): Promise<T>;
+export function request<T>(path: string, method: 'GET' | 'POST', data: Record<string, unknown>, options: { acceptEmptyOk: true }): Promise<T | null>;
+export async function request<T>(path: string, method: 'GET' | 'POST', data: Record<string, unknown>, options?: { acceptEmptyOk: true }): Promise<T | null> {
   const token = getAccessToken();
   if (!token) throw new Error('登录已失效，请重新登录');
   const baseUrl = getRequestBaseUrl(getCurrentApiBaseUrl());
@@ -20,8 +22,9 @@ export async function request<T>(path: string, method: 'GET' | 'POST', data: Rec
       timeout: 15000,
       success(response) {
         const body = response.data as { code?: number; message?: string; data?: T } | null;
-        if (response.statusCode >= 200 && response.statusCode < 300 && body?.code === 0 && body.data != null) {
-          resolve(body.data);
+        if (response.statusCode >= 200 && response.statusCode < 300 && body?.code === 0 &&
+          (body.data != null || (options?.acceptEmptyOk && body.message === 'ok'))) {
+          resolve(body.data ?? null);
         } else {
           reject(new ApiRequestError(body?.message || (response.statusCode === 401 ? '登录已失效，请重新登录' : '请求失败，请稍后重试'), response.statusCode));
         }

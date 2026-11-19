@@ -34,8 +34,11 @@ afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('warehouse application 2026-10-12.1', () => {
   it('accepts absent optional names and units while preserving batch text', async () => {
-    const flow = await ready(); expect(flow.canSubmit.value).toBe(true); expect(flow.materials.value[0].materialBatch).toBe('000001');
-    expect(flow.materials.value[0].materialName).toBeUndefined(); expect(flow.materials.value[0].unit).toBeUndefined();
+    const flow = await ready();
+    const row = flow.orders.value[0].boxes[0].materials[0];
+    expect(flow.canSubmit.value).toBe(true);
+    expect(row.materialBatch).toBe('000001');
+    expect(row.materialName).toBeUndefined(); expect(row.unit).toBeUndefined();
   });
   it('requires exactly one unit per actual panel code', async () => {
     const value = object(); value.boxes[0].materials[0].materialName = '板件'; value.boxes[0].materials[0].unit = '件';
@@ -46,6 +49,15 @@ describe('warehouse application 2026-10-12.1', () => {
   it('does not clear on a success-shaped receipt for another request', async () => {
     const flow = await ready(); vi.spyOn(api, 'submit').mockResolvedValue(receipt('47ab7945-b324-4ed4-a10a-af734b83de07'));
     await flow.submit(); expect(flow.object.value).not.toBeNull(); expect(flow.notice.value?.error).toBe(true);
+  });
+  it.each([false, true])('completes an application when the receipt reports wmsPendingCreated=%s', async wmsPendingCreated => {
+    const flow = await ready();
+    const submit = vi.spyOn(api, 'submit').mockImplementation(async (_target, _version, id) => ({ ...receipt(id!), wmsPendingCreated }));
+    await flow.submit();
+    expect(flow.pending.value).toBeNull();
+    expect(flow.object.value).toBeNull();
+    expect(flow.notice.value).toEqual({ text: '缴库申请成功，缴库单号：SAP-1', error: false });
+    expect(submit).toHaveBeenCalledOnce();
   });
   it('preserves the original request and input for manual replay after an uncertain application response', async () => {
     const value = object(); value.boxes[0].materials[0].materialName = '板件'; value.boxes[0].materials[0].unit = '件';
@@ -58,7 +70,8 @@ describe('warehouse application 2026-10-12.1', () => {
     const value = object(); value.boxes[0].materials = [{ lineType: 'QUANTITY', materialCode: 'MAT-2', orderNo: 'SO-2', quantity: 5 }];
     value.boxes[0].materialQuantity = value.totalMaterialQuantity = 5;
     const flow = await ready(value); expect(flow.canSubmit.value).toBe(true);
-    expect(flow.materials.value[0].panelCode).toBeUndefined(); expect(flow.materials.value[0].materialBatch).toBeUndefined();
+    const row = flow.orders.value[0].boxes[0].materials[0];
+    expect(row.panelCode).toBeUndefined(); expect(row.materialBatch).toBeUndefined();
   });
   it('does not equate zero material bindings or fixture usage with confirmed physical emptiness', async () => {
     const value = object(); value.object.contentState = 'UNKNOWN'; value.object.runtimeUsage = 'FIXTURE';
@@ -105,15 +118,48 @@ describe('warehouse application 2026-10-12.1', () => {
     await flow.submit(); expect(flow.notice.value?.text).toBe('MES 校验失败'); await flow.submit();
     expect(submit.mock.calls[1][2]).not.toBe(submit.mock.calls[0][2]); expect(submit.mock.calls[1].slice(0, 2)).toEqual(submit.mock.calls[0].slice(0, 2));
   });
-  it.each(['applicationNo', 'sapDocumentNos', 'wmsPendingCreated', 'processedTime', 'resultType'] as const)(
-    'preserves the original snapshot and UUID after an incomplete completion receipt (%s)', async field => {
-      const flow = await ready(); const submit = vi.spyOn(api, 'submit').mockImplementationOnce(async (_target, _version, id) =>
-        Object.assign(receipt(id!), { [field]: field === 'sapDocumentNos' ? [] : field === 'wmsPendingCreated' ? false : '' }))
-        .mockImplementationOnce(async (_target, _version, id) => ({ ...receipt(id!), sapDocumentNos: ['SAP-1', 'SAP-2'] }));
-      await flow.submit(); expect(flow.object.value).not.toBeNull(); expect(flow.notice.value?.text).toContain('未能确认全部处理成功');
-      await flow.submit(); expect(submit.mock.calls[1]).toEqual(submit.mock.calls[0]); expect(flow.notice.value?.text).toContain('SAP-1、SAP-2');
-    }
-  );
+  it.each([
+    ['BOX', { wmsPendingCreated: false, sapDocumentNos: ['SAP-1', 'SAP-2'] }, '缴库申请成功，缴库单号：SAP-1、SAP-2'],
+    ['VEHICLE', { wmsPendingCreated: false, sapDocumentNos: [] }, '缴库申请成功'],
+    ['BOX', null, '缴库申请成功'],
+    ['VEHICLE', undefined, '缴库申请成功']
+  ] as const)('clears pending on the backend success envelope for %s (%j)', async (type, data, message) => {
+    const flow = await ready(object(type));
+    const requests: unknown[] = [];
+    vi.stubGlobal('uni', { ...uni, request(options: UniNamespace.RequestOptions) {
+      requests.push(options.data);
+      options.success?.({ statusCode: requests.length === 1 ? 503 : 200, header: {}, cookies: [],
+        data: requests.length === 1 ? { code: 500, message: '结果待核实' } : { code: 0, message: 'ok', data } });
+    } });
+    await flow.submit();
+    expect(flow.pending.value).not.toBeNull();
+    const reopened = useWarehouseApplication();
+    await reopened.submit();
+    expect(requests).toHaveLength(2);
+    expect(requests[1]).toEqual(requests[0]);
+    expect(reopened.notice.value).toEqual({ text: message, error: false });
+    expect(reopened.pending.value).toBeNull();
+    expect(useWarehouseApplication().pending.value).toBeNull();
+    expect(reopened.canSubmit.value).toBe(false);
+  });
+  it('shows processing without a pending warning until the result is unknown', async () => {
+    vi.spyOn(api, 'getObject').mockResolvedValue(object());
+    let finish!: (result: ApplicationReceipt) => void;
+    const post = vi.spyOn(api, 'submit').mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const wrapper = mount(ApplicationPage, { global: { stubs: { 'scroll-view': { template: '<div><slot /></div>' } } } });
+    try {
+      hooks.show.forEach(show => show());
+      wrapper.getComponent(ScanInput).vm.$emit('scan', 'BOX-1');
+      await flushPromises();
+      await wrapper.get('.footer .primary').trigger('tap');
+      expect(wrapper.text()).toContain('提交中');
+      expect(wrapper.find('.pending-submission').exists()).toBe(false);
+      finish({ ...receipt(post.mock.calls[0][2]!), wmsPendingCreated: false });
+      await flushPromises();
+      expect(wrapper.text()).toContain('缴库申请成功');
+      expect(wrapper.find('.pending-submission').exists()).toBe(false);
+    } finally { wrapper.unmount(); }
+  });
   it('ignores hidden scans and late detail results after loading a new object', async () => {
     const flow = await ready(object('VEHICLE')); let resolve!: (value: BoxMaterials) => void;
     vi.spyOn(api, 'getMaterials').mockImplementationOnce(() => new Promise(done => { resolve = done; }));
@@ -143,6 +189,30 @@ describe('warehouse application 2026-10-12.1', () => {
       expect(wrapper.get('.footer .primary').attributes('disabled')).toBeUndefined();
       hooks.hide.forEach(hide => hide()); await wrapper.vm.$nextTick(); expect(wrapper.find('.object-card').exists()).toBe(false);
       expect(wrapper.find('.list-scroll').exists()).toBe(false);
+    } finally { wrapper.unmount(); }
+  });
+  it('groups a vehicle by order and shows the original boxes, panels, batch and quantities', async () => {
+    const value = object('VEHICLE');
+    const first = value.boxes[0];
+    const panel = first.materials[0];
+    first.materials.push({ ...panel, panelCode: 'PANEL-2', orderNo: 'SO-2', materialBatch: '000002' });
+    first.materialQuantity = 2;
+    value.boxes.push({ ...first, boxCode: 'BOX-2', materialQuantity: 1, materials: [{ ...panel, panelCode: 'PANEL-3' }] });
+    value.totalMaterialQuantity = 3;
+    vi.spyOn(api, 'getObject').mockResolvedValue(value);
+    const wrapper = mount(ApplicationPage, { global: { stubs: { 'scroll-view': { template: '<div><slot /></div>' } } } });
+    try {
+      hooks.show.forEach(show => show());
+      wrapper.getComponent(ScanInput).vm.$emit('scan', 'CAR-1');
+      await flushPromises();
+      const [firstOrder, secondOrder] = wrapper.findAll('.order-group');
+      expect(firstOrder.get('.order-heading').text()).toMatch(/订单 SO-1\s*2 件/);
+      expect(firstOrder.findAll('.box-body').map(box => box.text())).toEqual(['BOX-1', 'BOX-2']);
+      expect(firstOrder.findAll('.material-code').map(row => row.text())).toEqual(['PANEL-1', 'PANEL-3']);
+      expect(secondOrder.get('.order-heading').text()).toMatch(/订单 SO-2\s*1 件/);
+      expect(secondOrder.text()).toContain('PANEL-2');
+      expect(secondOrder.text()).toContain('批次 000002');
+      expect(value.boxes[0].materials).toHaveLength(2);
     } finally { wrapper.unmount(); }
   });
 });

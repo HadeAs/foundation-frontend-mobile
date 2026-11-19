@@ -30,7 +30,7 @@ describe('warehouse application', () => {
     expect(flow.object.value?.object.containerType).toBe('VEHICLE');
     expect(flow.object.value?.boxes).toHaveLength(4);
     expect(flow.object.value?.totalMaterialQuantity).toBe(8);
-    expect(flow.materials.value).toEqual([]);
+    expect(flow.orders.value.reduce((sum, order) => sum + order.quantity, 0)).toBe(8);
     expect(flow.canSubmit.value).toBe(true);
     expect(transport).toHaveBeenCalledOnce();
     transport.mockClear();
@@ -46,7 +46,7 @@ describe('warehouse application', () => {
     const flow = useWarehouseApplication();
     await finish(flow.scan('CAR-APPLY'));
     await finish(flow.scan('BOX-NR-240818'));
-    expect(flow.materials.value).toHaveLength(3);
+    expect(flow.orders.value.flatMap(order => order.boxes.flatMap(box => box.materials))).toHaveLength(3);
     await finish(flow.scan('BOX-APPLY-QUANTITY'));
     expect(flow.object.value).toBeNull();
     expect(flow.notice.value?.text).toBe('载具或箱子编码不存在');
@@ -57,7 +57,7 @@ describe('warehouse application', () => {
     await finish(flow.scan('CONTAINER-AMBIGUOUS'));
     expect(flow.notice.value?.text).toContain('无法唯一识别');
     await finish(flow.scan('BOX-NR-240818'));
-    expect(flow.materials.value).toHaveLength(3);
+    expect(flow.orders.value.flatMap(order => order.boxes.flatMap(box => box.materials))).toHaveLength(3);
     const get = vi.spyOn(api, 'getObject');
     await flow.scan('X'.repeat(129));
     await flow.scan('   ');
@@ -78,7 +78,7 @@ describe('warehouse application', () => {
     expect(flow.object.value?.boxes).toHaveLength(30);
     expect(flow.object.value?.totalMaterialQuantity).toBe(30);
     await finish(flow.scan('BOX-LONG'));
-    expect(flow.materials.value).toHaveLength(30);
+    expect(flow.orders.value.flatMap(order => order.boxes.flatMap(box => box.materials))).toHaveLength(30);
   });
   it('loads read-only box detail with context, locks background actions, and keeps the submission snapshot', async () => {
     const flow = useWarehouseApplication();
@@ -102,7 +102,7 @@ describe('warehouse application', () => {
     expect(flow.object.value).toBe(selected);
     expect(flow.canSubmit.value).toBe(true);
   });
-  it.each(['MES', 'SAP', 'WMS'])('retains state on %s failure with no automatic retries; manual retry sends a new UUID', async (stage) => {
+  it.each(['MES', 'SAP'])('retains state on %s failure with no automatic retries; manual retry sends a new UUID', async (stage) => {
     const flow = useWarehouseApplication();
     await finish(flow.scan(`BOX-APPLY-${stage}-FAIL`));
     const selected = flow.object.value;
@@ -126,7 +126,7 @@ describe('warehouse application', () => {
     expect(flow.object.value?.totalMaterialQuantity).toBe(3);
     expect((await finish(panelPackingApi.getBox('BOX-NR-240818'))).totalQuantity).toBe(0);
   });
-  it('rejects incomplete/mismatched objects and partial success receipts, preserving state', async () => {
+  it('rejects inconsistent scan data and retains the original request for a mismatched receipt', async () => {
     const flow = useWarehouseApplication();
     const valid = await finish(api.getObject('BOX-NR-240818'));
     const get = vi.spyOn(api, 'getObject');
@@ -141,12 +141,10 @@ describe('warehouse application', () => {
     await finish(flow.scan('BOX-NR-240818'));
     const receipt: ApplicationReceipt = { requestId: 'id', applicationNo: 'JK-1', sapDocumentNos: ['SAP-1', 'SAP-2'], wmsPendingCreated: true, processedTime: '2026-09-17T00:00:00Z' };
     const submit = vi.spyOn(api, 'submit');
-    for (const invalid of [{ ...receipt, wmsPendingCreated: false }, { ...receipt, sapDocumentNos: [] }]) {
-      submit.mockResolvedValueOnce(invalid);
-      await flow.submit();
-      expect(flow.object.value).not.toBeNull();
-      expect(flow.notice.value?.text).toContain('未能确认全部处理成功');
-    }
+    submit.mockResolvedValueOnce(receipt);
+    await flow.submit();
+    expect(flow.object.value).not.toBeNull();
+    expect(flow.notice.value?.text).toContain('回执与本次请求不一致');
     submit.mockImplementationOnce(async (_object, _version, id) => ({ ...receipt, requestId: id! }));
     await flow.submit();
     expect(flow.object.value).toBeNull();

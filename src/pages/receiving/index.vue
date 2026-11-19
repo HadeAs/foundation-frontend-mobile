@@ -1,23 +1,41 @@
 <script setup lang="ts">
 import OperationNotice from '../../components/OperationNotice.vue';
 import PendingSubmission from '../../components/PendingSubmission.vue';
-import { onUnmounted, ref, watch } from 'vue';
-import { onHide, onShow } from '@dcloudio/uni-app';
+import { computed, onUnmounted, ref, watch } from 'vue';
+import { onHide, onLoad, onShow } from '@dcloudio/uni-app';
 import ScanInput from '../../components/ScanInput.vue';
 import { useKeyboardScanner } from '../../composables/useKeyboardScanner';
 import { usePdaScanner } from '../../composables/usePdaScanner';
 import { useReceiving } from '../../composables/useReceiving';
 import MaterialRows from '../../components/MaterialRows.vue';
 
-const { pending, storageError, result: object, materials, detail, confirmingClear, remark, busy, disabled, canReceive, canClearWms, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, askClearWms, cancelClearWms, submit } = useReceiving();
+const { pending, pendingConfirmation, storageError, result: object, materials, detail, confirmingClear, unresolvedCode, remark, busy, disabled, canReceive, canClearWms, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, askClearWms, cancelClearWms, submit } = useReceiving();
+const displayedPending = computed(() => pendingConfirmation.value || pending.value);
+const direct = computed(() => !!(object.value?.task?.applicationId || pendingConfirmation.value?.input.applicationId));
+const location = computed(() => object.value?.task?.location ?? (direct.value ? object.value?.object.location : undefined));
 const contentStateNames = { UNKNOWN: '未确认', EMPTY: '已确认空载', LOADED: '已确认非空' };
 const input = ref('');
 let active = false;
+let listScanCode = '';
+onLoad(query => {
+  if (typeof query?.applicationId === 'string' && typeof query.scanCode === 'string') {
+    listScanCode = query.scanCode;
+    void scan(query.scanCode, query.applicationId);
+  }
+});
+function selectApplication() {
+  if (unresolvedCode.value && unresolvedCode.value === listScanCode) { uni.navigateBack(); return; }
+  if (unresolvedCode.value) uni.redirectTo({ url: `/pages/pending-receiving/index?scanCode=${encodeURIComponent(unresolvedCode.value)}`,
+    fail: () => notify('无法打开待接收物料清单，请重试', true) });
+}
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 async function handleScan(value: string) {
   if (!active || disabled.value) return;
   input.value = '';
-  await scan(value);
+  const current = object.value;
+  const code = value.trim();
+  const inScope = current?.task?.object.containerCode === code || current?.boxes.some(box => box.boxCode === code);
+  await scan(code, inScope ? current?.task?.applicationId : undefined);
 }
 usePdaScanner(handleScan);
 const { reset: resetKeyboard } = useKeyboardScanner(handleScan, disabled);
@@ -52,9 +70,9 @@ onUnmounted(() => {
         @scan="handleScan" @error="notify($event, true)" />
       <view v-if="object" class="card object-card">
         <view class="card-heading"><text>接收信息</text><text class="tag">{{ object.object.containerType === 'VEHICLE' ? '载具' : '料箱' }}</text></view>
-        <view class="info"><text>任务号</text><text>{{ object.task?.taskNo || '—' }}</text></view>
+        <view class="info"><text>{{ direct ? '申请单号' : '任务号' }}</text><text>{{ (direct ? object.task?.applicationNo : object.task?.taskNo) || '—' }}</text></view>
         <view class="info"><text>对象编号</text><text>{{ object.object.containerCode }}</text></view>
-        <view class="info"><text>来源位置</text><text>{{ object.task?.location ? object.task.location.locationCode + ' · ' + object.task.location.locationName : '—' }}</text></view>
+        <view class="info"><text>来源位置</text><text>{{ location ? location.locationCode + ' · ' + location.locationName : '—' }}</text></view>
         <view v-if="object.task" class="info"><text>接收状态</text><text>{{ object.task.statusName }} · {{ object.task.receivedBoxCount }}/{{ object.task.totalBoxCount }} 箱</text></view>
         <view class="info"><text>实际内容</text><text>{{ contentStateNames[object.object.contentState || 'UNKNOWN'] }}</text></view>
         <view class="info"><text>关联物料</text><text>{{ object.totalMaterialQuantity }} 件</text></view>
@@ -62,12 +80,14 @@ onUnmounted(() => {
       <view v-if="busy" class="processing" role="status">处理中…</view>
     </view>
     <view class="content">
-      <PendingSubmission v-if="pending || storageError" :code="pending?.input.object.containerCode" :request-id="pending?.input.requestId"
-        :reason="pending?.reason" :storage-error="storageError" :busy="busy" @reload="resume" />
-      <view v-else-if="!object" class="card empty">请扫描箱子或载具<view class="empty-hint">查询当前待接收任务</view></view>
+      <PendingSubmission v-if="displayedPending || storageError" :code="displayedPending?.input.object.containerCode" :request-id="displayedPending?.input.requestId"
+        :reason="displayedPending?.reason" :storage-error="storageError" :busy="busy" @reload="resume" />
+      <view v-else-if="!object" class="card empty">请扫描箱子或载具<view class="empty-hint">查询当前待接收范围</view>
+        <button v-if="unresolvedCode" @tap="selectApplication">从清单选择申请</button>
+      </view>
       <view v-else-if="!object.task" class="card empty">当前{{ object.object.containerType === 'BOX' ? '箱子' : '载具' }}无接收任务<view class="empty-hint">请核对编码或扫描其他容器</view></view>
       <view v-else class="card list-card">
-        <view class="card-heading"><text>{{ object.object.containerType === 'VEHICLE' ? '本次送达料箱' : '箱内物料' }}</text><text>{{ object.object.containerType === 'VEHICLE' ? object.boxes.length + ' 箱' : object.totalMaterialQuantity + ' 件' }}</text></view>
+        <view class="card-heading"><text>{{ object.object.containerType === 'VEHICLE' ? '本次接收料箱' : '箱内物料' }}</text><text>{{ object.object.containerType === 'VEHICLE' ? object.boxes.length + ' 箱' : object.totalMaterialQuantity + ' 件' }}</text></view>
         <scroll-view class="list-scroll" scroll-y :show-scrollbar="true">
           <view v-if="object.object.containerType === 'VEHICLE'" class="box-rows">
             <button v-for="box in object.boxes" :key="box.boxCode" class="box-row" :disabled="disabled" @tap="openMaterials(box.boxCode)">
@@ -82,10 +102,10 @@ onUnmounted(() => {
     </view>
     <view class="bottom">
       <textarea v-if="object?.task" v-model="remark" class="remark-input" placeholder="接收备注（可选，最多500字）" :maxlength="500" :disabled="disabled" />
-      <view class="footer">
+      <view class="footer" :class="{ 'footer--direct': direct }">
         <button :disabled="disabled" @tap="clearPage">清空页面</button>
-        <button class="danger" :disabled="!canClearWms" @tap="askClearWms">{{ pending ? '重试原清理请求' : '清空WMS历史' }}</button>
-        <button class="primary" :disabled="!canReceive" @tap="submit()">确认接收</button>
+        <button v-if="!direct" class="danger" :disabled="!canClearWms" @tap="askClearWms">{{ pending ? '重试原清理请求' : '清空WMS历史' }}</button>
+        <button class="primary" :disabled="!canReceive" @tap="submit()">{{ pendingConfirmation ? '重试接收' : '确认接收' }}</button>
       </view>
     </view>
     <view v-if="confirmingClear" class="modal-mask">
@@ -138,6 +158,7 @@ button:focus-visible { outline: 2px solid #0d9496; outline-offset: 2px; }
 .bottom { flex-shrink: 0; }
 .remark-input { width: calc(100% - 40rpx); height: 76rpx; margin: 14rpx 20rpx 0; padding: 12rpx 16rpx; font-size: 24rpx; line-height: 1.4; color: #254b54; background: white; border: 1px solid #b8d3d6; border-radius: 8rpx; box-sizing: border-box; }
 .footer { flex-shrink: 0; display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 10rpx; padding: 14rpx 20rpx calc(14rpx + env(safe-area-inset-bottom)); }
+.footer--direct { grid-template-columns: 1fr 1.35fr; }
 .footer button { min-width: 0; padding: 0 4rpx; font-size: 24rpx; white-space: nowrap; }
 .primary { color: white; background: #0d9496; border-color: #0d9496; }
 .danger { color: #bb3535; border-color: #bb3535; }

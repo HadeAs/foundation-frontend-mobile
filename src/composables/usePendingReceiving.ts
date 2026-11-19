@@ -1,11 +1,12 @@
 import { computed, ref } from 'vue';
-import { pendingReceivingApi, type PendingFilters, type ReceivingTask } from '../services/pendingReceiving';
+import { pendingReceivingApi, type PendingFilters, type PendingApplication } from '../services/pendingReceiving';
+import { isReceivingId } from '../services/receiving';
 import type { LocationContainer, LocationSummary } from '../services/locationBinding';
 
 export function usePendingReceiving() {
   const vehicleCode = ref('');
   const locationCode = ref('');
-  const items = ref<ReceivingTask[]>([]);
+  const items = ref<PendingApplication[]>([]);
   const total = ref(0);
   const loading = ref(false);
   const refreshing = ref(false);
@@ -20,7 +21,7 @@ export function usePendingReceiving() {
   let active = true;
 
   const text = (value: unknown, max = 128) => typeof value === 'string' && !!value.trim() && value.length <= max;
-  const optionalText = (value: unknown) => value === undefined || text(value);
+  const optionalText = (value: unknown) => value == null || text(value);
   const integer = (value: unknown, min = 1) => typeof value === 'number' && Number.isInteger(value) && value >= min && value <= 2147483647;
   const count = (value: unknown, min = 0) => typeof value === 'number' && Number.isSafeInteger(value) && value >= min;
   function validLocation(value: LocationSummary) {
@@ -31,14 +32,12 @@ export function usePendingReceiving() {
     return value && ['BOX', 'VEHICLE'].includes(value.containerType) && text(value.containerCode) && integer(value.version) && optionalText(value.containerName) &&
       (value.contentState === undefined || ['UNKNOWN', 'EMPTY', 'LOADED'].includes(value.contentState)) &&
       (value.runtimeUsage === undefined || ['MATERIAL', 'FIXTURE'].includes(value.runtimeUsage)) &&
-      (value.location === undefined || validLocation(value.location));
+      (value.location == null || validLocation(value.location));
   }
-  function validTask(task: ReceivingTask) {
-    return task && typeof task.taskId === 'string' && /^[1-9][0-9]{0,18}$/.test(task.taskId) && text(task.taskNo) && integer(task.version) &&
-      validContainer(task.object) && (task.location === undefined || validLocation(task.location)) && text(task.statusName) &&
+  function validApplication(task: PendingApplication) {
+    return task && isReceivingId(task.applicationId) && text(task.applicationNo) && integer(task.version) &&
+      validContainer(task.object) && text(task.statusName) &&
       typeof task.createdTime === 'string' && Number.isFinite(Date.parse(task.createdTime)) &&
-      typeof task.eligibility?.allowed === 'boolean' && (task.eligibility.reason === undefined || text(task.eligibility.reason, 500)) &&
-      (task.eligibility.allowed || text(task.eligibility.reason, 500)) &&
       count(task.totalBoxCount, 1) && count(task.receivedBoxCount) && task.receivedBoxCount <= task.totalBoxCount &&
       (task.status === 'PENDING' ? task.receivedBoxCount === 0 : task.status === 'PARTIAL' ? task.receivedBoxCount > 0 && task.receivedBoxCount < task.totalBoxCount :
         task.status === 'RECEIVED' && task.receivedBoxCount === task.totalBoxCount);
@@ -58,10 +57,10 @@ export function usePendingReceiving() {
           result.records.length > Math.min(result.size, result.total) || (result.current > result.pages && result.records.length)) {
         throw new Error('分页数据异常，请刷新后重试');
       }
-      if (!result.records.every(validTask)) throw new Error('任务数据异常，请刷新后重试');
-      // Offset pagination can overlap while tasks change; keep string IDs intact.
-      const merged = new Map((target === 1 ? [] : items.value).map((task) => [task.taskId, task]));
-      result.records.forEach((task) => merged.set(task.taskId, task));
+      if (!result.records.every(validApplication)) throw new Error('申请数据异常，请刷新后重试');
+      // Offset pagination can overlap while applications change; keep string IDs intact.
+      const merged = new Map((target === 1 ? [] : items.value).map((task) => [task.applicationId, task]));
+      result.records.forEach((task) => merged.set(task.applicationId, task));
       items.value = [...merged.values()];
       total.value = result.total;
       page.value = result.current;
@@ -80,7 +79,7 @@ export function usePendingReceiving() {
     if (!active) return;
     const vehicle = vehicleCode.value.trim();
     const location = locationCode.value.trim();
-    if (vehicle.length > 128 || location.length > 128) { notice.value = '载具号和库位号不能超过128个字符'; return; }
+    if (vehicle.length > 128 || location.length > 128) { notice.value = '箱号、载具号和库位号不能超过128个字符'; return; }
     vehicleCode.value = vehicle; locationCode.value = location;
     filters = { ...(vehicle ? { vehicleCode: vehicle } : {}), ...(location ? { locationCode: location } : {}) };
     items.value = []; total.value = 0; page.value = 0; pages.value = 0;

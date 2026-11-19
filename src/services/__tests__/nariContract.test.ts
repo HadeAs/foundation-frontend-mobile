@@ -60,6 +60,8 @@ const cases: [string, string, () => Promise<unknown>][] = [
   ['post', '/warehouse-applications/submit', () => application.submit(object, 2)],
   ['get', '/receiving/tasks', () => receiving.query(object.containerCode)],
   ['get', '/receiving/tasks', () => receiving.query(object.containerCode, '9007199254741001')],
+  ['get', '/receiving/tasks', () => receiving.query(object.containerCode, { applicationId: '9007199254741002' })],
+  ['post', '/receiving/confirm', () => receiving.confirm({ ...operation, applicationId: '9007199254741002', object })],
   ['post', '/receiving/confirm', () => receiving.confirm({ ...operation, taskId: '9007199254741001', object })],
   ['post', '/receiving/confirm', () => receiving.confirm({ ...operation, taskId: '9007199254741001', object, remark: '本次接收清点备注' })],
   ['post', '/receiving/clear-wms-bindings', () => receiving.clearWms({ ...operation, taskId: '9007199254741001', object })],
@@ -92,8 +94,9 @@ interface Schema { $ref?: string; type?: string; nullable?: boolean; required?: 
 interface Operation { parameters?: { name: string; in: string; required?: boolean; schema: Schema }[]; requestBody?: { content: { 'application/json': { schema: Schema } } } }
 const contract = document as unknown as { paths: Record<string, Record<string, Operation>>; components: { schemas: Record<string, Schema> } };
 function checkFields(value: unknown, schema: Schema) {
+  // The runtime export describes a nullable reference with type: null alongside the reference.
+  if (value === null && (schema.nullable || schema.type === 'null')) return;
   if (schema.$ref) return checkFields(value, contract.components.schemas[schema.$ref.split('/').pop()!]);
-  if (schema.nullable && value === null) return;
   if (schema.enum) expect(schema.enum).toContain(value);
   if (schema.type === 'object') {
     expect(value).toBeTypeOf('object'); expect(value).not.toBeNull();
@@ -108,7 +111,14 @@ function checkFields(value: unknown, schema: Schema) {
     for (const item of value as unknown[]) checkFields(item, schema.items!);
   } else if (schema.type === 'integer') expect(Number.isInteger(value)).toBe(true);
   else if (schema.type) expect(typeof value).toBe(schema.type);
-  if (schema.pattern) expect(value).toMatch(new RegExp(schema.pattern));
+  if (schema.pattern?.startsWith('\\Q') && schema.pattern.endsWith('\\E')) {
+    // Java's quoted enum literals are exported as an alternation.
+    expect(schema.pattern.slice(2, -2).split('\\E|\\Q')).toContain(value);
+  } else if (schema.pattern?.startsWith('(?s)')) {
+    expect(value).toMatch(new RegExp(schema.pattern.slice(4), 's'));
+  } else if (schema.pattern) {
+    expect(value).toMatch(new RegExp(schema.pattern));
+  }
   if (schema.format === 'uuid') expect(value).toMatch(/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i);
 }
 const network = vi.fn((options: UniNamespace.RequestOptions) => {
@@ -125,9 +135,10 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe('documented Nari requests', () => {
-  it('covers all documented operations', () => {
-    // The combined document also contains foundation/CRUD APIs and server-to-server AGV callbacks.
-    const expected = Object.entries(contract.paths).filter(([path]) => path.startsWith(`${prefix}/`) && !path.startsWith(`${prefix}/agv/callbacks/`)).flatMap(([path, item]) => Object.keys(item)
+  it('covers all documented operations used by the current PDA menus', () => {
+    const otherGroups = ['/agv/callbacks/', '/integration/', '/integration-management/', '/jdbc-configs/', '/line-side/'];
+    const expected = Object.entries(contract.paths).filter(([path]) => path.startsWith(`${prefix}/`) &&
+      !otherGroups.some(group => path.startsWith(prefix + group))).flatMap(([path, item]) => Object.keys(item)
       .filter((method) => ['get', 'post'].includes(method)).map((method) => `${method} ${path}`));
     expect([...new Set(cases.map(([method, path]) => `${method} ${prefix}${path}`))].sort()).toEqual(expected.sort());
     expect(expected).toHaveLength(45);
@@ -166,6 +177,14 @@ describe('documented Nari requests', () => {
     const data = network.mock.calls[0][0].data as Record<string, unknown>;
     expect(data).toEqual({ requestId, object, version: 2 });
     checkFields(data, contract.paths[`${prefix}/warehouse-applications/submit`].post.requestBody!.content['application/json'].schema);
+  });
+  it('accepts an empty ok acknowledgement only for warehouse application submission', async () => {
+    vi.stubGlobal('uni', { ...uni, request(options: UniNamespace.RequestOptions) {
+      options.success?.({ statusCode: 200, header: {}, cookies: [], data: { code: 0, message: 'ok', data: null } });
+    } });
+    await expect(application.submit(object, 2, requestId)).resolves.toBeNull();
+    await expect(application.getObject(object.containerCode)).rejects.toThrow();
+    await expect(receiving.confirm({ ...operation, taskId: '1', object })).rejects.toThrow();
   });
   it.each(cases)('%s %s follows the current contract', async (method, path, invoke) => {
     await expect(invoke()).resolves.toEqual({ backend: true });

@@ -27,14 +27,14 @@ describe('pending receiving list', () => {
     await finish(flow.query());
     expect(transport.mock.lastCall?.[0].data).toEqual({ page: 1, size: 20 });
     expect(flow.items.value).toHaveLength(20);
-    expect(flow.items.value[0].taskNo).toBe('RCV-20260917-0047');
+    expect(flow.items.value[0].applicationNo).toBe('JK-47');
     expect(flow.items.value[0].object.containerType).toBe('BOX');
-    expect(flow.items.value[0].taskId).toBe('9007199254741047');
+    expect(flow.items.value[0].applicationId).toBe('9100000000000047');
     await finish(Promise.all([flow.loadMore(), flow.loadMore()]));
     expect(flow.items.value).toHaveLength(40);
     await finish(flow.loadMore());
     expect(flow.items.value).toHaveLength(47);
-    expect(new Set(flow.items.value.map((item) => item.taskId)).size).toBe(47);
+    expect(new Set(flow.items.value.map((item) => item.applicationId)).size).toBe(47);
     await flow.loadMore();
     expect(transport).toHaveBeenCalledTimes(3);
     expect(flow.hasMore.value).toBe(false);
@@ -51,7 +51,7 @@ describe('pending receiving list', () => {
     await finish(flow.query());
     expect(flow.page.value).toBe(1);
     expect(flow.items.value.length).toBeGreaterThan(0);
-    expect(flow.items.value.every((item) => item.object.containerCode === 'CAR-NR-0098' && item.location?.locationCode === 'KW-03-01')).toBe(true);
+    expect(flow.items.value.every((item) => item.object.containerCode === 'CAR-NR-0098' && item.object.location?.locationCode === 'KW-03-01')).toBe(true);
     flow.vehicleCode.value = 'CAR-NR';
     await finish(flow.query());
     expect(flow.items.value).toEqual([]);
@@ -119,7 +119,7 @@ describe('pending receiving list', () => {
     expect(flow.notice.value).toContain('分页数据异常');
     expect(flow.page.value).toBe(1);
   });
-  it('deduplicates overlapping pages by taskId and displays UTC times in local time', async () => {
+  it('deduplicates overlapping pages by applicationId and displays UTC times in local time', async () => {
     const flow = usePendingReceiving();
     await finish(flow.query());
     const repeated = flow.items.value[0];
@@ -133,12 +133,12 @@ describe('pending receiving list', () => {
   });
   it('keeps a partially received transport pending and removes it only after the remaining whole scope is received', async () => {
     const scope = await finish(receivingApi.query('CAR-RECEIVE'));
-    const single = await finish(receivingApi.confirm({ requestId: requestId(), taskId: scope.task!.taskId, version: scope.task!.version,
+    const single = await finish(receivingApi.confirm({ requestId: requestId(), taskId: scope.task!.taskId!, version: scope.task!.version,
       object: { containerType: 'BOX', containerCode: scope.boxes[0].boxCode } }));
     const flow = usePendingReceiving(); flow.vehicleCode.value = 'CAR-RECEIVE'; await finish(flow.query());
-    expect(flow.total.value).toBe(1); expect(flow.items.value[0]).toMatchObject({ taskId: single.taskId, version: single.version,
+    expect(flow.total.value).toBe(1); expect(flow.items.value[0]).toMatchObject({ applicationId: '9100000000000002', version: 2,
       status: 'PARTIAL', receivedBoxCount: 1, totalBoxCount: 3 });
-    await finish(receivingApi.confirm({ requestId: requestId(), taskId: single.taskId, version: single.version,
+    await finish(receivingApi.confirm({ requestId: requestId(), taskId: single.taskId!, version: single.version,
       object: { containerType: 'VEHICLE', containerCode: 'CAR-RECEIVE' } }));
     await finish(flow.refresh()); expect(flow.items.value).toEqual([]); expect(flow.total.value).toBe(0);
   });

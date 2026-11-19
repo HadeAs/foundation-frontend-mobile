@@ -1,22 +1,21 @@
 import { request } from './nariRequest';
-import type { LocationContainer, LocationSummary } from './locationBinding';
-import type { Eligibility } from './panelPacking';
+import type { LocationContainer } from './locationBinding';
 
-export interface ReceivingTask {
-  taskId: string;
-  taskNo: string;
+export interface ReceivingProgress {
   version: number;
   object: LocationContainer;
-  location?: LocationSummary;
   status: string;
   statusName: string;
   createdTime: string;
-  eligibility: Eligibility;
   totalBoxCount: number;
   receivedBoxCount: number;
 }
+export interface PendingApplication extends ReceivingProgress {
+  applicationId: string;
+  applicationNo: string;
+}
 export interface ReceivingTaskPage {
-  records: ReceivingTask[];
+  records: PendingApplication[];
   total: number;
   size: number;
   current: number;

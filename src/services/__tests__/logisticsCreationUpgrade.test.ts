@@ -157,11 +157,17 @@ describe('logistics creation 2026-10-12.1', () => {
     create.mockImplementation(async input => receipt(input)); await flow.returnToWarehouse(); expect(flow.options.value).toBeNull();
     expect(create.mock.calls[2]).toEqual(create.mock.calls[0]);
   });
-  it('refreshes the shipped vehicle version and carries shippingNo only on specified tasks for this scan', async () => {
-    vi.spyOn(api, 'getOptions').mockResolvedValue({ ...snapshot(), object: { ...snapshot().object, version: 12 } });
+  it('refreshes the shipped vehicle version and keeps line-side source diagnostics out of the creation request', async () => {
+    const data = snapshot();
+    data.object.version = 12;
+    const options = { ...data, lineSideInboundSources: [{ boxCode: 'BOX-1', shippingOperationId: '12', shippingNo: 'SHIP-1',
+      contentHash: 'a'.repeat(64), allowed: true, reason: null }] };
+    vi.spyOn(api, 'getOptions').mockResolvedValue(options);
     const create = vi.spyOn(api, 'create').mockRejectedValue(new Error('网络异常')); const returning = vi.spyOn(api, 'returnToWarehouse').mockRejectedValue(new Error('网络异常'));
     const flow = useLogisticsCreation(); await flow.scan('CAR-1', 'SHIP-1'); await flow.submit();
     expect(create.mock.lastCall?.[0]).toMatchObject({ shippingNo: 'SHIP-1', version: 12 });
+    expect(create.mock.lastCall?.[0]).not.toHaveProperty('lineSideInboundSources');
+    expect(create.mock.lastCall?.[0]).not.toHaveProperty('lineSideInbound');
     await flow.returnToWarehouse(); expect(returning.mock.lastCall?.[0]).not.toHaveProperty('shippingNo');
     await flow.scan('KW-1'); await flow.submit(); expect(create.mock.lastCall?.[0]).not.toHaveProperty('shippingNo');
   });
