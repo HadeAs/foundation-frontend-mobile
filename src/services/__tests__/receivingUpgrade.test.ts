@@ -33,6 +33,46 @@ beforeEach(() => {
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 describe('receiving 2026-10-12.1', () => {
+  it.each([
+    ['applicationId', 'NOT_SHELVED', 0], ['taskId', 'NOT_SHELVED', 0],
+    ['applicationId', 'PROCESSED', 1], ['taskId', 'PROCESSED', 1]
+  ] as const)('keeps closed receiving scopes visible without submitting again (%s, %s)', async (identity, status, receivedBoxCount) => {
+    const data = identity === 'applicationId' ? application('VEHICLE') : snapshot('VEHICLE');
+    const reason = '本次范围已处理完毕';
+    Object.assign(data.task!, { status, statusName: status === 'PROCESSED' ? '已处理' : '不予上架',
+      receivedBoxCount, eligibility: { allowed: false, reason } });
+    vi.spyOn(api, 'query').mockResolvedValue(data);
+    const confirm = vi.spyOn(api, 'confirm');
+    const flow = useReceiving();
+    await flow.scan('CAR-1', data.task!.applicationId);
+    expect(flow.result.value?.task).toEqual(data.task);
+    expect(flow.notice.value?.text).toBe(reason);
+    expect(flow.canReceive.value).toBe(false);
+    await flow.submit();
+    expect(confirm).not.toHaveBeenCalled();
+  });
+  it('keeps a not-shelved box read-only when the optional denial reason is absent', async () => {
+    const data = application();
+    Object.assign(data.task!, { status: 'NOT_SHELVED', statusName: '不予上架', eligibility: { allowed: false } });
+    vi.spyOn(api, 'query').mockResolvedValue(data);
+    const flow = useReceiving();
+    await flow.scan('BOX-1');
+    expect(flow.result.value?.task?.statusName).toBe('不予上架');
+    expect(flow.notice.value?.text).toBe('当前对象不可接收');
+    expect(flow.canReceive.value).toBe(false);
+  });
+  it.each([
+    ['NOT_SHELVED', 1, false], ['PROCESSED', 0, false], ['PROCESSED', 3, false],
+    ['NOT_SHELVED', 0, true], ['PROCESSED', 1, true]
+  ])('rejects contradictory closed progress or eligibility (%s, %s, %s)', async (status, receivedBoxCount, allowed) => {
+    const data = application('VEHICLE');
+    Object.assign(data.task!, { status, receivedBoxCount, eligibility: { allowed, reason: '已处理' } });
+    vi.spyOn(api, 'query').mockResolvedValue(data);
+    const flow = useReceiving();
+    await flow.scan('CAR-1');
+    expect(flow.result.value).toBeNull();
+    expect(flow.canReceive.value).toBe(false);
+  });
   it.each(['BOX', 'VEHICLE'] as const)('shows a backend-provided %s application in the list and receives the scanned scope directly', async type => {
     const data = snapshot(type);
     const { taskId, taskNo, eligibility, ...progress } = data.task!;

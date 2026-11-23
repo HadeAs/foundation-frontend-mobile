@@ -121,12 +121,16 @@ it('keeps the menu list read-only and carries the actual scanned box through app
     requestId: input.requestId, object: input.object, version: 10, affectedCount: 1, processedTime: time }));
   const navigateTo = vi.fn();
   vi.stubGlobal('uni', { ...uni, navigateTo });
-  const options = { global: { stubs: { 'scroll-view': { template: '<div><slot /></div>' } } } };
+  const slot = { template: '<div><slot /></div>' };
+  const options = { global: { stubs: { 'scroll-view': slot, 'checkbox-group': slot, checkbox: true } } };
   const list = mount(PendingReceivingPage, options);
   hooks.show.forEach(fn => fn()); await flushPromises();
+  expect(list.get('.app-nav__title').text()).toBe('缴库待接收');
   expect(list.text()).toContain('JK-3');
   expect(list.find('.view-application').exists()).toBe(false);
+  expect(list.get('.footer button').attributes('disabled')).toBeDefined();
   hooks.load.forEach(fn => fn({ scanCode: 'BOX-1' })); await flushPromises();
+  expect(list.find('.footer').exists()).toBe(false);
   await list.get('.view-application').trigger('tap');
   const url = new URL(navigateTo.mock.calls[0][0].url, 'https://example.test');
   expect(url.pathname).toBe('/pages/receiving/index');
@@ -136,6 +140,7 @@ it('keeps the menu list read-only and carries the actual scanned box through app
   const page = mount(ReceivingPage, options);
   hooks.load.forEach(fn => fn(Object.fromEntries(url.searchParams))); hooks.show.forEach(fn => fn()); await flushPromises();
   expect(query).toHaveBeenCalledWith('BOX-1', { applicationId: application.applicationId });
+  expect(page.get('.app-nav__title').text()).toBe('缴库接收');
   expect(page.text()).toContain('JK-3');
   expect(page.text()).not.toContain('清空WMS历史');
   expect(confirm).not.toHaveBeenCalled();

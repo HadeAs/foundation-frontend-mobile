@@ -5,7 +5,7 @@ import { getRequestBaseUrl } from './environment';
 const prefix = '/api/v1/business/nari-logistics';
 
 export class ApiRequestError extends Error {
-  constructor(message: string, public readonly statusCode: number) { super(message); }
+  constructor(message: string, public readonly statusCode: number, public readonly data?: unknown) { super(message); }
 }
 
 export function request<T>(path: string, method: 'GET' | 'POST', data: Record<string, unknown>): Promise<T>;
@@ -26,7 +26,7 @@ export async function request<T>(path: string, method: 'GET' | 'POST', data: Rec
           (body.data != null || (options?.acceptEmptyOk && body.message === 'ok'))) {
           resolve(body.data ?? null);
         } else {
-          reject(new ApiRequestError(body?.message || (response.statusCode === 401 ? '登录已失效，请重新登录' : '请求失败，请稍后重试'), response.statusCode));
+          reject(new ApiRequestError(body?.message || (response.statusCode === 401 ? '登录已失效，请重新登录' : '请求失败，请稍后重试'), response.statusCode, body?.data));
         }
       },
       fail: () => reject(new Error('网络异常，未能确认处理结果，请核实后重试'))

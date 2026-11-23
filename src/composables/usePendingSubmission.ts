@@ -16,7 +16,7 @@ export function validSubmission(value: unknown, extraKeys: string[] = []): value
 
 // These external operations may already have committed work when a request fails.
 // Keep only the original submission, never credentials or a reconstructed snapshot.
-export function usePendingSubmission<T extends SubmissionInput>(name: string, validate: (value: unknown) => value is T) {
+export function usePendingSubmission<T extends { requestId: string }>(name: string, validate: (value: unknown) => value is T) {
   const environment = getCurrentApiBaseUrl();
   const account = getCurrentUser()?.account || '';
   const key = `foundation.${name}.real.${environment}.${account}`;

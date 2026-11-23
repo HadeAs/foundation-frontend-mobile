@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import OperationNotice from '../../components/OperationNotice.vue';
-import { nextTick, onUnmounted, ref, watch } from 'vue';
+import PendingSubmission from '../../components/PendingSubmission.vue';
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import { onShow, onHide, onLoad } from '@dcloudio/uni-app';
 import { usePendingReceiving } from '../../composables/usePendingReceiving';
 import { displayTaskTime, type PendingApplication } from '../../services/pendingReceiving';
 
 const flow = usePendingReceiving();
-const { vehicleCode, locationCode, items, total, loading, refreshing, error, notice, hasMore } = flow;
+const { vehicleCode, locationCode, items, total, loading, refreshing, error, notice, noticeError, hasMore,
+  selectedIds, reason, confirming, submitting, selectionLocked, pending, storageError } = flow;
+const selectionCount = computed(() => pending.value?.input.items.length ?? selectedIds.value.size);
 const scrollTop = ref(0);
 const scannedCode = ref('');
 let opening = false;
@@ -16,7 +19,7 @@ function openApplication(row: PendingApplication) {
   opening = true;
   uni.navigateTo({
     url: `/pages/receiving/index?applicationId=${row.applicationId}&scanCode=${encodeURIComponent(scannedCode.value)}`,
-    fail: () => { notice.value = '无法打开物料接收，请重试'; },
+    fail: () => { noticeError.value = true; notice.value = '无法打开缴库接收，请重试'; },
     complete: () => { opening = false; }
   });
 }
@@ -41,10 +44,10 @@ function goBack() { uni.navigateBack({ delta: 1 }); }
   <view class="app-page pending-page">
     <view class="app-nav">
       <button class="nav-back" @tap="goBack">‹ 返回</button>
-      <view class="app-nav__title">待接收物料清单</view>
+      <view class="app-nav__title">缴库待接收</view>
       <view></view>
     </view>
-    <OperationNotice :text="notice" error />
+    <OperationNotice :text="notice" :error="noticeError" />
     <view class="filters">
       <input v-model="vehicleCode" placeholder="箱号或载具号" aria-label="箱号或载具号" :maxlength="128" confirm-type="search" @confirm="query" />
       <input v-model="locationCode" placeholder="库位号" aria-label="库位号" :maxlength="128" confirm-type="search" @confirm="query" />
@@ -52,27 +55,53 @@ function goBack() { uni.navigateBack({ delta: 1 }); }
     </view>
     <view class="content">
       <view class="list-card">
-        <view class="card-heading"><text>待接收物料清单</text><text class="count">已加载 {{ items.length }} / {{ total }} 条</text></view>
+        <view class="card-heading"><text>缴库待接收</text><text class="count">已加载 {{ items.length }} / {{ total }} 条</text></view>
         <scroll-view class="list-scroll" scroll-y refresher-enabled :refresher-triggered="refreshing" :scroll-top="scrollTop"
           :lower-threshold="60" @scrolltolower="flow.loadMore" @refresherrefresh="flow.refresh">
           <view class="rows">
             <view v-for="task in items" :key="task.applicationId" class="task-record">
-              <view class="record-heading"><text class="task-number">申请单号 {{ task.applicationNo }}</text>
-                <button v-if="scannedCode" class="view-application" @tap="openApplication(task)">选择此申请 ›</button>
-              </view>
-              <view class="record-meta">{{ task.object.containerType === 'BOX' ? '箱号' : '载具号' }} {{ task.object.containerCode }}</view>
-              <view class="record-meta">库位号 {{ task.object.location?.locationCode || '—' }}</view>
-              <view class="record-meta">接收状态 <text class="receiving-progress">{{ task.statusName }} · {{ task.receivedBoxCount }}/{{ task.totalBoxCount }} 箱</text></view>
-              <view class="record-meta">创建时间 {{ displayTaskTime(task.createdTime) }}</view>
+              <checkbox-group @change="flow.toggle(task)">
+                <label class="record-row">
+                  <checkbox v-if="!scannedCode" :value="task.applicationId" :checked="selectedIds.has(task.applicationId)"
+                    :disabled="selectionLocked || task.receivedBoxCount === task.totalBoxCount" color="#0D9496" :aria-label="`选择申请 ${task.applicationNo}`" />
+                  <view class="record-body">
+                    <view class="record-heading"><text class="task-number">申请单号 {{ task.applicationNo }}</text>
+                      <button v-if="scannedCode" class="view-application" @tap.stop="openApplication(task)">选择此申请 ›</button>
+                    </view>
+                    <view class="record-meta">{{ task.object.containerType === 'BOX' ? '箱号' : '载具号' }} {{ task.object.containerCode }}</view>
+                    <view class="record-meta">库位号 {{ task.object.location?.locationCode || '—' }}</view>
+                    <view class="record-meta">接收状态 <text class="receiving-progress">{{ task.statusName }} · 实收 {{ task.receivedBoxCount }}/{{ task.totalBoxCount }} 箱</text></view>
+                    <view class="record-meta">创建时间 {{ displayTaskTime(task.createdTime) }}</view>
+                  </view>
+                </label>
+              </checkbox-group>
             </view>
             <view class="list-status" role="status">
               <text v-if="loading">{{ refreshing ? '刷新中…' : '加载中…' }}</text>
               <button v-else-if="error" class="retry" @tap="flow.retry">加载失败，点击重试</button>
-              <text v-else-if="!items.length">暂无待接收物料清单</text>
+              <text v-else-if="!items.length">暂无待接收的缴库申请</text>
               <text v-else>{{ hasMore ? '上滑加载更多' : '已加载全部申请' }}</text>
             </view>
           </view>
         </scroll-view>
+      </view>
+    </view>
+    <view v-if="!scannedCode" class="footer">
+      <PendingSubmission v-if="(pending && !submitting) || storageError" :request-id="pending?.input.requestId" :reason="pending?.reason"
+        :storage-error="storageError" :busy="submitting" @reload="flow.resume" />
+      <button class="danger" :disabled="!selectionCount || loading || submitting || !!storageError" @tap="flow.askNotShelve">
+        {{ submitting ? '提交中…' : pending ? '重试原请求' : '不予上架' }}（{{ selectionCount }}）
+      </button>
+    </view>
+    <view v-if="confirming" class="modal-mask">
+      <view class="modal" role="dialog" aria-modal="true" aria-label="确认不予上架">
+        <view class="modal-title">确认不予上架</view>
+        <view class="modal-scope">所选 {{ selectionCount }} 笔申请的全部剩余箱将不予上架。</view>
+        <textarea v-model="reason" aria-label="不予上架原因" placeholder="填写不予上架原因（必填，最多500字）" :maxlength="500" :disabled="submitting || !!pending" />
+        <view class="modal-actions">
+          <button :disabled="submitting" @tap="flow.cancelNotShelve">取消</button>
+          <button class="danger" :disabled="submitting || !reason.trim() || reason.trim().length > 500 || !!storageError" @tap="flow.confirmNotShelve">{{ submitting ? '提交中…' : '确认提交' }}</button>
+        </view>
       </view>
     </view>
   </view>
@@ -97,6 +126,10 @@ input { min-width: 0; height: 76rpx; box-sizing: border-box; border: 1px solid #
 .list-scroll { flex: 1; height: 0; min-height: 0; }
 .rows { padding: 0 16rpx; }
 .task-record { padding: 18rpx 0; border-bottom: 1px solid #dfebed; overflow-wrap: anywhere; }
+.record-row { display: flex; align-items: center; gap: 12px; }
+.record-row checkbox { flex-shrink: 0; margin: 0; transform: scale(0.85); transform-origin: right center; }
+.record-row :deep(.uni-checkbox-input) { margin-right: 0; }
+.record-body { flex: 1; min-width: 0; }
 .task-number { font-size: 28rpx; font-weight: 600; }
 .record-heading { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; }
 .view-application { flex-shrink: 0; height: auto; line-height: 1.6; border: 0; font-size: 24rpx; color: #087779; }
@@ -104,4 +137,12 @@ input { min-width: 0; height: 76rpx; box-sizing: border-box; border: 1px solid #
 .receiving-progress { color: #254b54; }
 .list-status { padding: 24rpx 0; text-align: center; font-size: 24rpx; color: #748d93; }
 .retry { display: inline-block; padding: 0 20rpx; }
+.footer { flex-shrink: 0; padding: 0 20rpx calc(14rpx + env(safe-area-inset-bottom)); }
+.danger { border-color: #bb3535; color: #bb3535; }
+.modal-mask { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 24rpx; background: #163e4970; }
+.modal { box-sizing: border-box; width: 100%; max-width: 440px; max-height: 80vh; overflow-y: auto; padding: 24rpx; border-radius: 16rpx; background: white; }
+.modal-title { font-size: 30rpx; font-weight: 600; }
+.modal-scope { margin: 16rpx 0; font-size: 26rpx; }
+.modal textarea { box-sizing: border-box; width: 100%; height: 120rpx; padding: 12rpx; border: 1px solid #9fbfc5; border-radius: 8rpx; font-size: 26rpx; }
+.modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12rpx; margin-top: 20rpx; }
 </style>

@@ -1,12 +1,103 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { pendingReceivingApi as api, type PendingApplication, type ReceivingTaskPage } from '../pendingReceiving';
 import { usePendingReceiving } from '../../composables/usePendingReceiving';
+import { ApiRequestError } from '../nariRequest';
+import { seedTestSession } from './helpers/authSession';
 
 const task = (id = '9007199254741001'): PendingApplication => ({ applicationId: id, applicationNo: 'WL-' + id, version: 7,
   object: { containerType: 'VEHICLE', containerCode: 'CAR-1', version: 3 }, status: 'PARTIAL', statusName: '部分接收',
   totalBoxCount: 3, receivedBoxCount: 1, createdTime: '2026-10-12T01:00:00Z' });
 const page = (records: PendingApplication[], current = 1, total = records.length): ReceivingTaskPage => ({ records, current, total, size: 20, pages: Math.ceil(total / 20) });
 afterEach(() => { vi.restoreAllMocks(); });
+
+describe('pending applications not shelving', () => {
+  const rows = [task(), task('9007199254741002')];
+  beforeEach(() => {
+    const storage = new Map<string, unknown>();
+    vi.stubGlobal('uni', { getStorageSync: (key: string) => storage.get(key) ?? '', setStorageSync: (key: string, value: unknown) => storage.set(key, value) });
+    seedTestSession();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('requires an explicit confirmation with a nonblank reason and at least one pending application', async () => {
+    const completed = { ...task('7'), status: 'RECEIVED', receivedBoxCount: 3 };
+    vi.spyOn(api, 'query').mockResolvedValue(page([...rows, completed]));
+    const send = vi.spyOn(api, 'notShelve');
+    const flow = usePendingReceiving();
+    await flow.query(); flow.toggle(completed); flow.askNotShelve();
+    expect(flow.confirming.value).toBe(false);
+    flow.toggle(rows[0]); flow.askNotShelve();
+    for (const reason of [' ', '料'.repeat(501)]) { flow.reason.value = reason; await flow.confirmNotShelve(); }
+    flow.reason.value = '物料复核'; flow.cancelNotShelve(); await flow.confirmNotShelve();
+    expect(flow.selectedIds.value.has(rows[0].applicationId)).toBe(true);
+    expect(send).not.toHaveBeenCalled();
+  });
+  it.each([1, 2])('submits %i selected applications once and refreshes page one with the applied filters', async n => {
+    const query = vi.spyOn(api, 'query').mockResolvedValueOnce(page(rows)).mockResolvedValueOnce(page([]));
+    const send = vi.spyOn(api, 'notShelve').mockImplementation(async input => ({ requestId: input.requestId,
+      affectedApplicationCount: n, affectedBoxCount: n * 2, items: [...input.items].reverse() }));
+    const flow = usePendingReceiving();
+    flow.vehicleCode.value = 'CAR-1'; await flow.query(); flow.vehicleCode.value = '未查询的输入';
+    rows.slice(0, n).forEach(flow.toggle); flow.askNotShelve(); flow.reason.value = ' 待复检 ';
+    await Promise.all([flow.confirmNotShelve(), flow.confirmNotShelve()]);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith({ requestId: expect.any(String), reason: '待复检', items: rows.slice(0, n).map(({ applicationId, version }) => ({ applicationId, version })) });
+    expect(query).toHaveBeenLastCalledWith({ vehicleCode: 'CAR-1' }, 1);
+    expect(flow.selectedIds.value.size).toBe(0); expect(flow.reason.value).toBe(''); expect(flow.confirming.value).toBe(false);
+    expect(flow.items.value).toEqual([]); expect(flow.noticeError.value).toBe(false);
+  });
+  it('keeps the selection and reason after a version conflict, then drops a stale selection on refresh', async () => {
+    const query = vi.spyOn(api, 'query').mockResolvedValue(page(rows));
+    vi.spyOn(api, 'notShelve').mockRejectedValue(new ApiRequestError('申请版本已变化', 409));
+    const flow = usePendingReceiving(); await flow.query();
+    flow.toggle(rows[0]); flow.askNotShelve(); flow.reason.value = '待复检'; await flow.confirmNotShelve();
+    expect(flow.notice.value).toBe('申请版本已变化'); expect(flow.confirming.value).toBe(true);
+    expect(flow.reason.value).toBe('待复检'); expect(flow.pending.value).toBeNull();
+    expect(flow.selectedIds.value.size).toBe(1); expect(query).toHaveBeenCalledTimes(1);
+    flow.cancelNotShelve(); query.mockResolvedValue(page([{ ...rows[0], version: 8 }])); await flow.refresh();
+    expect(flow.selectedIds.value.size).toBe(0);
+  });
+  it('replays an uncertain batch only on manual confirmation, including after the page is reopened', async () => {
+    vi.spyOn(api, 'query').mockResolvedValue(page(rows));
+    const send = vi.spyOn(api, 'notShelve').mockRejectedValueOnce(new Error('网络超时'))
+      .mockResolvedValueOnce({ requestId: 'wrong-receipt' }).mockImplementationOnce(async input => ({ requestId: input.requestId, items: input.items }));
+    let flow = usePendingReceiving(); await flow.query(); rows.forEach(flow.toggle);
+    flow.askNotShelve(); flow.reason.value = '异常材料'; await flow.confirmNotShelve();
+    expect(flow.pending.value?.input).toEqual(send.mock.calls[0][0]);
+    flow.dispose(); flow = usePendingReceiving(); flow.resume(); await flow.query();
+    expect(send).toHaveBeenCalledTimes(1);
+    flow.askNotShelve(); expect(flow.reason.value).toBe('异常材料'); await flow.confirmNotShelve();
+    expect(flow.pending.value).not.toBeNull(); await flow.confirmNotShelve();
+    expect(send.mock.calls[1]).toEqual(send.mock.calls[0]); expect(send.mock.calls[2]).toEqual(send.mock.calls[0]);
+    expect(flow.pending.value).toBeNull();
+  });
+  it('blocks batches over 1000 remaining boxes before opening the dialog', async () => {
+    const large = { ...rows[0], totalBoxCount: 1001 };
+    vi.spyOn(api, 'query').mockResolvedValue(page([large, rows[1]]));
+    const flow = usePendingReceiving(); await flow.query();
+    flow.toggle(large); flow.toggle(rows[1]); flow.askNotShelve();
+    expect(flow.confirming.value).toBe(false); expect(flow.notice.value).toContain('1000');
+  });
+  it('keeps selection across pages, checks a partial batch receipt, and clears selection on a new search', async () => {
+    const query = vi.spyOn(api, 'query').mockResolvedValueOnce(page([rows[0]], 1, 21)).mockResolvedValueOnce(page([rows[1]], 2, 21));
+    vi.spyOn(api, 'notShelve').mockImplementation(async input => ({ requestId: input.requestId, items: [input.items[0]] }));
+    const flow = usePendingReceiving(); await flow.query(); flow.toggle(rows[0]); await flow.loadMore(); flow.toggle(rows[1]);
+    expect(flow.selectedIds.value.size).toBe(2);
+    flow.askNotShelve(); flow.reason.value = '复检'; await flow.confirmNotShelve();
+    expect(flow.notice.value).toContain('回执'); expect(flow.pending.value?.input.items).toHaveLength(2);
+    expect(query).toHaveBeenCalledTimes(2);
+    flow.cancelNotShelve(); query.mockResolvedValueOnce(page([])); await flow.query();
+    expect(flow.selectedIds.value.size).toBe(0); expect(flow.pending.value?.input.items).toHaveLength(2);
+  });
+  it('retries only the list when refreshing after a committed operation fails', async () => {
+    vi.spyOn(api, 'query').mockResolvedValueOnce(page(rows)).mockRejectedValueOnce(new Error('连接中断')).mockResolvedValueOnce(page([]));
+    const send = vi.spyOn(api, 'notShelve').mockImplementation(async input => ({ requestId: input.requestId }));
+    const flow = usePendingReceiving(); await flow.query(); flow.toggle(rows[0]); flow.askNotShelve();
+    flow.reason.value = '复检'; await flow.confirmNotShelve();
+    expect(flow.notice.value).toContain('不予上架成功，清单刷新失败'); expect(flow.items.value).toEqual([]);
+    expect(flow.pending.value).toBeNull(); await flow.retry(); expect(send).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('pending receiving 2026-10-12.1', () => {
   it('rejects a malformed task identity without replacing the already loaded list', async () => {

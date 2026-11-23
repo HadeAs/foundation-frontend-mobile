@@ -56,6 +56,14 @@
       "style": { "navigationStyle": "custom", "disableScroll": true }
     },
     {
+      "path": "pages/line-side-inbound/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
+      "path": "pages/line-side-inbound-records/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
       "path": "pages/logistics-create/index",
       "style": { "navigationStyle": "custom", "disableScroll": true }
     },

@@ -1,5 +1,5 @@
 import { computed, ref, shallowRef } from 'vue';
-import { receivingApi as api, isReceivingId, receivingIdentity, type ClearWmsRequest, type ReceivingIdentity, type ReceivingResult, type ReceivingRequest } from '../services/receiving';
+import { receivingApi as api, isReceivingId, receivingIdentity, type ClearWmsRequest, type ReceivingIdentity, type ReceivingResult, type ReceivingRequest, type ReceivingTask } from '../services/receiving';
 import { ApiRequestError, requestId } from '../services/nariRequest';
 import type { BoxMaterials } from '../services/warehouseApplication';
 import type { MaterialLine } from '../services/vehicleLoading';
@@ -84,6 +84,18 @@ export function useReceiving() {
       new Set(rows.filter(row => row.lineType === 'PANEL').map(row => row.panelCode)).size === rows.filter(row => row.lineType === 'PANEL').length &&
       rows.reduce((sum, row) => sum + row.quantity, 0) === total;
   }
+  function validProgress(task: ReceivingTask) {
+    const { status, receivedBoxCount, totalBoxCount } = task;
+    if (!integer(totalBoxCount) || !integer(receivedBoxCount, 0) || receivedBoxCount > totalBoxCount) return false;
+    switch (status) {
+      case 'PENDING': return receivedBoxCount === 0;
+      case 'PARTIAL': return receivedBoxCount > 0 && receivedBoxCount < totalBoxCount;
+      case 'RECEIVED': return receivedBoxCount === totalBoxCount;
+      case 'NOT_SHELVED': return !task.eligibility.allowed && receivedBoxCount === 0;
+      case 'PROCESSED': return !task.eligibility.allowed && receivedBoxCount > 0 && receivedBoxCount < totalBoxCount;
+      default: return false;
+    }
+  }
   function validResult(data: ReceivingResult, code: string, expected?: ReceivingIdentity) {
     if (!data || !validContainer(data.object) || data.object.containerCode !== code || !Array.isArray(data.boxes) || !integer(data.totalMaterialQuantity, 0) ||
       data.boxes.some(box => !box || !text(box.boxCode) || !integer(box.version) || !validMaterials(box.materials, box.materialQuantity)) ||
@@ -101,10 +113,8 @@ export function useReceiving() {
     return (identity.applicationId ? optionalText(task.applicationNo) : text(task.taskNo)) && integer(task.version) &&
       validContainer(task.object) && (sameObject || boxInApplication || otherOriginalObject) &&
       (task.location == null || validLocation(task.location)) && text(task.statusName) && typeof task.createdTime === 'string' && Number.isFinite(Date.parse(task.createdTime)) &&
-      typeof task.eligibility?.allowed === 'boolean' && (task.eligibility.allowed || text(task.eligibility.reason, 500)) &&
-      integer(task.totalBoxCount) && integer(task.receivedBoxCount, 0) && task.receivedBoxCount <= task.totalBoxCount &&
-      (task.status === 'PENDING' ? task.receivedBoxCount === 0 : task.status === 'PARTIAL' ? task.receivedBoxCount > 0 && task.receivedBoxCount < task.totalBoxCount :
-        task.status === 'RECEIVED' && task.receivedBoxCount === task.totalBoxCount) &&
+      typeof task.eligibility?.allowed === 'boolean' && (task.eligibility.allowed || task.eligibility.reason === undefined || text(task.eligibility.reason, 500)) &&
+      validProgress(task) &&
       (data.object.containerType === 'BOX' ? data.boxes.length === 1 && data.boxes[0].boxCode === code : data.boxes.length === task.totalBoxCount);
   }
   function remember(code: string, taskId: string, version: number) {
@@ -143,7 +153,7 @@ export function useReceiving() {
       }
       result.value = data;
       if (!task) notify(`当前${data.object.containerType === 'BOX' ? '箱子' : '载具'}无接收任务`, true);
-      else if (!task.eligibility.allowed) notify(task.eligibility.reason!, true);
+      else if (!task.eligibility.allowed) notify(task.eligibility.reason || '当前对象不可接收', true);
       else if (originalVehicleMismatch.value) notify(`请扫描原申请对象 ${task.object.containerCode} 接收`, true);
     });
   }

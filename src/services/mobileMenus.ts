@@ -32,6 +32,8 @@ const pageIcons: Record<string, string> = {
   '/pages/receiving/index': 'package-check',
   '/pages/pending-receiving/index': 'clipboard-list',
   '/pages/shipping/index': 'package-open',
+  '/pages/line-side-inbound/index': 'warehouse',
+  '/pages/line-side-inbound-records/index': 'clipboard-list',
   '/pages/logistics-create/index': 'route',
   '/pages/logistics-cancel/index': 'circle-x',
   '/pages/empty-vehicle/index': 'truck',

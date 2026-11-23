@@ -5,10 +5,12 @@ import { AUTH_SESSION_STORAGE_KEY } from '../auth';
 import { DEFAULT_API_BASE_URL } from '../environment';
 import { seedTestSession } from './helpers/authSession';
 import HomePage from '../../pages/home/index.vue';
+import LineSideInboundPage from '../../pages/line-side-inbound/index.vue';
+import LineSideInboundRecordsPage from '../../pages/line-side-inbound-records/index.vue';
 import pages from '../../pages.json';
 
 const hooks = vi.hoisted(() => ({ show: [] as (() => void)[], hide: [] as (() => void)[] }));
-vi.mock('@dcloudio/uni-app', () => ({ onShow: (fn: () => void) => hooks.show.push(fn), onHide: (fn: () => void) => hooks.hide.push(fn) }));
+vi.mock('@dcloudio/uni-app', () => ({ onShow: (fn: () => void) => hooks.show.push(fn), onHide: (fn: () => void) => hooks.hide.push(fn), onBackPress: vi.fn() }));
 const storage = new Map<string, unknown>();
 const network = vi.fn();
 function rows(): UserMenu[] {
@@ -34,12 +36,26 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe('mobile menu authorization tree', () => {
-  it('supports all 18 registered business pages without adding login, home or scan utilities', () => {
+  it.each([
+    ['物料接收', '待接收物料清单'],
+    ['缴库接收', '缴库待接收'],
+    ['库房收货', '收货清单']
+  ])('uses the configured warehouse names %s and %s verbatim', (receiveName, pendingName) => {
+    const data = rows();
+    data.push(
+      { ...data[2], parentId: 5, menuId: 6, menuName: receiveName, path: 'pages/receiving/index' },
+      { ...data[2], parentId: 5, menuId: 7, menuName: pendingName, path: '/pages/pending-receiving/index' }
+    );
+    expect(buildMobileMenuGroups(data).find(group => group.id === 5)?.menus.map(menu => [menu.name, menu.path])).toEqual([
+      [receiveName, '/pages/receiving/index'], [pendingName, '/pages/pending-receiving/index']
+    ]);
+  });
+  it('supports all 20 registered business pages without adding login, home or scan utilities', () => {
     const paths = pages.pages.map(page => '/' + page.path).filter(path => !['/pages/login/index', '/pages/home/index', '/pages/scan/index'].includes(path));
     const data = rows().slice(0, 2);
     paths.forEach((path, index) => data.push({ ...rows()[2], menuId: index + 10, path, sortNo: index }));
     const menus = buildMobileMenuGroups(data)[0].menus;
-    expect(menus).toHaveLength(18); expect(menus.map(menu => menu.path)).toEqual(paths);
+    expect(menus).toHaveLength(20); expect(menus.map(menu => menu.path)).toEqual(paths);
   });
   it('uses server names and order, hides empty groups and normalizes local paths with a safe fallback icon', () => {
     const data = rows(); data[2].path = 'pages/panel-packing/index'; data[2].icon = 'https://remote/icon'; data[3].icon = 'truck';
@@ -95,6 +111,43 @@ describe('current-user menu request', () => {
 
 describe('dynamic homepage', () => {
   const mountPage = () => mount(HomePage, { global: { stubs: { 'scroll-view': { template: '<div><slot /></div>' } } } });
+  it.each([
+    ['线边入库', '/pages/line-side-inbound/index', 'warehouse', LineSideInboundPage],
+    ['线边入库记录', '/pages/line-side-inbound-records/index', 'clipboard-list', LineSideInboundRecordsPage]
+  ] as const)('opens the independently granted warehouse entry %s', async (menuName, path, icon, page) => {
+    const data = rows();
+    respond({ code: 0, data: { menus: [data[0], data[4], { ...data[2], parentId: 5, menuName, path }] } });
+    const wrapper = mountPage();
+    try {
+      hooks.show.forEach(fn => fn()); await flushPromises();
+      expect(wrapper.text()).toContain('库房作业');
+      const entries = wrapper.findAll('.menu-entry');
+      expect(entries).toHaveLength(1);
+      expect(entries[0].text()).toBe(menuName);
+      expect(entries[0].get('image').attributes('src')).toContain(icon + '.svg');
+      await entries[0].trigger('tap');
+      expect(uni.navigateTo).toHaveBeenCalledWith({ url: path });
+    } finally { wrapper.unmount(); }
+    const navigateBack = vi.fn();
+    vi.stubGlobal('uni', { ...uni, navigateBack });
+    hooks.show.length = 0;
+    respond({ code: 0, data: { current: 1, size: 20, total: 0, pages: 0, records: [] } });
+    const target = mount(page, { global: { stubs: { picker: true, 'scroll-view': { template: '<div><slot /></div>' } } } });
+    try {
+      expect(target.get('.app-nav__title').text()).toBe(menuName);
+      hooks.show.forEach(fn => fn()); await flushPromises();
+      if (page === LineSideInboundRecordsPage) {
+        expect(target.text()).toContain('暂无入库记录');
+        expect(network.mock.lastCall?.[0].url).toContain('/line-side/inbounds');
+      } else {
+        expect(target.text()).toContain('请扫描料箱或料车');
+        expect(target.get('.primary').attributes()).toHaveProperty('disabled');
+        expect(network).toHaveBeenCalledOnce();
+      }
+      await target.get('button').trigger('tap');
+      expect(navigateBack).toHaveBeenCalledWith({ delta: 1 });
+    } finally { target.unmount(); }
+  });
   it('loads only granted entries, navigates by path after renaming, and refreshes permissions on return', async () => {
     const query = vi.spyOn(mobileMenusApi, 'getGroups').mockResolvedValueOnce(buildMobileMenuGroups(rows())).mockResolvedValueOnce([]);
     const wrapper = mountPage();

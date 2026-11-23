@@ -26,7 +26,7 @@ onLoad(query => {
 function selectApplication() {
   if (unresolvedCode.value && unresolvedCode.value === listScanCode) { uni.navigateBack(); return; }
   if (unresolvedCode.value) uni.redirectTo({ url: `/pages/pending-receiving/index?scanCode=${encodeURIComponent(unresolvedCode.value)}`,
-    fail: () => notify('无法打开待接收物料清单，请重试', true) });
+    fail: () => notify('无法打开缴库待接收，请重试', true) });
 }
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 async function handleScan(value: string) {
@@ -62,7 +62,7 @@ onUnmounted(() => {
   <view class="app-page receiving-page">
     <view class="app-nav">
       <button class="nav-back" :disabled="busy || !!detail || confirmingClear" @tap="goBack">‹ 返回</button>
-      <view class="app-nav__title">物料接收</view><view />
+      <view class="app-nav__title">缴库接收</view><view />
     </view>
     <OperationNotice :text="notice?.text" :error="notice?.error" />
     <view class="scan-top">
@@ -73,7 +73,7 @@ onUnmounted(() => {
         <view class="info"><text>{{ direct ? '申请单号' : '任务号' }}</text><text>{{ (direct ? object.task?.applicationNo : object.task?.taskNo) || '—' }}</text></view>
         <view class="info"><text>对象编号</text><text>{{ object.object.containerCode }}</text></view>
         <view class="info"><text>来源位置</text><text>{{ location ? location.locationCode + ' · ' + location.locationName : '—' }}</text></view>
-        <view v-if="object.task" class="info"><text>接收状态</text><text>{{ object.task.statusName }} · {{ object.task.receivedBoxCount }}/{{ object.task.totalBoxCount }} 箱</text></view>
+        <view v-if="object.task" class="info"><text>接收状态</text><text>{{ object.task.statusName }} · 实收 {{ object.task.receivedBoxCount }}/{{ object.task.totalBoxCount }} 箱</text></view>
         <view class="info"><text>实际内容</text><text>{{ contentStateNames[object.object.contentState || 'UNKNOWN'] }}</text></view>
         <view class="info"><text>关联物料</text><text>{{ object.totalMaterialQuantity }} 件</text></view>
       </view>

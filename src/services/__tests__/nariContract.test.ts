@@ -6,6 +6,8 @@ import { locationBindingApi as locations } from '../locationBinding';
 import { warehouseApplicationApi as application } from '../warehouseApplication';
 import { receivingApi as receiving } from '../receiving';
 import { pendingReceivingApi as pending } from '../pendingReceiving';
+import { lineSideInboundApi as inbound } from '../lineSideInbound';
+import { lineSideInboundRecordsApi as lineSide } from '../lineSideInboundRecords';
 import { shippingApi as shipping } from '../shipping';
 import { logisticsApi as logistics } from '../logistics';
 import { logisticsCancellationApi as cancellation } from '../logisticsCancellation';
@@ -66,6 +68,17 @@ const cases: [string, string, () => Promise<unknown>][] = [
   ['post', '/receiving/confirm', () => receiving.confirm({ ...operation, taskId: '9007199254741001', object, remark: '本次接收清点备注' })],
   ['post', '/receiving/clear-wms-bindings', () => receiving.clearWms({ ...operation, taskId: '9007199254741001', object })],
   ['get', '/receiving/pending-tasks', () => pending.query({ vehicleCode: object.containerCode, locationCode: '位置/1' }, 2)],
+  ['get', '/line-side/inbounds/locations', () => inbound.locations({ factoryId: '123', keyword: '接收' }, 2)],
+  ['post', '/line-side/inbounds/scan', () => inbound.scan('车/1', '四楼/1')],
+  ['post', '/line-side/inbounds/batch-preview', () => inbound.preview('四楼/1', ['箱/1'])],
+  ['post', '/line-side/inbounds/batch', () => inbound.submit({ requestId, locationCode: '四楼/1', locationVersion: 1,
+    items: [{ boxCode: '箱/1', boxVersion: 2, shippingOperationId: '357', contentHash: 'f'.repeat(64), expectedId: '234', expectedVersion: 1 }] })],
+  ['get', '/line-side/inbounds', () => lineSide.list({ boxCode: '箱/1', inboundMode: 'MANUAL', syncStatus: 'PENDING',
+    inboundFrom: '2026-11-19T00:00:00.000Z', inboundTo: '2026-11-20T23:59:59.999Z' }, 1)],
+  ['get', '/line-side/inbounds/{id}', () => lineSide.detail('9007199254741002')],
+  ['post', '/receiving/not-shelving', () => pending.notShelve({ requestId, reason: '质量复检', items: [{ applicationId: '9007199254741001', version: 3 }] })],
+  ['post', '/receiving/not-shelving/batch', () => pending.notShelve({ requestId, reason: '质量复检', items: [
+    { applicationId: '9007199254741001', version: 3 }, { applicationId: '9007199254741002', version: 1 }] })],
   ['get', '/shipping/objects', () => shipping.getObject(object.containerCode)],
   ['post', '/shipping/submit', () => shipping.submit({ ...operation, object, scanType: 'VEHICLE', scanCode: object.containerCode })],
   ['get', '/logistics/options', () => logistics.getOptions(object.containerCode)],
@@ -136,12 +149,18 @@ afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe('documented Nari requests', () => {
   it('covers all documented operations used by the current PDA menus', () => {
-    const otherGroups = ['/agv/callbacks/', '/integration/', '/integration-management/', '/jdbc-configs/', '/line-side/'];
-    const expected = Object.entries(contract.paths).filter(([path]) => path.startsWith(`${prefix}/`) &&
+    const otherGroups = ['/agv/callbacks/', '/integration/', '/integration-management/', '/jdbc-configs/', '/line-side/expected-receipts'];
+    const documented = Object.entries(contract.paths).filter(([path]) => path.startsWith(`${prefix}/`) &&
       !otherGroups.some(group => path.startsWith(prefix + group))).flatMap(([path, item]) => Object.keys(item)
       .filter((method) => ['get', 'post'].includes(method)).map((method) => `${method} ${path}`));
-    expect([...new Set(cases.map(([method, path]) => `${method} ${prefix}${path}`))].sort()).toEqual(expected.sort());
-    expect(expected).toHaveLength(45);
+    const active = [...new Set(cases.map(([method, path]) => `${method} ${prefix}${path}`))];
+    const notYetIntegrated = [
+      `post ${prefix}/line-side/inbounds/{id}/sync`,
+      `post ${prefix}/line-side/inbounds`, `post ${prefix}/line-side/inbounds/preview`,
+      `get ${prefix}/receiving/not-shelving-records`, `get ${prefix}/receiving/not-shelving-records/{id}`
+    ];
+    expect([...active, ...notYetIntegrated].sort()).toEqual(documented.sort());
+    expect(active).toHaveLength(53);
   });
   it.each(['all', 'selected'] as const)('preserves the original request UUID for manually replayed %s panel unbind', async mode => {
     if (mode === 'all') await panels.unbindAll('箱/1', 2, requestId);
@@ -190,7 +209,7 @@ describe('documented Nari requests', () => {
     await expect(invoke()).resolves.toEqual({ backend: true });
     expect(network).toHaveBeenCalledOnce();
     const options = network.mock.calls[0][0];
-    const substitutions: Record<string, string> = { taskId: '9007199254741001', areaCode: '区域/1', requestId };
+    const substitutions: Record<string, string> = { taskId: '9007199254741001', id: '9007199254741002', areaCode: '区域/1', requestId };
     expect(options.url).toBe(prefix + path.replace(/\{(\w+)\}/g, (_, key: string) => encodeURIComponent(substitutions[key])));
     expect(options.method).toBe(method.toUpperCase());
     expect(options.header?.Authorization).toBe('Bearer test-session-token');

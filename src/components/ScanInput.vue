@@ -78,7 +78,7 @@ defineExpose({ setScanResult });
         :placeholder="placeholder"
         :confirm-type="confirmType"
         @input="updateValue"
-        @confirm="emitScan()"
+        @confirm="emitScan($event.detail?.value)"
         @blur="scanOnBlur && emitScan()"
       />
       <view v-if="modelValue" class="scan-input__clear" @tap="clearValue">×</view>

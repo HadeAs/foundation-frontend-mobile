@@ -14,7 +14,7 @@
 | `POST /receiving/confirm` | 同时补齐 503 明确写入失败、409 处理中或未知、WMS 已成功仅补本地、首次版本冲突四类响应示例。提供按原请求核实、续办或释放的条件。现有页面在 409、408、5xx 或结果不明时保留原 UUID 和完整请求。 |
 | `POST /logistics/tasks/{taskId}/cancel` | 新版已明确斯坦德同步 `CANCELLED` 与海康受理后核查的区别。FLOW 未发送、404 无可见记录及未决请求的原有核查问题继续跟踪。 |
 | `GET /logistics/cancellable-tasks` | 新版仍注明后端按未结算取数，关键字未按容器码或 AGV 检索。需修筛选、检索及排序。 |
-| `POST /line-side/inbounds/preview`、`POST /line-side/inbounds`、`GET /line-side/inbounds` 及明细 | 对接说明引用的《物料接收入口复用与前端对接》未随本仓库文档提供。联合评审需明确接收页的场景切换、默认场景，以及四楼清单页签和筛选交互。 |
+| 四楼线边入库 | 2026-11-20.floor4-manual-batch.1 已补齐地标候选、箱车扫码、整单预检和批量原子提交。前端已接入，待配套后端部署后进行真机联调。 |
 
 ## 六项复核结论
 
