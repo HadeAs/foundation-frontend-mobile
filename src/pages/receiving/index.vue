@@ -1,15 +1,16 @@
 <script setup lang="ts">
+import ReceivingVehicleRelease from '../../components/ReceivingVehicleRelease.vue';
 import OperationNotice from '../../components/OperationNotice.vue';
 import PendingSubmission from '../../components/PendingSubmission.vue';
 import { computed, onUnmounted, ref, watch } from 'vue';
-import { onHide, onLoad, onShow } from '@dcloudio/uni-app';
+import { onBackPress, onHide, onLoad, onShow } from '@dcloudio/uni-app';
 import ScanInput from '../../components/ScanInput.vue';
 import { useKeyboardScanner } from '../../composables/useKeyboardScanner';
 import { usePdaScanner } from '../../composables/usePdaScanner';
 import { useReceiving } from '../../composables/useReceiving';
 import MaterialRows from '../../components/MaterialRows.vue';
 
-const { pending, pendingConfirmation, storageError, result: object, materials, detail, confirmingClear, unresolvedCode, remark, busy, disabled, canReceive, canClearWms, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, askClearWms, cancelClearWms, submit } = useReceiving();
+const { release, pending, pendingConfirmation, storageError, result: object, materials, detail, confirmingClear, unresolvedCode, remark, busy, disabled, canReceive, canClearWms, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, askClearWms, cancelClearWms, submit } = useReceiving();
 const displayedPending = computed(() => pendingConfirmation.value || pending.value);
 const direct = computed(() => !!(object.value?.task?.applicationId || pendingConfirmation.value?.input.applicationId));
 const location = computed(() => object.value?.task?.location ?? (direct.value ? object.value?.object.location : undefined));
@@ -41,6 +42,7 @@ usePdaScanner(handleScan);
 const { reset: resetKeyboard } = useKeyboardScanner(handleScan, disabled);
 function clearPage() { if (!disabled.value) { clear(); input.value = ''; resetKeyboard(); } }
 function goBack() { if (!busy.value) uni.navigateBack(); }
+onBackPress(() => release.writing.value);
 onShow(() => { active = true; resume(); });
 onHide(() => {
   active = false;
@@ -129,6 +131,7 @@ onUnmounted(() => {
         <view class="detail-footer"><button @tap="closeMaterials">关闭</button></view>
       </view>
     </view>
+    <ReceivingVehicleRelease :flow="release" />
   </view>
 </template>
 

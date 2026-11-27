@@ -2,8 +2,20 @@ import { ApiRequestError, request } from './nariRequest';
 import type { LogisticsTask } from './logistics';
 import type { LocationOperation } from './locationBinding';
 
+interface ActionEligibility { allowed: boolean; reason: string | null }
+export interface TransportTask extends Pick<LogisticsTask, 'taskId' | 'taskNo' | 'version' | 'vendor' | 'origin' | 'destination' | 'statusName' | 'triggerMode' | 'createdTime'> {
+  taskType: string;
+  status: 'QUEUED' | 'DISPATCHING' | 'ACCEPTED' | 'RUNNING' | 'HUNG' | 'UNKNOWN';
+  container: { containerType: string; containerCode: string; containerName?: string | null; version: number; location?: LogisticsTask['origin']; contentState?: string; runtimeUsage?: string | null };
+  agvCode?: string | null; agvName?: string | null;
+  resumeEligibility: ActionEligibility; cancelEligibility: ActionEligibility;
+}
+export interface ResumeReceipt {
+  requestId: string; taskId: string; taskNo: string; status: string; processedTime: string;
+  resumeStatus: 'RESUMED' | 'SUPERSEDED' | 'UNKNOWN';
+}
 export interface LogisticsTaskPage {
-  records: LogisticsTask[]; total: number; size: number; current: number; pages: number;
+  records: TransportTask[]; total: number; size: number; current: number; pages: number;
 }
 export interface CancelTaskRequest { requestId: string; version: number; reason?: string; unbindContext?: LocationOperation }
 export interface CancellationResult {
@@ -20,7 +32,8 @@ export function cancellationQueryErrorMessage(error: unknown): string {
     : message;
 }
 export const logisticsCancellationApi = {
-  query: (keyword: string, page: number) => request<LogisticsTaskPage>('/logistics/cancellable-tasks', 'GET', { ...(keyword ? { keyword } : {}), page, size: 20 }),
+  query: (keyword: string, page: number) => request<LogisticsTaskPage>('/logistics/tasks/unfinished', 'GET', { ...(keyword ? { keyword } : {}), page, size: 20 }),
+  resume: (taskId: string, input: { requestId: string; version: number }) => request<ResumeReceipt>(`/logistics/tasks/${encodeURIComponent(taskId)}/resume`, 'POST', { ...input }),
   cancel: (taskId: string, input: CancelTaskRequest) => request<CancellationResult>(`/logistics/tasks/${encodeURIComponent(taskId)}/cancel`, 'POST', { ...input }),
   result: (taskId: string, requestId: string) => request<CancellationResult>(`/logistics/tasks/${encodeURIComponent(taskId)}/cancellation`, 'GET', { requestId })
 };

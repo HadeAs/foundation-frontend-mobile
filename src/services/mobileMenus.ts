@@ -36,6 +36,7 @@ const pageIcons: Record<string, string> = {
   '/pages/line-side-inbound-records/index': 'clipboard-list',
   '/pages/logistics-create/index': 'route',
   '/pages/logistics-cancel/index': 'circle-x',
+  '/pages/landmark-query/index': 'map-pin-check',
   '/pages/empty-vehicle/index': 'truck',
   '/pages/traffic-control/index': 'shield-check',
   '/pages/warehouse-logistics/index': 'warehouse',

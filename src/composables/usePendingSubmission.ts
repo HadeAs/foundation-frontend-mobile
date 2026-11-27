@@ -41,14 +41,16 @@ export function usePendingSubmission<T extends { requestId: string }>(name: stri
     catch { storageError.value = '本地操作记录保存失败，请核实后重新读取记录'; throw new Error(storageError.value); }
     pending.value = next; storageError.value = '';
   }
-  function finish(id: string) {
-    if (pending.value?.input.requestId !== id) return;
+  function finish(id: string): boolean {
+    if (pending.value?.input.requestId !== id) return false;
+    let completed = false;
     try {
       const stored = uni.getStorageSync(key);
-      if (stored?.input?.requestId === id) uni.setStorageSync(key, null);
+      if (stored?.input?.requestId === id) { uni.setStorageSync(key, null); completed = true; }
     }
     catch { storageError.value = '结果已返回，但本地记录更新失败，请保留原请求并核实'; throw new Error(storageError.value); }
     pending.value = null; storageError.value = '';
+    return completed;
   }
   function failed(error: unknown) {
     if (!pending.value) return;

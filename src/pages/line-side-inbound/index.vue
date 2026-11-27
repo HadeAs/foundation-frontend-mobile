@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ReceivingVehicleRelease from '../../components/ReceivingVehicleRelease.vue';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { onBackPress, onHide, onShow } from '@dcloudio/uni-app';
 import ScanInput from '../../components/ScanInput.vue';
@@ -10,7 +11,7 @@ import { useLineSideInbound } from '../../composables/useLineSideInbound';
 import InboundLocationPicker from './InboundLocationPicker.vue';
 
 const flow = useLineSideInbound();
-const { location, boxes, factoryId, blockReason, checking, writing, pending, storageError, scans, locked, busy, canSubmit, notice } = flow;
+const { release, location, boxes, factoryId, blockReason, checking, writing, pending, storageError, scans, locked, busy, canSubmit, notice } = flow;
 const picking = ref(false);
 const picker = ref<InstanceType<typeof InboundLocationPicker>>();
 const input = ref('');
@@ -31,7 +32,7 @@ async function choose(code: string) {
 function clearPage() { if (!busy.value) { input.value = ''; flow.clear(); resetKeyboard(); } }
 function goBack() { if (!writing.value) uni.navigateBack({ delta: 1 }); }
 onBackPress(() => {
-  if (writing.value || checking.value) return true;
+  if (writing.value || checking.value || release.writing.value) return true;
   if (picking.value) { picking.value = false; return true; }
   return false;
 });
@@ -90,6 +91,7 @@ watch(notice, value => {
       </button>
     </view>
     <InboundLocationPicker v-if="picking" ref="picker" :factory-id="factoryId" :checking="checking" @choose="choose" @close="picking = false" />
+    <ReceivingVehicleRelease :flow="release" />
   </view>
 </template>
 

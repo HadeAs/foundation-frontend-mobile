@@ -16,7 +16,7 @@ export async function request<T>(path: string, method: 'GET' | 'POST', data: Rec
   const baseUrl = getRequestBaseUrl(getCurrentApiBaseUrl());
   return new Promise((resolve, reject) => {
     apiRequest({
-      url: `${baseUrl}${prefix}${path}`,
+      url: baseUrl + (path.startsWith('/api/v1/') ? path : prefix + path),
       method, data,
       header: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       timeout: 15000,

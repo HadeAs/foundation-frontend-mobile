@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue';
-import { pendingReceivingApi, type PendingFilters, type PendingApplication, type NotShelvingItem, type NotShelvingSubmission, type NotShelvingReceipt } from '../services/pendingReceiving';
+import { pendingReceivingApi, type PendingFilters, type PendingApplication, type ApplicationMaterialSummary, type NotShelvingItem, type NotShelvingSubmission, type NotShelvingReceipt } from '../services/pendingReceiving';
 import { isReceivingId } from '../services/receiving';
 import { ApiRequestError, requestId } from '../services/nariRequest';
 import { usePendingSubmission } from './usePendingSubmission';
@@ -49,9 +49,14 @@ export function usePendingReceiving() {
   const reason = ref('');
   const confirming = ref(false);
   const submitting = ref(false);
+  const detailApplication = ref<PendingApplication | null>(null);
+  const detailRows = ref<ApplicationMaterialSummary[]>([]);
+  const detailLoading = ref(false);
+  const detailError = ref('');
+  let detailRevision = 0;
   const submission = usePendingSubmission<NotShelvingSubmission>('receiving-not-shelving', validSubmission);
   const { pending, storageError } = submission;
-  const selectionLocked = computed(() => loading.value || confirming.value || submitting.value || !!pending.value || !!storageError.value);
+  const selectionLocked = computed(() => loading.value || !!detailApplication.value || confirming.value || submitting.value || !!pending.value || !!storageError.value);
   const page = ref(0);
   const pages = ref(0);
   const hasMore = computed(() => page.value < pages.value);
@@ -62,6 +67,44 @@ export function usePendingReceiving() {
 
   function resetSelection() { selected.value = []; reason.value = ''; confirming.value = false; }
   function notify(message: string, isError = true) { noticeError.value = isError; notice.value = message; }
+  function closeDetail() {
+    detailRevision++;
+    if (notice.value === detailError.value) notice.value = '';
+    detailApplication.value = null; detailRows.value = []; detailLoading.value = false; detailError.value = '';
+  }
+  async function openDetail(task: PendingApplication) {
+    if (!active || confirming.value || submitting.value || detailLoading.value) return;
+    const current = ++detailRevision;
+    notice.value = '';
+    detailApplication.value = task; detailLoading.value = true; detailRows.value = []; detailError.value = '';
+    const groups = new Map<string, ApplicationMaterialSummary>();
+    let total: number | undefined;
+    try {
+      for (let page = 1; ; page++) {
+        const data = await pendingReceivingApi.details(task.applicationId, page);
+        if (current !== detailRevision) return;
+        if (total !== undefined && total !== data.total) throw new Error('申请明细已变化，请重新查询');
+        total = data.total;
+        for (const row of data.records) {
+          if (!row || typeof row.materialCode !== 'string' || !row.materialCode.trim() ||
+            typeof row.orderNo !== 'string' || !row.orderNo.trim() || !Number.isSafeInteger(row.quantity) || row.quantity < 0) {
+            throw new Error('申请明细缺少有效的物料编码、订单号或数量，请核实后重试');
+          }
+          const key = JSON.stringify([row.materialCode, row.orderNo]);
+          const group = groups.get(key);
+          if (group) group.quantity += row.quantity;
+          else groups.set(key, { materialCode: row.materialCode, orderNo: row.orderNo, quantity: row.quantity });
+        }
+        if (page >= data.pages) break;
+      }
+      detailRows.value = [...groups.values()];
+    } catch (cause) {
+      if (current === detailRevision) {
+        detailError.value = cause instanceof Error ? cause.message : '申请明细加载失败';
+        notify(detailError.value);
+      }
+    } finally { if (current === detailRevision) detailLoading.value = false; }
+  }
   function toggle(task: PendingApplication) {
     if (!active || selectionLocked.value || !items.value.some(row => row.applicationId === task.applicationId && row.version === task.version) ||
       task.receivedBoxCount === task.totalBoxCount) return;
@@ -69,7 +112,7 @@ export function usePendingReceiving() {
     else selected.value.push({ applicationId: task.applicationId, version: task.version });
   }
   function askNotShelve() {
-    if (!active || loading.value || submitting.value || storageError.value) return;
+    if (!active || detailApplication.value || loading.value || submitting.value || storageError.value) return;
     if (pending.value) reason.value = pending.value.input.reason;
     else {
       if (!selected.value.length) return;
@@ -143,7 +186,7 @@ export function usePendingReceiving() {
   }
 
   async function query() {
-    if (!active || confirming.value || submitting.value) return;
+    if (!active || detailApplication.value || confirming.value || submitting.value) return;
     const vehicle = vehicleCode.value.trim();
     const location = locationCode.value.trim();
     if (vehicle.length > 128 || location.length > 128) { notify('箱号、载具号和库位号不能超过128个字符'); return; }
@@ -154,15 +197,15 @@ export function usePendingReceiving() {
     await load(1);
   }
   async function refresh() {
-    if (!active || refreshing.value || confirming.value || submitting.value) return;
+    if (!active || detailApplication.value || refreshing.value || confirming.value || submitting.value) return;
     refreshing.value = true;
     await load(1);
   }
   async function loadMore() {
-    if (!active || confirming.value || submitting.value || loading.value || error.value || !hasMore.value) return;
+    if (!active || detailApplication.value || confirming.value || submitting.value || loading.value || error.value || !hasMore.value) return;
     await load(page.value + 1);
   }
-  async function retry() { if (active && !loading.value && !confirming.value && !submitting.value && error.value) await load(failedPage); }
+  async function retry() { if (active && !detailApplication.value && !loading.value && !confirming.value && !submitting.value && error.value) await load(failedPage); }
   async function confirmNotShelve() {
     if (!active || !confirming.value || submitting.value || storageError.value || !submission.sameScope()) return;
     const replay = pending.value?.input;
@@ -191,8 +234,9 @@ export function usePendingReceiving() {
     }
   }
   function resume() { active = true; if (!submitting.value) submission.restore(); }
-  function dispose() { active = false; revision++; resetSelection(); loading.value = false; refreshing.value = false; notice.value = ''; }
+  function dispose() { active = false; revision++; closeDetail(); resetSelection(); loading.value = false; refreshing.value = false; notice.value = ''; }
 
   return { vehicleCode, locationCode, items, total, loading, refreshing, error, notice, noticeError, hasMore, page, query, refresh, loadMore, retry, resume, dispose,
+    detailApplication, detailRows, detailLoading, detailError, openDetail, closeDetail,
     selectedIds, reason, confirming, submitting, selectionLocked, pending, storageError, toggle, askNotShelve, cancelNotShelve, confirmNotShelve };
 }

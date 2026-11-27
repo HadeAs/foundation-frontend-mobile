@@ -3,31 +3,32 @@
   "info": {
     "title": "南瑞物流、基座与第三方调度 API（完整整合候选）",
     "version": "1.0.0",
-    "description": "2026-11-20四楼人工接收与混扫批量源码候选：360项后端运行＋6项保留第三方协议。AGV仅可信送达，员工确认才正式入库；地标候选、统一扫码、整单预检和原子提交四项新增。基座V9/业务V94仅隔离验证，未部署日常/生产，无配套新镜像；App及现场待验收。",
+    "description": "南瑞物流、基座接口与第三方协议完整整合。364 项后端运行接口和 6 项第三方协议。接收后的车位解绑为本轮 App 联调候选。",
     "x-export-verification": {
-      "date": "2026-11-20",
-      "runtimeSource": "isolated final-source Spring Boot MockMvc",
-      "productionReverified": false,
-      "pairedApplicationImage": false,
+      "date": "2026-11-25",
+      "runtimeSource": "SAME_IMAGE_ISOLATED_HTTP",
+      "productionReverified": true,
+      "pairedApplicationImage": true,
       "frontendAcceptance": "pending",
-      "hostedOperationCount": 360
+      "hostedOperationCount": 364
     },
-    "x-design-revision": "2026-11-20.floor4-manual-batch.1",
-    "x-build-time": "2026-11-20T08:09:18.106Z",
-    "x-foundation-head": "ce088222eb256835285183cd7d4c0a855686c81a",
+    "x-design-revision": "2026-11-25.receiving-v97.2",
+    "x-build-time": "2026-11-25T04:03:41.955Z",
+    "x-foundation-head": "48a52fe66996268531efcb2d68af073e3760eba6",
     "x-source-worktree-dirty": true,
-    "x-origin": "本次未提交源码的Spring Boot/MockMvc实际frontend-runtime采集，不是生产或旧镜像导出",
+    "x-origin": "同 AMD64 后端镜像隔离 HTTP frontend-runtime 与最新南瑞完整候选",
     "x-current-runtime": {
-      "kind": "ISOLATED_SOURCE_TEST",
-      "foundationMigration": "9",
-      "businessMigration": "94",
-      "pairedImageArchive": false,
-      "productionDeployment": false,
-      "sourceHead": "ce088222eb256835285183cd7d4c0a855686c81a",
+      "kind": "SAME_IMAGE_ISOLATED_HTTP",
+      "foundationMigration": "10",
+      "businessMigration": "97",
+      "pairedImageArchive": true,
+      "productionDeployment": true,
+      "sourceHead": "48a52fe66996268531efcb2d68af073e3760eba6",
       "sourceWorktreeDirty": true,
-      "buildTime": "2026-11-20T08:09:18.106Z",
-      "externalSystems": "isolated fixtures only; no production business submission",
-      "evidence": "dist/openapi/foundation.frontend-runtime.candidate.openapi.json"
+      "buildTime": "2026-11-25T04:03:41.955Z",
+      "image": "foundation-backend:1.0.0-48a52fe66996-receiving-v97-b51813d66d11",
+      "platform": "linux/amd64",
+      "imageConfigId": "sha256:454fdd370c64183bd455641a208708d626c31474df563f25c164f846dc4d65c2"
     },
     "x-contract-checkpoints": {
       "requirements": "用户确认四楼包括AGV送达均人工接收；按前端反馈补地标、扫箱/两类车展开和页面最终清单整批原子提交",
@@ -42,13 +43,16 @@
       "vendorCallbacks": 2,
       "connectionConfig": 2,
       "deviceIntegrationAndManagement": 9,
-      "foundationHosted": 360,
+      "foundationHosted": 364,
       "vendorOutbound": 6,
-      "total": 366,
+      "total": 370,
       "localExpectedReceipt": 4,
       "notShelving": 4,
       "manualBatch": 4,
-      "assSync": 1
+      "assSync": 1,
+      "transportManagement": 2,
+      "landmarkStatus": 1,
+      "receivingVehicleRelease": 1
     },
     "x-previous-contract-checkpoints": {
       "requirements": "用户明确3F库房至4F入库地标自动关联发货箱及物料，无需选箱；人工公共地标，分拣待提供表结构",
@@ -221,26 +225,25 @@
     "x-previous-production-runtime": {
       "kind": "SAME_DEPLOYED_IMAGE_ISOLATED_HTTP",
       "foundationMigration": "9",
-      "businessMigration": "92",
+      "businessMigration": "94",
       "pairedImageArchive": true,
       "productionDeployment": true,
       "sourceHead": "ce088222eb256835285183cd7d4c0a855686c81a",
       "sourceWorktreeDirty": true,
-      "image": "foundation-backend:1.0.0-ce088222-receiving-20261120-5630189ca726-amd64",
-      "platform": "linux/amd64",
-      "productionImageConfigId": "sha256:b5e160cd5bc119de832454969b5e1e5df32520d2fb93b0202e6d3cb5d2dace66",
-      "localImageId": "sha256:00a8972f0dc4d5e7e62972441c83f9b6a952c72c2a7ee1a85294806fda6f5e97",
-      "backendInputDigest": "5630189ca72684c94e478f7970f9282b74387af72d4b0164636382864e7c0bb5",
-      "buildTime": "2026-11-20T03:16:40.033Z",
+      "buildTime": "2026-11-20T08:29:30.275Z",
       "externalSystems": "isolated fixtures only; no production business submission",
       "evidence": "dist/openapi/foundation.frontend-runtime.candidate.openapi.json",
-      "productionRecord": "业务说明/2026-11-20接收待收与不予上架生产升级.md"
+      "image": "foundation-backend:1.0.0-ce088222-floor4-manual-20261120-5b203c7a8682-amd64",
+      "platform": "linux/amd64",
+      "productionImageConfigId": "sha256:de3ef58ecf9f466b35a4d6ae8fff98d690eba93c8c4fee1bf358f793912dcc4f",
+      "backendInputDigest": "5b203c7a8682a69ab7668d44e8701121e4015c307e021f65f1168492d3cd54a3",
+      "productionBackup": "/opt/foundation-backups/backend-20261120-164133-1p5o_ijs"
     }
   },
   "servers": [
     {
       "url": "http://127.0.0.1:18081",
-      "description": "源码联调候选占位，需运行匹配新版本；当前生产V92及旧镜像不支持新批量接口/人工接收策略"
+      "description": "本机联调地址占位。ASS 旧 HTTP 适配源码候选，生产后端仍为上一发布版本。"
     }
   ],
   "security": [
@@ -517,6 +520,19 @@
     {
       "name": "四楼线边 / 人工批量接收",
       "description": "只读混扫、明确地标、最终清单整批人工接收"
+    },
+    {
+      "name": "第三方分拣 ASS",
+      "description": "物流侧直接 HTTP 调用旧交接入口"
+    },
+    {
+      "name": "App / 运输单管理"
+    },
+    {
+      "name": "App / 地标状态"
+    },
+    {
+      "name": "三四楼接收 / 车位解绑"
     }
   ],
   "paths": {
@@ -16542,7 +16558,7 @@
           "二、库房作业 / 物料接收"
         ],
         "summary": "确认物料接收",
-        "description": "2026-11-19已确认：单箱或整车缴库成功即进入待接收清单，允许人员直接确认，不依赖运输任务。按原成功箱范围、当前内容及版本校验；任务/预占/未知保护保持。直接入口用applicationId；显式taskId旧入口兼容。独立App须适配，尚未部署。\n\n2026-11-19用户更正：WMS mes_material_list.lCode使用已保存的SAP凭证号（SAP成功响应applicationCode / sapDocumentNos），不使用物流applicationNo/JKSQ。每个申请须有唯一可确定的凭证；多张不同凭证且无物料对应关系时，在WMS写入前拒绝，不按响应顺序猜测。versionNo及其他字段本轮不变。源码已修复，生产镜像尚未更新；用户已取消WMS验证及历史记录修改，本次仅交付源码修复。\n2026-11-19不予上架增量：成功内容已不予上架时拒绝再次接收，不调用WMS；新旧applicationId/taskId入口共用关闭范围及并发保护。",
+        "description": "接收成功后，前端弹窗确认车与地标解绑。箱车卸载继续在原接收事务处理。\n\n此前阶段描述\n2026-11-19已确认：单箱或整车缴库成功即进入待接收清单，允许人员直接确认，不依赖运输任务。按原成功箱范围、当前内容及版本校验；任务/预占/未知保护保持。直接入口用applicationId；显式taskId旧入口兼容。独立App须适配，尚未部署。\n\n2026-11-19用户更正：WMS mes_material_list.lCode使用已保存的SAP凭证号（SAP成功响应applicationCode / sapDocumentNos），不使用物流applicationNo/JKSQ。每个申请须有唯一可确定的凭证；多张不同凭证且无物料对应关系时，在WMS写入前拒绝，不按响应顺序猜测。versionNo及其他字段本轮不变。源码已修复，生产镜像尚未更新；用户已取消WMS验证及历史记录修改，本次仅交付源码修复。\n2026-11-19不予上架增量：成功内容已不予上架时拒绝再次接收，不调用WMS；新旧applicationId/taskId入口共用关闭范围及并发保护。",
         "operationId": "nari_receiving_confirm",
         "parameters": [],
         "responses": {
@@ -17144,7 +17160,8 @@
           "responseStructureChanged": false,
           "note": "内部检查点不等于已暴露响应字段；不得依赖中文message判别恢复动作。"
         },
-        "description": "2026-11-20人工接收修订：四楼全部由员工确认，包括AGV送达。AGV完成只更新送达，不自动入库/解绑/产生外部待办；已送达待收显示WAITING_RECEIPT，可用原预检/单箱确认或新批量入口。新记录inboundMode=MANUAL，原预期deliveryMode和运输taskId保留。历史已入库不追溯。\n\n2026-10-19当前实现核对（替代15.1仅本地取消说明）：从未发送的本地QUEUED可直接取消并释放本次预占；已ACCEPTED／RUNNING的海康、斯坦德BY_STATION候选可向调度发起取消。FLOW在prepareCancel阶段返回503，尚未发送且本次事务未登记取消记录，不保证结果查询存在。当前没有独立的未支持业务错误标识，503本身不能证明未发送。\n支持分支先独立提交取消记录SENDING和active_cancel_request_id，再发送；网络异常或非成功业务码均保守UNKNOWN，不把厂商非零码猜成无外部效果的明确拒绝。结果查询将内部SENDING和ACCEPTED都投影为ACCEPTED，UNKNOWN／FAILED独立返回；ACCEPTED不表示终结，也不能判断HTTP是否已经发出。\n斯坦德BY_STATION取消成功回执code=0直接返回CANCELLED，海康在可信取消回调后返回CANCELLED；运输先完成时取消结果为FAILED。取货后CANCELLED仍可未结算，保留实物保护，必须刷新位置及unbindEligibility；不能推定已离开或直接解绑。\n结果404只说明查询时没有可见的本任务＋requestId可信记录（或任务不存在），可能请求未登记／仍未提交／记录不再可见，不证明调用未发生或结果过期。当前无自动过期协议，未决请求不得因503／404换新UUID。稳定未发送标识、未支持分支的结果登记保证及人工恢复尚未补齐。\n\n认证：运行接口只检查登录；角色菜单控制前端页面和路由。请求与成功响应保持；本次未联合冻结。\n\n2026-11-17用户确认并冻结本次取消语义修正：斯坦德BY_STATION取消接口code=0即取消完成，无额外取消回调，因此同步返回CANCELLED并更新任务终态；海康仍为ACCEPTED后等待取消回调。非成功码/超时继续UNKNOWN且不自动重发，运输先完成不能被取消覆盖。旧版已记录ACCEPTED的斯坦德成功取消，可用原人员/原requestId/原内容回放补本地结算，不重复调用厂商。保留物理绑定；已有取货事实时取消仍保留实物保护待核查。此段取代上述两品牌均需取消回调的旧说明，接口结构及认证保持。"
+        "description": "2026-11-20人工接收修订：四楼全部由员工确认，包括AGV送达。AGV完成只更新送达，不自动入库/解绑/产生外部待办；已送达待收显示WAITING_RECEIPT，可用原预检/单箱确认或新批量入口。新记录inboundMode=MANUAL，原预期deliveryMode和运输taskId保留。历史已入库不追溯。\n\n2026-10-19当前实现核对（替代15.1仅本地取消说明）：从未发送的本地QUEUED可直接取消并释放本次预占；已ACCEPTED／RUNNING的海康、斯坦德BY_STATION候选可向调度发起取消。FLOW在prepareCancel阶段返回503，尚未发送且本次事务未登记取消记录，不保证结果查询存在。当前没有独立的未支持业务错误标识，503本身不能证明未发送。\n支持分支先独立提交取消记录SENDING和active_cancel_request_id，再发送；网络异常或非成功业务码均保守UNKNOWN，不把厂商非零码猜成无外部效果的明确拒绝。结果查询将内部SENDING和ACCEPTED都投影为ACCEPTED，UNKNOWN／FAILED独立返回；ACCEPTED不表示终结，也不能判断HTTP是否已经发出。\n斯坦德BY_STATION取消成功回执code=0直接返回CANCELLED，海康在可信取消回调后返回CANCELLED；运输先完成时取消结果为FAILED。取货后CANCELLED仍可未结算，保留实物保护，必须刷新位置及unbindEligibility；不能推定已离开或直接解绑。\n结果404只说明查询时没有可见的本任务＋requestId可信记录（或任务不存在），可能请求未登记／仍未提交／记录不再可见，不证明调用未发生或结果过期。当前无自动过期协议，未决请求不得因503／404换新UUID。稳定未发送标识、未支持分支的结果登记保证及人工恢复尚未补齐。\n\n认证：运行接口只检查登录；角色菜单控制前端页面和路由。请求与成功响应保持；本次未联合冻结。\n\n2026-11-17用户确认并冻结本次取消语义修正：斯坦德BY_STATION取消接口code=0即取消完成，无额外取消回调，因此同步返回CANCELLED并更新任务终态；海康仍为ACCEPTED后等待取消回调。非成功码/超时继续UNKNOWN且不自动重发，运输先完成不能被取消覆盖。旧版已记录ACCEPTED的斯坦德成功取消，可用原人员/原requestId/原内容回放补本地结算，不重复调用厂商。保留物理绑定；已有取货事实时取消仍保留实物保护待核查。此段取代上述两品牌均需取消回调的旧说明，接口结构及认证保持。\n\n运输单管理：使用当前列表的 taskId 和 version，允许时提交一个新的 requestId。斯坦德站点挂起单可取消；先到的可信取消回调优先于随后异常的操作应答。未决继续和取消互斥。运输单管理直接取消时省略 unbindContext。",
+        "x-app-handoff": "业务说明/PDA接口实现情况汇总.md#运输单管理"
       }
     },
     "/api/v1/business/nari-logistics/locations/unbind-container": {
@@ -17830,7 +17847,7 @@
         },
         "x-implementation-status": "IMPLEMENTED_RUNTIME_CANDIDATE",
         "x-joint-freeze-status": "PENDING_FRONTEND_REVIEW",
-        "description": "2026-11-20人工接收修订：四楼全部由员工确认，包括AGV送达。AGV完成只更新送达，不自动入库/解绑/产生外部待办；已送达待收显示WAITING_RECEIPT，可用原预检/单箱确认或新批量入口。新记录inboundMode=MANUAL，原预期deliveryMode和运输taskId保留。历史已入库不追溯。\n\n2026-11-20源码候选，尚未部署：人工逐箱确认四楼本地收货。复核预检返回的版本、发货来源、固定物料及可选成对expectedId/expectedVersion；在同一事务保存完整逐板入库快照、完成预期接收、关闭本次箱车及板件有效关系、保存WMS待清理记录。关闭关系保留历史，不推断实物空箱。WMS与分拣均异步不阻塞本地收货；WMS清理mes_material_records，原范围已空视为成功、来源变化阻断、未知不盲重发。ASS V2发送端已实现候选，接收端须另行适配；人工confirmOverwrite=true表示已明确同意本次远端覆盖，未确认也先完成本地收货，远端有旧数据时转WAIT_CONFIRM后在原记录确认。相同requestId原样重放回原收货回执，后续WMS状态通过GET详情刷新。",
+        "description": "成功入库保留板件与箱及箱与车关系，等 ASS 迁移成功后释放。车位通过接收后弹窗即时确认解绑。\n\n此前阶段描述\n2026-11-20人工接收修订：四楼全部由员工确认，包括AGV送达。AGV完成只更新送达，不自动入库/解绑/产生外部待办；已送达待收显示WAITING_RECEIPT，可用原预检/单箱确认或新批量入口。新记录inboundMode=MANUAL，原预期deliveryMode和运输taskId保留。历史已入库不追溯。\n\n2026-11-20源码候选，尚未部署：人工逐箱确认四楼本地收货。复核预检返回的版本、发货来源、固定物料及可选成对expectedId/expectedVersion；在同一事务保存完整逐板入库快照、完成预期接收、关闭本次箱车及板件有效关系、保存WMS待清理记录。关闭关系保留历史，不推断实物空箱。WMS与分拣均异步不阻塞本地收货；WMS清理mes_material_records，原范围已空视为成功、来源变化阻断、未知不盲重发。ASS 接收沿用旧规则并由物流 HTTP 发送，旧库存冲突处理后补发原单。相同requestId原样重放回原收货回执，后续WMS状态通过GET详情刷新。",
         "x-receiving-ui-handoff": {
           "revision": "2026-11-18.receiving-ui.1",
           "frontendScene": "LINE_SIDE_INBOUND",
@@ -18958,7 +18975,7 @@
           "南瑞调度回调（协议候选）"
         ],
         "summary": "斯坦德调度状态回调",
-        "description": "用户2026-11-17确认：斯坦德结束时回调，orderState=1表示完成。生产按states={\"1\":\"COMPLETED\"}映射，其他未配置状态及缺失状态不结算。upperId必填且为原物流任务编号。保留登录、已发送任务身份、协议快照、实物预占与幂等校验；返回原始reqCode/code/message。以后仅按已确认协议增加状态映射，不推测其他值。\n2026-11-17用户确认并冻结callbackToken增量：斯坦德无请求头配置入口，可在JSON根对象携带专用长期Token，仅授权NARI_STANDARD_CALLBACK；或使用原Authorization，二选一。空security项表示可省略Authorization而必须使用Body凭据，绝非匿名接口。错误/停用/未授权密钥拒绝；仅显式本回调接受JSON凭据，不接受URL参数或普通登录Token。64KiB有界严格JSON解析，拒绝重复字段及尾随内容，凭据在业务前移除并进行日志脱敏；无Content-Type配置时，合法带凭据JSON可兼容处理。",
+        "description": "用户2026-11-17确认：斯坦德结束时回调，orderState=1表示完成。生产按states={\"1\":\"COMPLETED\"}映射，其他未配置状态及缺失状态不结算。upperId必填且为原物流任务编号。保留登录、已发送任务身份、协议快照、实物预占与幂等校验；返回原始reqCode/code/message。以后仅按已确认协议增加状态映射，不推测其他值。\n2026-11-17用户确认并冻结callbackToken增量：斯坦德无请求头配置入口，可在JSON根对象携带专用长期Token，仅授权NARI_STANDARD_CALLBACK；或使用原Authorization，二选一。空security项表示可省略Authorization而必须使用Body凭据，绝非匿名接口。错误/停用/未授权密钥拒绝；仅显式本回调接受JSON凭据，不接受URL参数或普通登录Token。64KiB有界严格JSON解析，拒绝重复字段及尾随内容，凭据在业务前移除并进行日志脱敏；无Content-Type配置时，合法带凭据JSON可兼容处理。\n\n运输单管理候选：nari.agv.standard.legacyTransportManagementEnabled 设为 true 后，补充 2=取消、3=挂起、6=执行中，已有显式 states 映射优先。开关默认关闭，1=完成沿用现有映射。可信执行中回调同步车号、车名和首次接单时间。可比较的更新时刻用于跳过乱序回调。",
         "operationId": "nari_agv_standard_callback",
         "requestBody": {
           "content": {
@@ -19062,7 +19079,17 @@
         "x-state-mapping-checkpoints": {
           "requirements": "用户确认实际报文携带orderState=1表示完成",
           "review": "复用既有状态映射机制及upperId/回执，认证与接口结构不变",
-          "freeze": "本次仅确认1=COMPLETED，其他状态待厂商确认"
+          "freeze": "本次仅确认1=COMPLETED，其他状态待厂商确认",
+          "transportManagementCandidate": {
+            "confirmedForLocalCandidate": {
+              "2": "CANCELLED",
+              "3": "HUNG",
+              "6": "RUNNING"
+            },
+            "switch": "nari.agv.standard.legacyTransportManagementEnabled",
+            "default": false,
+            "vendorAndAppAcceptance": "pending"
+          }
         },
         "x-authentication-checkpoints": {
           "requirements": "用户确认JSON callbackToken并授权生产升级",
@@ -26647,7 +26674,8 @@
           "responseStructureChanged": false,
           "note": "内部检查点不等于已暴露响应字段；不得依赖中文message判别恢复动作。"
         },
-        "description": "2026-11-20人工接收修订：四楼全部由员工确认，包括AGV送达。AGV完成只更新送达，不自动入库/解绑/产生外部待办；已送达待收显示WAITING_RECEIPT，可用原预检/单箱确认或新批量入口。新记录inboundMode=MANUAL，原预期deliveryMode和运输taskId保留。历史已入库不追溯。\n\n2026-10-19核对：按taskId＋requestId读取本次可见可信取消记录；内部SENDING当前也返回cancelStatus=ACCEPTED，不能把它解释成一定已经得到厂商受理。UNKNOWN／FAILED可查询；可信终结回调可产生CANCELLED，取货后仍需实物结算。\n404不是“从未发送”的证据，也不是过期证明；当前没有公开的未登记／处理中未提交／归档失去可见性区分字段。FLOW取消在准备阶段拒绝，通常无对应新记录。前端保留未决请求，不由当前运输状态拼造原请求结果。\n\n认证：运行接口只检查登录；角色菜单控制前端页面和路由。请求与成功响应保持；本次未联合冻结。"
+        "description": "2026-11-20人工接收修订：四楼全部由员工确认，包括AGV送达。AGV完成只更新送达，不自动入库/解绑/产生外部待办；已送达待收显示WAITING_RECEIPT，可用原预检/单箱确认或新批量入口。新记录inboundMode=MANUAL，原预期deliveryMode和运输taskId保留。历史已入库不追溯。\n\n2026-10-19核对：按taskId＋requestId读取本次可见可信取消记录；内部SENDING当前也返回cancelStatus=ACCEPTED，不能把它解释成一定已经得到厂商受理。UNKNOWN／FAILED可查询；可信终结回调可产生CANCELLED，取货后仍需实物结算。\n404不是“从未发送”的证据，也不是过期证明；当前没有公开的未登记／处理中未提交／归档失去可见性区分字段。FLOW取消在准备阶段拒绝，通常无对应新记录。前端保留未决请求，不由当前运输状态拼造原请求结果。\n\n认证：运行接口只检查登录；角色菜单控制前端页面和路由。请求与成功响应保持；本次未联合冻结。\n\n运输单管理沿用此接口，以原 taskId 和 requestId 读取本次取消回执，随后刷新未完成清单。",
+        "x-app-handoff": "业务说明/PDA接口实现情况汇总.md#运输单管理"
       }
     },
     "/api/v1/business/nari-logistics/logistics/options": {
@@ -28158,8 +28186,8 @@
         "tags": [
           "第三方调度 / 斯坦德（物流调用厂商）"
         ],
-        "summary": "斯坦德取消站点运输任务（调用调度）",
-        "description": "仅候选BY_STATION取消；FLOW在旧分流缺失，当前503不调用。不新增暂停／继续API。 HTTP成功且业务code=0表示取消已完成（2026-11-17用户确认）。网络／应答异常不重发，使用原任务号及操作记录核查。\n2026-10-30.6已核对DFPServer实际DTO和构造：priority为整数；站点按LocationCode传递，不套海康拼接；流程使用CustomBusinessId作为URL参数。样例仅模拟，不代表现场站点/模板或取消协议已验收。\n2026-11-17用户确认：code=0表示取消已完成，无另行取消回调；物流系统据此原子更新任务为CANCELLED。该语义仅适用斯坦德取消，创建成功码仍只表示接单。",
+        "summary": "斯坦德站点运输任务取消／继续（物流调用厂商）",
+        "description": "仅候选BY_STATION取消；FLOW在旧分流缺失，当前503不调用。 HTTP成功且业务code=0表示取消已完成（2026-11-17用户确认）。网络／应答异常不重发，使用原任务号及操作记录核查。\n2026-10-30.6已核对DFPServer实际DTO和构造：priority为整数；站点按LocationCode传递，不套海康拼接；流程使用CustomBusinessId作为URL参数。样例仅模拟，不代表现场站点/模板或取消协议已验收。\n2026-11-17用户确认：code=0表示取消已完成，无另行取消回调；物流系统据此原子更新任务为CANCELLED。该语义仅适用斯坦德取消，创建成功码仍只表示接单。\n\n继续候选按旧 LES：val=CONTINUE_FROM_HANG，upperIdList=[原站点 orderCode]，仅用于挂起任务。业务 code=0 时确认继续，可信的新回调优先。FLOW 的取消和继续能力仍待当前现场协议确认。",
         "x-direction": "OUTBOUND",
         "x-hosted-by-foundation": false,
         "servers": [
@@ -28174,7 +28202,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NariAgvStandardCancel"
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/NariAgvStandardCancel"
+                  },
+                  {
+                    "$ref": "#/components/schemas/NariAgvStandardContinueFromHang"
+                  }
+                ]
               },
               "examples": {
                 "cancelSameStationOrder": {
@@ -28185,6 +28220,15 @@
                     ],
                     "val": "CANCEL_ORDER"
                   }
+                },
+                "continueHungStationOrder": {
+                  "summary": "继续挂起的同一站点运输任务",
+                  "value": {
+                    "upperIdList": [
+                      "TEST_STD_20261030_161312_257c5a77"
+                    ],
+                    "val": "CONTINUE_FROM_HANG"
+                  }
                 }
               }
             }
@@ -28192,7 +28236,7 @@
         },
         "responses": {
           "200": {
-            "description": "斯坦德取消回执：code=0表示取消完成，无另行取消结果回调；非成功码不推测外部效果，不自动重发。",
+            "description": "斯坦德取消回执：code=0表示取消完成，无另行取消结果回调；非成功码不推测外部效果，不自动重发。 继续候选的 code=0 表示继续确认。",
             "content": {
               "application/json": {
                 "schema": {
@@ -28217,7 +28261,8 @@
             "DFP.LES.Service/LES/DTO/RiotNewRequest.cs",
             "DFP.LES.Service/LES/DTO/RiotRequestOfOperate.cs"
           ]
-        }
+        },
+        "x-transport-resume-status": "LEGACY_LES_CANDIDATE_MOCK_VERIFIED_VENDOR_ACCEPTANCE_PENDING"
       }
     },
     "/api/v1/business/nari-logistics/line-side/expected-receipts": {
@@ -29979,7 +30024,7 @@
         "tags": [
           "四楼线边入库"
         ],
-        "summary": "登记原交接单补发或人工确认覆盖",
+        "summary": "登记原分拣交接单补发",
         "operationId": "nari_line_side_inbound_sync",
         "parameters": [
           {
@@ -30054,17 +30099,17 @@
             }
           }
         },
-        "description": "2026-11-20人工接收修订：四楼全部由员工确认，包括AGV送达。AGV完成只更新送达，不自动入库/解绑/产生外部待办；已送达待收显示WAITING_RECEIPT，可用原预检/单箱确认或新批量入口。新记录inboundMode=MANUAL，原预期deliveryMode和运输taskId保留。历史已入库不追溯。\n\n本地登记原ASS V2交接单补发/人工覆盖确认，不同步调用分拣，不重新收货/解绑。requestId防重，version须为详情最新版本；WAIT_CONFIRM须明确确认覆盖，发送中拒绝修改。原交接ID/箱顺序/逐件快照保持，只有尚未成功的覆盖许可可false升级true。历史无V2待办拒绝自动补建。源码候选未部署，分拣端V2待另行实现。",
+        "description": "使用最新 version 和 requestId 重新排队原交接单，保留箱、逐板快照和原交接 ID。发送中拒绝修改，已成功返回原状态。confirmOverwrite 仅为旧客户端兼容字段。ASS 有活动板件或货位绑定时，须在 ASS 按旧流程处理后再补发。",
         "x-implementation-status": "LOGISTICS_SOURCE_CANDIDATE_NOT_DEPLOYED"
       }
     },
     "/public/callApi": {
       "post": {
-        "operationId": "ass_receive_floor4_handover_v2_draft",
-        "summary": "ASS V2按箱原子覆盖接收并保存防重回执（接收端待实现）",
-        "description": "本方法由分拣服务提供，非物流Controller。旧RPC方法receiveFloor4Handover不支持覆盖，不可代用。先校验已成功原单并原样返回，未成功旧序拒绝；无覆盖许可且有旧数据时返回REQUIRES_CONFIRMATION且不得修改库存或永久缓存拒绝。具备许可后在同一本地事务清理本箱旧当前关系、写完整逐件明细、保存成功顺序和回执。不能删除历史、其他箱、货位/设备主数据；入参板件仍属于其他箱的活动绑定时须返回CONTENT_CONFLICT，不抢占其他箱；正在分配/执行的动作处置未明确时返回BUSY。数据及回执提交后才ACCEPTED，不代表物理上架。实际MOMNext V2发布、认证网关、字段评审与部署待完成。",
+        "operationId": "ass_receive_floor4_handover_legacy_http",
+        "summary": "通过 HTTP 调用 ASS 已有四楼接收接口",
+        "description": "旧 MOMNext 接口。活动板件或货位绑定由 ASS 按既有规则拒绝，现场处理后按原交接单补发。同单同内容返回原回执。HTTP 地址、发布及 Bearer 鉴权待现场核实。",
         "tags": [
-          "第三方分拣 ASS V2（待实现）"
+          "第三方分拣 ASS"
         ],
         "parameters": [
           {
@@ -30074,7 +30119,7 @@
             "schema": {
               "type": "string",
               "enum": [
-                "receiveFloor4HandoverV2"
+                "receiveFloor4Handover"
               ]
             }
           }
@@ -30084,28 +30129,38 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AssV2HandoverRequest"
+                "$ref": "#/components/schemas/AssLegacyHandoverRequest"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "完整事务提交后ACCEPTED；仍须核对身份和精确箱/件数",
+            "description": "MOMNext 可返回原始成功回执或统一包装，包装内也可能是业务错误",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AssV2HandoverAck"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/AssLegacyHandoverAck"
+                    },
+                    {
+                      "$ref": "#/components/schemas/AssLegacySuccessEnvelope"
+                    },
+                    {
+                      "$ref": "#/components/schemas/AssLegacyErrorEnvelope"
+                    }
+                  ]
                 }
               }
             }
           },
           "409": {
-            "description": "结构化业务拒绝/待确认，无本次部分库存写入",
+            "description": "受保护入口返回的业务冲突包装（如适用）",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AssV2HandoverAck"
+                  "$ref": "#/components/schemas/AssLegacyErrorEnvelope"
                 }
               }
             }
@@ -30122,17 +30177,17 @@
         },
         "security": [
           {
-            "AssV2Credential": []
+            "AssHandoverCredential": []
           }
         ],
         "x-direction": "LOGISTICS_TO_ASS",
         "x-hosted-by": "ASS",
-        "x-implemented": false,
-        "x-design-status": "DRAFT_RECEIVER_CHANGE_REQUIRED",
+        "x-implemented": true,
+        "x-design-status": "LEGACY_RECEIVER_SENDER_IMPLEMENTED_DEPLOYMENT_NOT_VERIFIED",
         "servers": [
           {
-            "url": "https://ass-v2.example.invalid",
-            "description": "分拣服务/受保护网关占位；不是物流后端地址"
+            "url": "https://ass.example.invalid",
+            "description": "ASS 服务或受保护网关地址占位"
           }
         ]
       }
@@ -30226,8 +30281,8 @@
             }
           }
         },
-        "description": "只读识别箱或料车，覆盖DIRECT及SLOT有效装载，单次最多100箱且不截断。不传locationCode时仅从本次箱已有PENDING去向集合恰好一个确定目标，否则locationRequired=true并返回暂存箱。空车、逐箱冲突保留原因与原登记地标。任一箱不符合则顶层allowed=false，前端本次不追加部分箱，保留既有清单；混扫/重扫按规范boxCode去重更新原行。AGV仅可信送达后才可人工接收。 普通Bearer登录，角色仅控制App导航；本次源码候选未部署。",
-        "x-implementation-status": "IMPLEMENTED_ISOLATED_TESTED_NOT_DEPLOYED",
+        "description": "只读识别箱或料车，覆盖DIRECT及SLOT有效装载，单次最多100箱且不截断。不传locationCode时仅从本次箱已有PENDING去向集合恰好一个确定目标，否则locationRequired=true并返回暂存箱。空车、逐箱冲突保留原因与原登记地标。任一箱不符合则顶层allowed=false，前端本次不追加部分箱，保留既有清单；混扫/重扫按规范boxCode去重更新原行。AGV仅可信送达后才可人工接收。 普通Bearer登录，角色仅控制App导航；生产后端已部署，App 联调待完成。",
+        "x-implementation-status": "PRODUCTION_DEPLOYED_FRONTEND_ACCEPTANCE_PENDING",
         "x-contract-status": "FRONTEND_INTEGRATION_REVIEW_PENDING"
       }
     },
@@ -30320,8 +30375,8 @@
             }
           }
         },
-        "description": "1～100个不同箱，统一地标及版本；仅按页面最终items，不重新展开车或追加后来装箱。先复核每箱版本/来源/contentHash/预期身份版本/去向/可信送达及保护，全部通过才在同一事务入库、关闭关系、完成待收、保存WMS/ASS待办和完整防重回执。任一箱失败HTTP409/data.failures返回箱号、原登记地标和原因，整批全部回滚，前端保留清单。超时使用原人员、requestId和完整Body重发同POST取得原结果；成功后不重复入库，改变内容/人员/动作409，统一防重错误data可null。明确失败且修改后用新requestId。外部异步失败不撤销本地收货。 普通Bearer登录，角色仅控制App导航；本次源码候选未部署。",
-        "x-implementation-status": "IMPLEMENTED_ISOLATED_TESTED_NOT_DEPLOYED",
+        "description": "批量入库成功后可在同一页面确认车位解绑，ASS 逐箱迁移成功后才释放原板件和箱车关系。\n\n此前阶段描述\n1～100个不同箱，统一地标及版本；仅按页面最终items，不重新展开车或追加后来装箱。先复核每箱版本/来源/contentHash/预期身份版本/去向/可信送达及保护，全部通过才在同一事务入库、关闭关系、完成待收、保存WMS/ASS待办和完整防重回执。任一箱失败HTTP409/data.failures返回箱号、原登记地标和原因，整批全部回滚，前端保留清单。超时使用原人员、requestId和完整Body重发同POST取得原结果；成功后不重复入库，改变内容/人员/动作409，统一防重错误data可null。明确失败且修改后用新requestId。外部异步失败不撤销本地收货。 普通Bearer登录，角色仅控制App导航；生产后端已部署，App 联调待完成。",
+        "x-implementation-status": "PRODUCTION_DEPLOYED_FRONTEND_ACCEPTANCE_PENDING",
         "x-contract-status": "FRONTEND_INTEGRATION_REVIEW_PENDING"
       }
     },
@@ -30414,8 +30469,8 @@
             }
           }
         },
-        "description": "确定或更换地标后传页面全部保留箱重新校验；boxCodes可空以只校验地标，最多100个不同箱。返回地标版本及逐箱来源/版本/contentHash/预期身份与版本/资格。只读、不预占、不持久登记。 普通Bearer登录，角色仅控制App导航；本次源码候选未部署。",
-        "x-implementation-status": "IMPLEMENTED_ISOLATED_TESTED_NOT_DEPLOYED",
+        "description": "确定或更换地标后传页面全部保留箱重新校验；boxCodes可空以只校验地标，最多100个不同箱。返回地标版本及逐箱来源/版本/contentHash/预期身份与版本/资格。只读、不预占、不持久登记。 普通Bearer登录，角色仅控制App导航；生产后端已部署，App 联调待完成。",
+        "x-implementation-status": "PRODUCTION_DEPLOYED_FRONTEND_ACCEPTANCE_PENDING",
         "x-contract-status": "FRONTEND_INTEGRATION_REVIEW_PENDING"
       }
     },
@@ -30552,9 +30607,398 @@
             }
           }
         },
-        "description": "只返回未归档/启用、同区域有效功能区、四楼且有LINE_SIDE_INBOUND用途的地标；factoryId来自扫码，不按角色推断。locationCode精确查询，无候选空页；keyword匹配编码/名称。先过滤再分页，按编码/id升序。公共地标不要求独占空闲。 普通Bearer登录，角色仅控制App导航；本次源码候选未部署。",
-        "x-implementation-status": "IMPLEMENTED_ISOLATED_TESTED_NOT_DEPLOYED",
+        "description": "只返回未归档/启用、同区域有效功能区、四楼且有LINE_SIDE_INBOUND用途的地标；factoryId来自扫码，不按角色推断。locationCode精确查询，无候选空页；keyword匹配编码/名称。先过滤再分页，按编码/id升序。公共地标不要求独占空闲。 普通Bearer登录，角色仅控制App导航；生产后端已部署，App 联调待完成。",
+        "x-implementation-status": "PRODUCTION_DEPLOYED_FRONTEND_ACCEPTANCE_PENDING",
         "x-contract-status": "FRONTEND_INTEGRATION_REVIEW_PENDING"
+      }
+    },
+    "/api/v1/business/nari-logistics/locations/status": {
+      "get": {
+        "tags": [
+          "App / 地标状态"
+        ],
+        "summary": "分页查看 1F–4F 当前地标状态",
+        "description": "查询有效地标的本地运行状态，按楼层号、地标编码、地标 ID 升序。需普通用户登录。",
+        "operationId": "nari_locations_status",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "description": "ALL 为全部地标，STANDARD 为斯坦德潜伏车地标",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "ALL"
+            }
+          },
+          {
+            "name": "floorNumber",
+            "in": "query",
+            "description": "楼层号，省略时查询 1F–4F",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "maximum": 4,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "1",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "20",
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultPageResultLandmarkStatus"
+                }
+              }
+            }
+          }
+        },
+        "x-design-status": "IMPLEMENTED_RUNTIME_VERIFIED_PENDING_JOINT_FREEZE",
+        "x-contract-source": "同 AMD64 后端镜像隔离 HTTP frontend-runtime"
+      }
+    },
+    "/api/v1/business/nari-logistics/logistics/tasks/{taskId}/resume": {
+      "post": {
+        "tags": [
+          "App / 运输单管理"
+        ],
+        "summary": "继续挂起的斯坦德站点运输单",
+        "description": "使用原运输单号发出继续指令。相同操作人以相同 requestId 和 version 重放时读取本次回执，不再次调用调度。 RESUMED 表示继续确认，UNKNOWN 表示待核查，SUPERSEDED 表示可信终态先到。UNKNOWN 时按原操作人、原 requestId 和原 version 重读回执，禁止更换请求号重复派发。",
+        "operationId": "nari_logistics_tasks_resume",
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "[1-9][0-9]{0,18}"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultResumeReceipt"
+                }
+              }
+            }
+          }
+        },
+        "x-design-status": "IMPLEMENTED_RUNTIME_VERIFIED_PENDING_JOINT_FREEZE",
+        "x-contract-source": "同 AMD64 后端镜像隔离 HTTP frontend-runtime",
+        "x-app-handoff": "业务说明/PDA接口实现情况汇总.md#运输单管理"
+      }
+    },
+    "/api/v1/business/nari-logistics/logistics/tasks/unfinished": {
+      "get": {
+        "tags": [
+          "App / 运输单管理"
+        ],
+        "summary": "分页查询未完成运输单",
+        "description": "按运输生命周期排除已完成、已取消和已失败任务，返回当前继续和取消资格。 App 以 continue/cancel 资格对象判断按钮；分别读取 resumeEligibility 与 cancelEligibility。未决操作刷新后仍由服务端复核。",
+        "operationId": "nari_logistics_unfinished_tasks_query",
+        "parameters": [
+          {
+            "name": "vendor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "STANDARD",
+                "HIKVISION"
+              ]
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128,
+              "minLength": 0
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultPageResultTransportTask"
+                }
+              }
+            }
+          }
+        },
+        "x-design-status": "IMPLEMENTED_RUNTIME_VERIFIED_PENDING_JOINT_FREEZE",
+        "x-contract-source": "同 AMD64 后端镜像隔离 HTTP frontend-runtime",
+        "x-app-handoff": "业务说明/PDA接口实现情况汇总.md#运输单管理"
+      }
+    },
+    "/api/v1/business/nari-logistics/receiving/confirm-vehicle-release": {
+      "post": {
+        "tags": [
+          "三四楼接收 / 车位解绑"
+        ],
+        "summary": "接收成功后确认解除本次接收涉及的料车和地标绑定",
+        "operationId": "nari_receiving_confirm_vehicle_release",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceivingVehicleReleaseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "已登记确认，返回每台料车的当前处理结果",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultReceivingVehicleReleaseReceipt"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "未找到原成功接收请求，或确认请求的幂等身份已变化",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultVoid"
+                }
+              }
+            }
+          }
+        },
+        "description": "三楼／四楼接收成功后，操作员确认解绑才提交。四楼车位解绑即时执行，无须等待 ASS 或车上箱处理。板件绑箱和箱车关系继续等待 ASS 迁移成功。",
+        "x-contract-source": "同 AMD64 后端镜像隔离 HTTP frontend-runtime",
+        "x-design-status": "IMPLEMENTED_RUNTIME_VERIFIED_PENDING_JOINT_FREEZE"
       }
     }
   },
@@ -39137,7 +39581,8 @@
             "pattern": "[a-f0-9]{64}"
           },
           "confirmOverwrite": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "兼容字段。当前旧 ASS 接收规则不支持覆盖，建议传 false。"
           },
           "expectedId": {
             "type": "string",
@@ -52832,7 +53277,8 @@
             "minimum": 1
           },
           "confirmOverwrite": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "兼容字段。当前旧 ASS 接收规则不支持覆盖，建议传 false。"
           }
         },
         "required": [
@@ -52840,165 +53286,6 @@
           "requestId",
           "version"
         ]
-      },
-      "AssV2Item": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "materialBarcode",
-          "materialCode"
-        ],
-        "properties": {
-          "materialBarcode": {
-            "type": "string",
-            "description": "板件唯一条码，沿用旧SDK字段",
-            "minLength": 1,
-            "maxLength": 128
-          },
-          "materialCode": {
-            "type": "string",
-            "description": "物料编码",
-            "minLength": 1,
-            "maxLength": 128
-          },
-          "materialName": {
-            "type": "string",
-            "nullable": true,
-            "maxLength": 255
-          }
-        }
-      },
-      "AssV2Box": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "boxCode",
-          "items"
-        ],
-        "properties": {
-          "boxCode": {
-            "type": "string",
-            "description": "",
-            "minLength": 1,
-            "maxLength": 128
-          },
-          "boxType": {
-            "type": "string",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "items": {
-            "type": "array",
-            "minItems": 1,
-            "maxItems": 10000,
-            "items": {
-              "$ref": "#/components/schemas/AssV2Item"
-            }
-          }
-        }
-      },
-      "AssV2HandoverRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "protocolVersion",
-          "sourceSystem",
-          "handoverId",
-          "boxSequence",
-          "allowOverwrite",
-          "boxes"
-        ],
-        "properties": {
-          "protocolVersion": {
-            "type": "integer",
-            "enum": [
-              2
-            ]
-          },
-          "sourceSystem": {
-            "type": "string",
-            "enum": [
-              "FOUNDATION-LES"
-            ]
-          },
-          "handoverId": {
-            "type": "string",
-            "description": "固定交接身份；补发不变，成功重放不得再次清空",
-            "minLength": 1,
-            "maxLength": 128
-          },
-          "boxSequence": {
-            "type": "string",
-            "description": "按数值比较的同箱递增顺序；旧序不得覆盖新批次",
-            "pattern": "^[1-9][0-9]*$"
-          },
-          "allowOverwrite": {
-            "type": "boolean",
-            "description": "自动入库为true；人工需明确确认。成功前同ID同业务快照可false升级true，不计入业务摘要；成功后先返回原回执。"
-          },
-          "boxes": {
-            "type": "array",
-            "minItems": 1,
-            "maxItems": 1,
-            "items": {
-              "$ref": "#/components/schemas/AssV2Box"
-            }
-          }
-        }
-      },
-      "AssV2HandoverAck": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "protocolVersion",
-          "sourceSystem",
-          "handoverId",
-          "status"
-        ],
-        "properties": {
-          "protocolVersion": {
-            "type": "integer",
-            "enum": [
-              2
-            ]
-          },
-          "sourceSystem": {
-            "type": "string",
-            "description": ""
-          },
-          "handoverId": {
-            "type": "string",
-            "description": ""
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "ACCEPTED",
-              "REQUIRES_CONFIRMATION",
-              "CONTENT_CONFLICT",
-              "STALE_REJECTED",
-              "BUSY"
-            ]
-          },
-          "receiptId": {
-            "type": "string",
-            "nullable": true,
-            "pattern": "^[1-9][0-9]*$",
-            "description": "ACCEPTED必填；持久化正数回执ID以字符串传输，避免JavaScript精度丢失；原单重放不变。物流Java适配也能读取旧SDK数值型ID。"
-          },
-          "boxCount": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 1,
-            "description": "ACCEPTED必填且等于1"
-          },
-          "itemCount": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 10000,
-            "description": "ACCEPTED必填且等于完整请求件数"
-          }
-        }
       },
       "NariLineSideScanRequest": {
         "type": "object",
@@ -53183,7 +53470,8 @@
             "minimum": 1
           },
           "confirmOverwrite": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "兼容字段。当前旧 ASS 接收规则不支持覆盖，建议传 false。"
           }
         },
         "required": [
@@ -53444,6 +53732,662 @@
             "format": "int64"
           }
         }
+      },
+      "AssLegacyItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "materialBarcode",
+          "materialCode"
+        ],
+        "properties": {
+          "materialBarcode": {
+            "type": "string",
+            "description": "板件唯一条码，沿用旧SDK字段",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "materialCode": {
+            "type": "string",
+            "description": "物料编码",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "materialName": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 255
+          }
+        }
+      },
+      "AssLegacyBox": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "boxCode",
+          "items"
+        ],
+        "properties": {
+          "boxCode": {
+            "type": "string",
+            "description": "",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "boxType": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 10000,
+            "items": {
+              "$ref": "#/components/schemas/AssLegacyItem"
+            }
+          }
+        }
+      },
+      "AssLegacyHandoverRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sourceSystem",
+          "handoverId",
+          "boxes"
+        ],
+        "properties": {
+          "sourceSystem": {
+            "type": "string",
+            "description": "保留物流待办已保存的来源标识。"
+          },
+          "handoverId": {
+            "type": "string",
+            "description": "固定交接身份；补发不变，成功重放不得再次清空",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "boxes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/AssLegacyBox"
+            }
+          }
+        }
+      },
+      "AssLegacyHandoverAck": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sourceSystem",
+          "handoverId",
+          "status",
+          "receiptId",
+          "boxCount",
+          "itemCount"
+        ],
+        "properties": {
+          "sourceSystem": {
+            "type": "string",
+            "description": ""
+          },
+          "handoverId": {
+            "type": "string",
+            "description": ""
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACCEPTED"
+            ],
+            "description": "完整接收回执"
+          },
+          "receiptId": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 1
+              },
+              {
+                "type": "string",
+                "pattern": "^[1-9][0-9]*$"
+              }
+            ]
+          },
+          "boxCount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1,
+            "description": "ACCEPTED必填且等于1"
+          },
+          "itemCount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000,
+            "description": "ACCEPTED必填且等于完整请求件数"
+          }
+        }
+      },
+      "AssLegacySuccessEnvelope": {
+        "type": "object",
+        "required": [
+          "success",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/AssLegacyHandoverAck"
+          }
+        }
+      },
+      "AssLegacyErrorEnvelope": {
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "errorCode": {
+            "type": "string"
+          },
+          "errorMessage": {
+            "type": "string"
+          }
+        }
+      },
+      "ResumeRequest": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 0
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "requestId",
+          "version"
+        ]
+      },
+      "ApiResultResumeReceipt": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ResumeReceipt"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "traceId": {
+            "type": "string"
+          }
+        }
+      },
+      "ResumeReceipt": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "taskNo": {
+            "type": "string"
+          },
+          "resumeStatus": {
+            "type": "string",
+            "enum": [
+              "RESUMED",
+              "UNKNOWN",
+              "SUPERSEDED"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "processedTime": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResultPageResultTransportTask": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultTransportTask"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "traceId": {
+            "type": "string"
+          }
+        }
+      },
+      "NariTransportActionEligibility": {
+        "type": "object",
+        "properties": {
+          "allowed": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "PageResultTransportTask": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransportTask"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "current": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pages": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "TransportContainer": {
+        "type": "object",
+        "properties": {
+          "containerType": {
+            "type": "string"
+          },
+          "containerCode": {
+            "type": "string"
+          },
+          "containerName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "location": {
+            "$ref": "#/components/schemas/TransportLocation"
+          },
+          "contentState": {
+            "type": "string"
+          },
+          "runtimeUsage": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "TransportLocation": {
+        "type": "object",
+        "properties": {
+          "locationCode": {
+            "type": "string"
+          },
+          "locationName": {
+            "type": "string"
+          },
+          "locationType": {
+            "type": "string"
+          },
+          "floorCode": {
+            "type": "string"
+          },
+          "floorName": {
+            "type": "string"
+          },
+          "areaCode": {
+            "type": "string"
+          },
+          "areaName": {
+            "type": "string"
+          }
+        }
+      },
+      "TransportTask": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string"
+          },
+          "taskNo": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "vendor": {
+            "type": "string",
+            "enum": [
+              "STANDARD",
+              "HIKVISION"
+            ]
+          },
+          "taskType": {
+            "type": "string"
+          },
+          "container": {
+            "$ref": "#/components/schemas/TransportContainer"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/TransportLocation"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/TransportLocation"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "QUEUED",
+              "DISPATCHING",
+              "ACCEPTED",
+              "RUNNING",
+              "HUNG",
+              "UNKNOWN"
+            ]
+          },
+          "statusName": {
+            "type": "string"
+          },
+          "triggerMode": {
+            "type": "string"
+          },
+          "agvCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "agvName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "statusUpdatedTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "agvAcceptedTime": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "resumeEligibility": {
+            "$ref": "#/components/schemas/NariTransportActionEligibility"
+          },
+          "cancelEligibility": {
+            "$ref": "#/components/schemas/NariTransportActionEligibility"
+          }
+        }
+      },
+      "ApiResultPageResultLandmarkStatus": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultLandmarkStatus"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "traceId": {
+            "type": "string"
+          }
+        }
+      },
+      "LandmarkStatus": {
+        "type": "object",
+        "properties": {
+          "locationId": {
+            "type": "string"
+          },
+          "locationCode": {
+            "type": "string"
+          },
+          "locationName": {
+            "type": "string"
+          },
+          "locationType": {
+            "type": "string"
+          },
+          "agvVendor": {
+            "type": "string"
+          },
+          "floorNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "floorCode": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "空闲、占用、预占或未知，按占用、预占、空闲、未知的顺序判定",
+            "enum": [
+              "FREE",
+              "OCCUPIED",
+              "RESERVED",
+              "UNKNOWN"
+            ]
+          },
+          "free": {
+            "type": "boolean",
+            "description": "仅确认空闲时为 true"
+          }
+        }
+      },
+      "PageResultLandmarkStatus": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LandmarkStatus"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "current": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pages": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "NariAgvStandardContinueFromHang": {
+        "type": "object",
+        "properties": {
+          "upperIdList": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "description": "填原斯坦德站点运输任务的 orderCode，与 upperId 一致。"
+          },
+          "val": {
+            "type": "string",
+            "enum": [
+              "CONTINUE_FROM_HANG"
+            ]
+          }
+        },
+        "required": [
+          "upperIdList",
+          "val"
+        ]
+      },
+      "ReceivingVehicleReleaseRequest": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "receivingRequestId": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "receivingRequestId",
+          "requestId"
+        ]
+      },
+      "ApiResultReceivingVehicleReleaseReceipt": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ReceivingVehicleReleaseReceipt"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "traceId": {
+            "type": "string"
+          }
+        }
+      },
+      "ReceivingVehicleReleaseReceipt": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "receivingRequestId": {
+            "type": "string"
+          },
+          "vehicles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReceivingVehicleReleaseVehicle"
+            }
+          }
+        },
+        "required": [
+          "receivingRequestId",
+          "requestId",
+          "vehicles"
+        ]
+      },
+      "ReceivingVehicleReleaseVehicle": {
+        "type": "object",
+        "properties": {
+          "vehicleCode": {
+            "type": "string"
+          },
+          "locationCode": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "RELEASED",
+              "WAITING_BOXES",
+              "RETAINED"
+            ]
+          }
+        },
+        "required": [
+          "locationCode",
+          "status",
+          "vehicleCode"
+        ]
       }
     },
     "securitySchemes": {
@@ -53457,10 +54401,10 @@
         "scheme": "bearer",
         "bearerFormat": "nari_ext_opaque"
       },
-      "AssV2Credential": {
+      "AssHandoverCredential": {
         "type": "http",
         "scheme": "bearer",
-        "description": "分拣端或认证网关的专用凭据；不使用物流用户Token。public为平台路径名，不允许匿名生产接入。"
+        "description": "物流调用 ASS 受保护地址的专用凭据，现场鉴权方式需验证。"
       }
     }
   },
@@ -53481,13 +54425,35 @@
       "pairedApplicationImage": false
     },
     "floor4ManualBatch": {
-      "status": "IMPLEMENTED_ISOLATED_TESTED_NOT_DEPLOYED",
+      "status": "PRODUCTION_DEPLOYED_FRONTEND_ACCEPTANCE_PENDING",
       "manualReceiptRequired": true,
       "automaticReceiptOnAgvArrival": false,
       "batchAtomic": true,
       "maximumBoxes": 100,
       "newMigration": false,
       "document": "业务说明/四楼人工接收与混扫批量入库.md"
+    },
+    "assLegacyHttp": {
+      "status": "SOURCE_TESTED_NOT_DEPLOYED",
+      "apiCode": "receiveFloor4Handover",
+      "overwrite": false,
+      "productionHttpVerification": "pending"
+    },
+    "transportManagement": {
+      "status": "PRODUCTION_LEGACY_SWITCH_ENABLED_VENDOR_ACCEPTANCE_PENDING",
+      "requirements": "用户确认本地按旧 LES 实现，随后授权合并完整 Apifox 并发布后端；独立 App 工程师对接",
+      "review": "已验证模拟调度、同镜像运行契约；现场协议、页面刷新和 App 联调待确认",
+      "freeze": "新增范围仍为候选；旧取消与回调认证保留",
+      "legacyTransportManagementEnabledByDefault": false,
+      "legacyTransportManagementEnabledInProduction": true,
+      "productionEnableDate": "2026-11-25",
+      "businessMigration": "V96"
+    },
+    "receivingVehicleRelease": {
+      "status": "PRODUCTION_DEPLOYED",
+      "requirements": "四楼车位在操作员确认后立即解绑，板件与箱和箱与车等 ASS 迁移成功",
+      "freeze": "独立 App 联调与联合冻结待完成",
+      "businessMigration": "V97"
     }
   },
   "x-floor4-receipt-source-amendment": {
@@ -53498,14 +54464,14 @@
     "runtimeIdentity": "本次源码隔离测试；现有生产V92镜像和dist契约不包含本次增量"
   },
   "x-floor4-ass-source-amendment": {
-    "revision": "2026-11-20.ass-v2",
+    "revision": "2026-11-20.ass-legacy-http.1",
     "logisticsStatus": "SOURCE_IMPLEMENTED_NOT_DEPLOYED",
-    "receiverStatus": "V2_CHANGE_REQUIRED_NOT_IMPLEMENTED_IN_THIS_TASK",
+    "receiverStatus": "EXISTING_INTERNAL_API_HTTP_PUBLICATION_TO_VERIFY",
     "jointReviewAndFreeze": "PENDING",
     "migrations": [
       "business V93",
       "business V94"
     ],
-    "oldRuntimeAndDist": "V92交付保持，不包含本次增量"
+    "oldRuntimeAndDist": "生产仍运行 V94 发布；本候选与旧镜像不对应"
   }
 }

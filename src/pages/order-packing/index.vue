@@ -75,6 +75,7 @@ onUnmounted(() => {
           <label>订单号<input :value="order" placeholder="扫描代表板件带出" aria-label="订单号" aria-readonly="true" :maxlength="128" disabled /></label>
           <label>数量<input v-model="quantity" type="number" placeholder="数量" aria-label="数量" :maxlength="10" :disabled="disabled" /></label>
         </view>
+        <view v-if="Number(quantity) > 50" class="quantity-warning" role="status">每次最多绑定 50 件</view>
         <view v-if="representative" class="representative">
           <view class="secondary representative-code">代表板件 {{ representative.panelCode }}</view>
           <view class="secondary">{{ representative.materialCode }}<text v-if="representative.materialName"> · {{ representative.materialName }}</text></view>
@@ -111,6 +112,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped lang="scss">
+.quantity-warning { color: #b53535; padding: 0 16rpx 12rpx; font-size: 24rpx; }
 .packing-page { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; padding-top: var(--status-bar-height, 0px); color: #254b54; }
 .app-nav { flex-shrink: 0; height: 88rpx; grid-template-columns: 104rpx 1fr 104rpx; padding: 0 16rpx; gap: 0; }
 .app-nav__title { font-size: 32rpx; }

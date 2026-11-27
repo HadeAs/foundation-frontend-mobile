@@ -4,6 +4,12 @@
 > 依据：`nari-logistics.openapi.json`，`info.x-design-revision=2026-10-19.1`（`info.version=1.0.0`）及本轮后端答复  
 > 状态：第1～5项仍有待补契约或后端实现；第6项删除边界已明确，真实联调另验。本文不修改 OpenAPI，不代表已经部署或现场联调通过。
 
+## 2026-11-27 缴库待接收申请详情
+
+已明确。后端确认通过 `GET /api/v1/business/nari-warehouse-record-box` 查询缴库成功箱明细，按 `warehouseRecordId=applicationId` 获取原申请的全部记录。PDA 按物料编码和订单号合计板件数量。
+
+新版运输单管理查询 `GET /logistics/tasks/unfinished`，取消或继续由后端在提交时判断，原取消清单筛选问题不再阻塞此页面。
+
 ## 2026-11-19 新版复核
 
 依据 `2026-11-19.application-receiving.production.1`。直接接收已明确使用申请 ID 及其版本，独立 WMS 清理仍按运输任务执行。下方六项是 10 月 19 日核对基线。

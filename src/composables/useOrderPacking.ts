@@ -32,7 +32,7 @@ export function useOrderPacking() {
   let active = true;
   let attempt: OrderInput | null = null;
   const disabled = computed(() => busy.value || !!review.value || !!mixed.value);
-  const validQuantity = computed(() => /^\d+$/.test(quantity.value) && Number(quantity.value) >= 1 && Number(quantity.value) <= 2147483647);
+  const validQuantity = computed(() => /^\d+$/.test(quantity.value) && Number(quantity.value) >= 1 && Number(quantity.value) <= 50);
   const canSubmit = computed(() => !!box.value?.eligibility.allowed && !!representative.value && validQuantity.value && !disabled.value);
   function notify(text: string, error = false) { notice.value = { text, error }; }
   function clear() {
@@ -137,7 +137,7 @@ export function useOrderPacking() {
   }
   async function submit() {
     if (disabled.value || !active) return;
-    if (!canSubmit.value || !box.value || !representative.value) { notify('请先扫描代表板件码并填写有效数量（1～2147483647的整数）', true); return; }
+    if (!canSubmit.value || !box.value || !representative.value) { notify('请先扫描代表板件码并填写有效数量（1～50的整数）', true); return; }
     const data = { boxCode: box.value.box.containerCode, version: box.value.box.version, orderNo: order.value,
       panelCode: representative.value.panelCode, quantity: Number(quantity.value) };
     const same = attempt && !attempt.options.confirmMixed && attempt.boxCode === data.boxCode && attempt.version === data.version &&

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const prototype = readFileSync(resolve('docs/workbench-prototype.html'), 'utf8');
 
@@ -27,6 +27,13 @@ describe('离线物流原型工作台', () => {
 
   function open(route: string) {
     const select = element<HTMLSelectElement>('[data-screen-picker]');
+    if (route === 'line-side-inbound-records') {
+      expect(select.querySelector('[value="line-side-inbound-records"]')).toBeNull();
+      const win = frame.contentWindow!;
+      win.location.hash = route;
+      win.dispatchEvent(new Event('hashchange'));
+      return;
+    }
     select.value = route;
     select.dispatchEvent(new Event('change', { bubbles: true }));
   }
@@ -50,6 +57,39 @@ describe('离线物流原型工作台', () => {
       expect(element('[data-guide] li').textContent).toBeTruthy();
     }
     expect(doc.querySelector('iframe, script[src], link[rel="stylesheet"]')).toBeNull();
+  });
+
+  it.each([
+    ['AGV-20260904-0015', 0, '调度正在处理中'],
+    ['AGV-20260904-0018', 1, '当前运输单未挂起'],
+    ['AGV-20260904-0017', 1, '任务已继续'],
+  ] as const)('运输单 %s 两种操作均可确认，提交后显示处理结果', async (id, index, result) => {
+    open('logistics-cancel');
+    const actions = element(`[data-cancel-task="${id}"] .transport-actions`);
+    const buttons = actions.querySelectorAll('button');
+    expect(actions.textContent).toBe('取消任务继续任务');
+    expect(buttons[0].className).toBe(buttons[1].className);
+    expect(Array.from(buttons).every(b => !b.disabled)).toBe(true);
+    const request = vi.fn();
+    doc.addEventListener('nari-mock-request', request, true);
+    buttons[index].click();
+    expect(request).not.toHaveBeenCalled();
+    element('[data-modal-primary]').click();
+    await vi.waitFor(() => expect(doc.querySelector('.nari-toast')?.textContent).toContain(result));
+    expect(request).toHaveBeenCalledOnce();
+  });
+
+  it('地标查询按范围和楼层筛选并分页', () => {
+    open('landmark-query');
+    expect(doc.querySelectorAll('[data-list-scroll] .wb-card')).toHaveLength(20);
+    element('[data-wb="more-landmarks"]').click();
+    expect(doc.querySelectorAll('[data-list-scroll] .wb-card')).toHaveLength(32);
+    for (const [key, value] of [['floor', '4'], ['scope', 'STANDARD']]) {
+      const select = element<HTMLSelectElement>(`[data-landmark="${key}"]`);
+      select.value = value; select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    const rows = Array.from(doc.querySelectorAll('[data-list-scroll] .wb-card'));
+    expect(rows).toHaveLength(4); expect(rows.every(r => r.textContent?.includes('LM-4F-'))).toBe(true);
   });
 
   it('混扫去重后只将最终确认的箱写入历史，冲突保留整批', () => {
@@ -82,9 +122,17 @@ describe('离线物流原型工作台', () => {
     open('receive-box');
     scan('BOX-AP-01');
     element('[data-wb="receive-application"]').click();
+    expect(element('[role="dialog"]').textContent).toContain('是否解绑车与位置关系');
+    element('[data-modal-primary="confirm-release"]').click();
+    expect(element('[role="dialog"]').textContent).toContain('等待料箱处理');
+    element('[data-modal-close]').click();
     open('pending-tasks');
+    element('[data-wb="app-details"][data-value="JK-DEMO-01"]').click();
+    expect(element('[role="dialog"]').textContent).toContain('SO-20260901-018 · 3 件');
+    expect(element<HTMLInputElement>('[data-application="JK-DEMO-01"]').checked).toBe(false);
+    element('[data-modal-close]').click();
     const first = element<HTMLInputElement>('[data-application="JK-DEMO-01"]');
-    expect(first.closest('label')?.textContent).toContain('实收 1 / 2');
+    expect(first.closest('.wb-card')?.textContent).toContain('实收 1 / 2');
     first.click();
     element('[data-application="JK-DEMO-02"]').click();
     element('[data-wb="reject"]').click();

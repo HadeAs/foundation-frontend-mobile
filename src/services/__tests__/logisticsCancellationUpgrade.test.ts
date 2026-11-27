@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { logisticsCancellationApi as api, type CancellationResult, type LogisticsTaskPage } from '../logisticsCancellation';
-import type { LogisticsTask } from '../logistics';
+import type { TransportTask } from '../logisticsCancellation';
 import { ApiRequestError } from '../nariRequest';
 import { useLogisticsCancellation } from '../../composables/useLogisticsCancellation';
 import CancellationPage from '../../pages/logistics-cancel/index.vue';
@@ -12,7 +12,8 @@ const hooks = vi.hoisted(() => ({ show: [] as (() => void)[], hide: [] as (() =>
 vi.mock('@dcloudio/uni-app', () => ({ onShow: (fn: () => void) => hooks.show.push(fn), onHide: (fn: () => void) => hooks.hide.push(fn) }));
 const storage = new Map<string, unknown>();
 const flows: ReturnType<typeof useLogisticsCancellation>[] = [];
-const task = (index = 1): LogisticsTask => ({ taskId: '900719925474100' + index, taskNo: 'WL-' + index, version: 7,
+const task = (index = 1): TransportTask => ({ taskId: '900719925474100' + index, taskNo: 'WL-' + index, version: 7,
+  cancelEligibility: { allowed: true, reason: null }, resumeEligibility: { allowed: false, reason: '仅挂起时可继续' },
   vendor: 'STANDARD', taskType: 'GENERAL', container: { containerType: 'VEHICLE', containerCode: 'CAR-' + index, version: 2 },
   origin: { locationCode: 'ORIGIN-' + index, locationName: '起始位置' }, destination: { locationCode: 'DEST-' + index, locationName: '目标位置' },
   status: 'UNKNOWN', statusName: '外部结果未知', triggerMode: 'MANUAL', createdTime: '2026-10-12T01:00:00Z' });
@@ -30,16 +31,37 @@ beforeEach(() => {
 afterEach(() => { flows.splice(0).forEach(flow => flow.pause()); vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('logistics cancellation 2026-10-12.1', () => {
+  it.each(['RESUMED', 'SUPERSEDED'] as const)('refreshes the applied filter and recovers the original continue request: %s', async final => {
+    const row = task(); row.status = 'HUNG'; row.taskType = 'PROCESS_ROUTE';
+    row.cancelEligibility = { allowed: false, reason: '不可取消' };
+    row.resumeEligibility = { allowed: true, reason: null };
+    const list = vi.spyOn(api, 'query').mockResolvedValue(page([row]));
+    const resume = vi.spyOn(api, 'resume').mockImplementation(async (id, input) => ({
+      taskId: id, taskNo: row.taskNo, requestId: input.requestId, status: 'HUNG', processedTime: '2026-11-27T01:00:00Z', resumeStatus: 'UNKNOWN'
+    }));
+    const flow = makeFlow(); flow.keyword.value = 'CAR-1'; await flow.query(); flow.keyword.value = '未应用';
+    flow.open(row, 'resume');
+    expect(resume).not.toHaveBeenCalled(); await Promise.all([flow.confirm(), flow.confirm()]);
+    expect(resume).toHaveBeenCalledTimes(1); expect(list.mock.lastCall).toEqual(['CAR-1', 1]);
+    expect(flow.isPending(row.taskId)).toBe(true); flow.pause();
+    const reopened = makeFlow(); await reopened.resume();
+    reopened.open(row, 'resume'); expect(reopened.selected.value).toBeNull();
+    const [id, input] = resume.mock.calls[0];
+    resume.mockResolvedValueOnce({ taskId: id, taskNo: row.taskNo, requestId: input.requestId, status: 'RUNNING', processedTime: '2026-11-27T01:01:00Z', resumeStatus: final });
+    await reopened.check(id);
+    expect(resume.mock.calls[1]).toEqual([id, input]); expect(input.version).toBe(7);
+    expect(reopened.attempts.value).toHaveLength(0); expect(reopened.notice.value?.error).toBe(false);
+  });
   it.each(['number', 'version', 'container', 'content', 'origin', 'destination', 'vendor', 'type', 'status', 'status name', 'trigger', 'time', 'AGV'])('rejects incomplete task models on refresh without replacing the valid list: %s', async field => {
     const flow = await ready(); flow.close(); const value = task();
     if (field === 'number') value.taskNo = '';
     if (field === 'version') value.version = 2147483648;
     if (field === 'container') value.container.version = 0;
-    if (field === 'content') Object.assign(value.container, { contentState: 'EMPTY_BY_COUNT' });
+    if (field === 'content') Object.assign(value.container, { contentState: 77 });
     if (field === 'origin') value.origin.locationName = '';
     if (field === 'destination') value.destination.locationCode = '';
     if (field === 'vendor') Object.assign(value, { vendor: 'OTHER' });
-    if (field === 'type') Object.assign(value, { taskType: 'PROCESS_ROUTE' });
+    if (field === 'type') Object.assign(value, { taskType: '' });
     if (field === 'status') Object.assign(value, { status: 'CREATED' });
     if (field === 'status name') value.statusName = '';
     if (field === 'trigger') value.triggerMode = '';
@@ -65,7 +87,7 @@ describe('logistics cancellation 2026-10-12.1', () => {
     await flow.confirm(); expect(cancel.mock.lastCall?.[1]).toEqual({ requestId: expect.any(String), version: 7 });
     expect(flow.notice.value).toMatchObject({ error: false }); expect(cancel).toHaveBeenCalledOnce();
   });
-  it.each(['QUEUED', 'DISPATCHING', 'ACCEPTED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'UNKNOWN'] as const)('does not locally remove a backend-listed task or hide its action based on status %s', async status => {
+  it.each(['QUEUED', 'DISPATCHING', 'ACCEPTED', 'RUNNING', 'HUNG', 'UNKNOWN'] as const)('does not locally remove a backend-listed task or hide its action based on status %s', async status => {
     const data = task(); data.status = status; vi.spyOn(api, 'query').mockResolvedValue(page([data])); const flow = makeFlow(); await flow.query();
     expect(flow.items.value).toHaveLength(1); flow.open(flow.items.value[0]); expect(flow.selected.value?.status).toBe(status);
   });
@@ -182,6 +204,29 @@ describe('logistics cancellation 2026-10-12.1', () => {
   it('prevents requests for an old account after the signed-in account changes', async () => {
     const flow = await ready(); const query = vi.mocked(api.query); query.mockClear(); const cancel = vi.spyOn(api, 'cancel');
     seedTestSession('other-account'); await flow.confirm(); await flow.refresh(); expect(cancel).not.toHaveBeenCalled(); expect(query).not.toHaveBeenCalled();
+  });
+  it.each(['cancel', 'resume'] as const)('submits %s after confirmation even when both list eligibility hints are negative', async action => {
+    const row = task();
+    row.cancelEligibility = { allowed: false, reason: '列表取消原因' };
+    row.resumeEligibility = { allowed: false, reason: '列表继续原因' };
+    vi.spyOn(api, 'query').mockResolvedValue(page([row]));
+    const submit = vi.spyOn(api, action).mockRejectedValue(new ApiRequestError('后端提交时返回的原因', 400));
+    const wrapper = mount(CancellationPage, { global: { stubs: { 'scroll-view': { template: '<div><slot /></div>' } } } });
+    try {
+      hooks.show.forEach(fn => fn()); await flushPromises();
+      const buttons = wrapper.findAll('.task-actions button');
+      expect(buttons.map(b => b.text())).toEqual(['取消任务', '继续任务']);
+      expect(buttons[0].classes()).toEqual(buttons[1].classes());
+      expect(buttons.every(b => b.attributes('disabled') === undefined)).toBe(true);
+      expect(wrapper.get('.task-actions').text()).toBe('取消任务继续任务');
+      await buttons[action === 'cancel' ? 0 : 1].trigger('tap');
+      expect(wrapper.get('.modal-title').text()).toBe(action === 'cancel' ? '确认取消任务' : '确认继续任务');
+      expect(submit).not.toHaveBeenCalled();
+      await wrapper.get('.modal-actions button:last-child').trigger('tap'); await flushPromises();
+      expect(submit).toHaveBeenCalledOnce();
+      expect(submit).toHaveBeenCalledWith(row.taskId, { version: row.version, requestId: expect.any(String) });
+      expect(wrapper.text()).toContain('后端提交时返回的原因');
+    } finally { wrapper.unmount(); }
   });
   it('renders unassigned AGV, keeps action buttons visible, and clears confirmation/scan events when hidden', async () => {
     const query = vi.spyOn(api, 'query').mockResolvedValue(page()); const wrapper = mount(CancellationPage, { global: { stubs: { 'scroll-view': { template: '<div><slot /></div>' } } } });

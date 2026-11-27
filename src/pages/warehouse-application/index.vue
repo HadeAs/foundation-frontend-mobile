@@ -1,28 +1,51 @@
 <script setup lang="ts">
 import OperationNotice from '../../components/OperationNotice.vue';
 import PendingSubmission from '../../components/PendingSubmission.vue';
-import { onUnmounted, ref, watch } from 'vue';
-import { onHide, onShow } from '@dcloudio/uni-app';
+import { computed, onUnmounted, ref, watch } from 'vue';
+import { onBackPress, onHide, onShow } from '@dcloudio/uni-app';
 import ScanInput from '../../components/ScanInput.vue';
 import { useKeyboardScanner } from '../../composables/useKeyboardScanner';
 import { usePdaScanner } from '../../composables/usePdaScanner';
 import { useWarehouseApplication } from '../../composables/useWarehouseApplication';
+import type { MaterialLine } from '../../services/vehicleLoading';
 import MaterialRows from '../../components/MaterialRows.vue';
 
-const { pending, storageError, object, orders, detail, busy, writing, disabled, canSubmit, notice, notify, clear, pause, resume, scan, openMaterials, closeMaterials, submit } = useWarehouseApplication();
+const { pending, storageError, object, orders, busy, writing, disabled, canSubmit, notice, notify, clear, pause, resume, scan, submit } = useWarehouseApplication();
 const contentStateNames = { UNKNOWN: '未确认', EMPTY: '已确认空载', LOADED: '已确认非空' };
 const input = ref('');
+const expanded = ref<string[]>([]);
+const selection = ref<{ orderNo: string; boxes: { boxCode: string; materials: MaterialLine[] }[] } | null>(null);
+const scanDisabled = computed(() => disabled.value || !!selection.value);
+const boxOrders = computed(() => {
+  const result = new Map<string, { orderNo: string; quantity: number; materials: MaterialLine[] }[]>();
+  for (const order of orders.value) {
+    for (const box of order.boxes) {
+      const rows = result.get(box.boxCode) || [];
+      rows.push({ orderNo: order.orderNo, quantity: box.materials.reduce((n, line) => n + line.quantity, 0), materials: box.materials });
+      result.set(box.boxCode, rows);
+    }
+  }
+  return result;
+});
+function toggleBox(code: string) {
+  expanded.value = expanded.value.includes(code) ? expanded.value.filter(item => item !== code) : [...expanded.value, code];
+}
+watch(object, () => { expanded.value = []; selection.value = null; }, { flush: 'sync' });
 let active = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 async function handleScan(value: string) {
-  if (!active || disabled.value) return;
+  if (!active || scanDisabled.value) return;
   input.value = '';
   await scan(value);
 }
 usePdaScanner(handleScan);
-const { reset: resetKeyboard } = useKeyboardScanner(handleScan, disabled);
+const { reset: resetKeyboard } = useKeyboardScanner(handleScan, scanDisabled);
 function clearPage() { if (!disabled.value) { clear(); input.value = ''; resetKeyboard(); } }
 function goBack() { if (!busy.value) uni.navigateBack(); }
+onBackPress(() => {
+  if (selection.value) { selection.value = null; return true; }
+  return busy.value;
+});
 onShow(() => { active = true; resume(); });
 onHide(() => {
   active = false;
@@ -43,12 +66,12 @@ onUnmounted(() => {
 <template>
   <view class="app-page application-page">
     <view class="app-nav">
-      <button class="nav-back" :disabled="busy || !!detail" @tap="goBack">‹ 返回</button>
+      <button class="nav-back" :disabled="busy || !!selection" @tap="goBack">‹ 返回</button>
       <view class="app-nav__title">缴库申请</view><view />
     </view>
     <OperationNotice :text="notice?.text" :error="notice?.error" />
     <view class="scan-top">
-      <ScanInput v-model="input" placeholder="扫描或输入载具/箱子编码" :disabled="disabled" show-scan-button compact inline-errors
+      <ScanInput v-model="input" placeholder="扫描或输入载具/箱子编码" :disabled="scanDisabled" show-scan-button compact inline-errors
         @scan="handleScan" @error="notify($event, true)" />
       <view v-if="object" class="card object-card">
         <view class="card-heading"><text>对象信息</text><text class="tag">{{ object.object.containerType === 'VEHICLE' ? '载具' : '料箱' }}</text></view>
@@ -64,48 +87,62 @@ onUnmounted(() => {
       <PendingSubmission v-if="(pending && !writing) || storageError" :code="pending?.input.object.containerCode" :request-id="pending?.input.requestId"
         :reason="pending?.reason" :storage-error="storageError" :busy="busy" @reload="resume" />
       <view v-else-if="!object" class="card empty">请先扫描作业对象<view class="empty-hint">识别后查看关联信息，再确认提交</view></view>
-      <view v-else-if="!object.totalMaterialQuantity" class="card empty">当前对象无可处理物料<view class="empty-hint">请核对对象或扫描其他容器</view></view>
-      <view v-else class="card list-card">
-        <view class="card-heading"><text>关联物料</text><text>{{ object.totalMaterialQuantity }} 件</text></view>
-        <scroll-view class="list-scroll" scroll-y :show-scrollbar="true">
-          <view v-for="order in orders" :key="order.orderNo" class="order-group">
-            <view class="order-heading"><text>订单 {{ order.orderNo }}</text><text>{{ order.quantity }} 件</text></view>
-            <view v-for="box in order.boxes" :key="box.boxCode">
-              <view v-if="object.object.containerType === 'VEHICLE'" class="box-rows">
-                <button class="box-row" :disabled="disabled" @tap="openMaterials(box.boxCode)">
-                  <text class="box-body">{{ box.boxCode }}</text><text class="box-action">查看物料 ›</text>
-                </button>
-              </view>
-              <MaterialRows :materials="box.materials" show-batch grouped-by-order />
+      <view v-else-if="!object.totalMaterialQuantity && object.scanType === 'BOX'" class="card empty">当前对象无可处理物料<view class="empty-hint">请核对对象或扫描其他容器</view></view>
+      <scroll-view v-else-if="object.scanType === 'VEHICLE'" class="list-scroll" scroll-y>
+        <view class="card">
+          <view class="card-heading">按订单汇总</view>
+          <view v-if="!orders.length" class="empty">暂无关联板件</view>
+          <button :disabled="scanDisabled" v-for="order in orders" :key="order.orderNo" class="box-row" @tap="selection = order">
+            <text class="box-body">{{ order.orderNo }}</text><text class="box-action">{{ order.quantity }} 件 · 详情 ›</text>
+          </button>
+        </view>
+        <view class="card">
+          <view class="card-heading">按料箱汇总</view>
+          <view v-if="!object.boxes.length" class="empty">暂无关联料箱</view>
+          <view v-for="box in object.boxes" :key="box.boxCode">
+            <button class="box-row" :disabled="scanDisabled" :aria-expanded="expanded.includes(box.boxCode)" @tap="toggleBox(box.boxCode)">
+              <text class="box-body">{{ box.boxCode }}</text><text class="box-action">{{ box.materialQuantity }} 件 · {{ expanded.includes(box.boxCode) ? '收起' : '展开' }}</text>
+            </button>
+            <view v-if="expanded.includes(box.boxCode)" class="box-orders">
+              <button :disabled="scanDisabled" v-for="order in boxOrders.get(box.boxCode)" :key="order.orderNo" class="box-row" @tap="selection = { orderNo: order.orderNo, boxes: [{ boxCode: box.boxCode, materials: order.materials }] }">
+                <text class="box-body">{{ order.orderNo }}</text><text class="box-action">{{ order.quantity }} 件 · 详情 ›</text>
+              </button>
+              <view v-if="!box.materialQuantity" class="info">箱内暂无板件</view>
             </view>
           </view>
-          <view v-if="object.object.containerType === 'VEHICLE'" class="box-rows">
-            <button v-for="box in object.boxes.filter(item => !item.materialQuantity)" :key="box.boxCode" class="box-row" :disabled="disabled" @tap="openMaterials(box.boxCode)">
-              <view class="box-body"><view>{{ box.boxCode }}</view><view class="secondary">0 件物料</view></view>
-              <text class="box-action">查看物料 ›</text>
-            </button>
+        </view>
+      </scroll-view>
+      <view v-else class="card list-card">
+        <view class="card-heading"><text>关联物料</text><text>{{ object.totalMaterialQuantity }} 件</text></view>
+        <scroll-view class="list-scroll" scroll-y>
+          <view v-for="order in orders" :key="order.orderNo" class="order-group">
+            <view class="order-heading"><text>订单 {{ order.orderNo }}</text><text>{{ order.quantity }} 件</text></view>
+            <MaterialRows v-for="box in order.boxes" :key="box.boxCode" :materials="box.materials" show-batch grouped-by-order />
           </view>
         </scroll-view>
       </view>
     </view>
     <view class="footer">
-      <button :disabled="disabled" @tap="clearPage">清空页面</button>
-      <button class="primary" :disabled="!canSubmit" @tap="submit">{{ writing ? '提交中…' : pending ? '重试原请求' : '确认申请' }}</button>
+      <button :disabled="scanDisabled" @tap="clearPage">清空页面</button>
+      <button class="primary" :disabled="!canSubmit || !!selection" @tap="submit">{{ writing ? '提交中…' : pending ? '重试原请求' : '确认申请' }}</button>
     </view>
-    <view v-if="detail" class="modal-mask">
-      <view class="modal detail-modal" role="dialog" aria-modal="true" aria-label="箱内物料">
-        <view class="detail-heading"><text class="modal-title">箱内物料</text><text class="detail-summary">{{ detail.box.containerCode }} · {{ detail.totalQuantity }} 件</text></view>
+    <view v-if="selection" class="modal-mask">
+      <view class="modal detail-modal" role="dialog" aria-modal="true" aria-label="订单板件明细">
+        <view class="detail-heading">订单 {{ selection.orderNo }}</view>
         <view class="detail-scroll">
-          <MaterialRows v-if="detail.materials.length" :materials="detail.materials" show-batch />
-          <view v-else class="empty">当前箱子暂无物料</view>
+          <view v-for="box in selection.boxes" :key="box.boxCode">
+            <view class="order-heading">{{ box.boxCode }}</view>
+            <MaterialRows :materials="box.materials" grouped-by-order show-batch />
+          </view>
         </view>
-        <view class="detail-footer"><button @tap="closeMaterials">关闭</button></view>
+        <view class="detail-footer"><button @tap="selection = null">关闭</button></view>
       </view>
     </view>
   </view>
 </template>
 
 <style scoped lang="scss">
+.box-orders { padding-left: 20rpx; }
 .application-page { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; padding-top: var(--status-bar-height, 0px); color: #254b54; }
 .app-nav { flex-shrink: 0; height: 88rpx; grid-template-columns: 104rpx 1fr 104rpx; padding: 0 16rpx; gap: 0; }
 .app-nav__title { font-size: 32rpx; }
@@ -144,7 +181,7 @@ button:focus-visible { outline: 2px solid #0d9496; outline-offset: 2px; }
 .order-heading text:first-child { min-width: 0; overflow-wrap: anywhere; }
 .order-heading text:last-child { flex-shrink: 0; }
 .box-rows { padding: 0 16rpx; }
-.box-row { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; height: auto; line-height: 1.4; padding: 20rpx 0; border: 0; border-bottom: 1px solid #dfebed; border-radius: 0; text-align: left; font-size: 28rpx; color: #254b54; font-weight: normal; }
+.box-row { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; height: auto; line-height: 1.4; padding: 16rpx; border: 0; border-bottom: 1px solid #dfebed; border-radius: 0; text-align: left; font-size: 28rpx; color: #254b54; font-weight: normal; }
 .box-row:last-child { border-bottom: 0; }
 .box-body { min-width: 0; flex: 1; overflow-wrap: anywhere; }
 .secondary { font-size: 24rpx; color: #748d93; margin-top: 6rpx; }

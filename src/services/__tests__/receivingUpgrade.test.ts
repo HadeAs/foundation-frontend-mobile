@@ -136,8 +136,8 @@ describe('receiving 2026-10-12.1', () => {
     const query = vi.spyOn(api, 'query').mockResolvedValueOnce(box).mockResolvedValueOnce(car).mockResolvedValueOnce(car);
     const confirm = vi.spyOn(api, 'confirm').mockImplementation(async input => receipt(input, input.object.containerType === 'BOX' ? 1 : 2));
     const flow = useReceiving();
-    await flow.scan('BOX-1'); await flow.submit();
-    await flow.scan('CAR-1'); await flow.submit();
+    await flow.scan('BOX-1'); await flow.submit(); flow.release.close();
+    await flow.scan('CAR-1'); await flow.submit(); flow.release.close();
     expect(query.mock.calls).toEqual([['BOX-1'], ['CAR-1']]);
     expect(confirm.mock.calls.map(([input]) => [input.applicationId, input.version, input.object.containerCode])).toEqual([
       [box.task!.applicationId, 7, 'BOX-1'], [car.task!.applicationId, 8, 'CAR-1']
@@ -146,6 +146,20 @@ describe('receiving 2026-10-12.1', () => {
     await flow.scan('CAR-1');
     expect(flow.canReceive.value).toBe(false);
     expect(flow.notice.value?.text).toContain('版本已过期');
+  });
+  it('does not reopen a declined release when the original receiving reply arrives after a successful replay', async () => {
+    const box = application();
+    vi.spyOn(api, 'query').mockResolvedValue(box);
+    let complete!: () => void;
+    const firstResponse = new Promise<void>(resolve => { complete = resolve; });
+    vi.spyOn(api, 'confirm').mockImplementationOnce(async input => { await firstResponse; return receipt(input); })
+      .mockImplementationOnce(async input => receipt(input));
+    const first = useReceiving(); await first.scan('BOX-1');
+    const inFlight = first.submit(); first.pause();
+    const reopened = useReceiving(); await reopened.submit();
+    expect(reopened.release.asking.value).toBe(true); reopened.release.close();
+    complete(); await inFlight;
+    expect(useReceiving().release.visible.value).toBe(false);
   });
   it('only permits car confirmation for the original vehicle and honors the latest eligibility', async () => {
     const wrongCar = application('VEHICLE');
@@ -234,7 +248,7 @@ describe('receiving 2026-10-12.1', () => {
     const query = vi.spyOn(api, 'query').mockResolvedValueOnce(value).mockResolvedValueOnce(noTask(value)).mockResolvedValueOnce(completed).mockResolvedValueOnce(completed);
     vi.spyOn(api, 'confirm').mockImplementation(async input => receipt(input));
     const cleanup = vi.spyOn(api, 'clearWms').mockImplementation(async input => ({ requestId: input.requestId, affectedCount: 0, processedTime: '2026-10-12T01:00:00Z' }));
-    const flow = useReceiving(); await flow.scan('BOX-1'); await flow.submit(); await flow.scan('BOX-1');
+    const flow = useReceiving(); await flow.scan('BOX-1'); await flow.submit(); flow.release.close(); await flow.scan('BOX-1');
     expect(query.mock.calls.slice(1)).toEqual([['BOX-1'], ['BOX-1', value.task!.taskId]]);
     expect(flow.canReceive.value).toBe(false); expect(flow.canClearWms.value).toBe(true);
     flow.remark.value = '不应写入清理请求'; flow.askClearWms(); await flow.submit(true);
@@ -253,7 +267,7 @@ describe('receiving 2026-10-12.1', () => {
     if (fault === 'stale version') recovered.task!.version = 7;
     vi.spyOn(api, 'query').mockResolvedValueOnce(value).mockResolvedValueOnce(noTask(value)).mockResolvedValueOnce(recovered);
     const confirm = vi.spyOn(api, 'confirm').mockImplementation(async input => receipt(input));
-    const flow = useReceiving(); await flow.scan('BOX-1'); await flow.submit(); await flow.scan('BOX-1');
+    const flow = useReceiving(); await flow.scan('BOX-1'); await flow.submit(); flow.release.close(); await flow.scan('BOX-1');
     expect(flow.result.value).toBeNull(); expect(flow.notice.value?.error).toBe(true); await flow.submit();
     expect(confirm).toHaveBeenCalledOnce();
   });
@@ -282,7 +296,7 @@ describe('receiving 2026-10-12.1', () => {
     const flow = useReceiving(); await flow.scan('BOX-1'); flow.remark.value = '字'.repeat(501);
     expect(flow.canReceive.value).toBe(false); await flow.submit(); expect(confirm).not.toHaveBeenCalled();
     flow.remark.value = '字'.repeat(500); expect(flow.canReceive.value).toBe(true); await flow.submit();
-    expect(confirm.mock.lastCall?.[0].remark).toHaveLength(500);
+    expect(confirm.mock.lastCall?.[0].remark).toHaveLength(500); flow.release.close();
     const next = snapshot(); next.task!.version = 9; query.mockResolvedValue(next);
     await flow.scan('BOX-1'); flow.remark.value = '  '; await flow.submit(); expect(confirm.mock.lastCall?.[0]).not.toHaveProperty('remark');
   });

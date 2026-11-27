@@ -3,6 +3,7 @@ import document from '../../../docs/nari-logistics.openapi.json';
 import { panelPackingApi as panels } from '../panelPacking';
 import { vehicleLoadingApi as loading } from '../vehicleLoading';
 import { locationBindingApi as locations } from '../locationBinding';
+import { landmarkQueryApi } from '../landmarkQuery';
 import { warehouseApplicationApi as application } from '../warehouseApplication';
 import { receivingApi as receiving } from '../receiving';
 import { pendingReceivingApi as pending } from '../pendingReceiving';
@@ -54,6 +55,8 @@ const cases: [string, string, () => Promise<unknown>][] = [
   ['post', '/loading/unload-selected', () => loading.unloadSelected(object.containerCode, 2, items)],
   ['post', '/loading/unload-all', () => loading.unloadAll(object.containerCode, 2)],
   ['get', '/locations/containers', () => locations.getLocation('位置/1')],
+  ['get', '/locations/status', () => landmarkQueryApi.list('ALL', undefined, 1)],
+  ['get', '/locations/status', () => landmarkQueryApi.list('STANDARD', 4, 2)],
   ['get', '/locations/container-candidates', () => locations.getContainer(object.containerCode)],
   ['post', '/locations/bind-container', () => locations.bind(locationOperation)],
   ['post', '/locations/unbind-container', () => locations.unbind(locationOperation)],
@@ -83,7 +86,9 @@ const cases: [string, string, () => Promise<unknown>][] = [
   ['post', '/shipping/submit', () => shipping.submit({ ...operation, object, scanType: 'VEHICLE', scanCode: object.containerCode })],
   ['get', '/logistics/options', () => logistics.getOptions(object.containerCode)],
   ['post', '/logistics/tasks', () => logistics.create(logisticsInput)],
-  ['get', '/logistics/cancellable-tasks', () => cancellation.query('AGV/1', 2)],
+  ['post', '/receiving/confirm-vehicle-release', () => receiving.releaseVehicles({ requestId, receivingRequestId: '8ee95238-fba5-4a8b-8387-303162accef4' })],
+  ['post', '/logistics/tasks/{taskId}/resume', () => cancellation.resume('9007199254741001', operation)],
+  ['get', '/logistics/tasks/unfinished', () => cancellation.query('AGV/1', 2)],
   ['post', '/logistics/tasks/{taskId}/cancel', () => cancellation.cancel('9007199254741001', operation)],
   ['post', '/logistics/tasks/{taskId}/cancel', () => cancellation.cancel('9007199254741001', { ...operation, unbindContext: locationOperation })],
   ['get', '/logistics/tasks/{taskId}/cancellation', () => cancellation.result('9007199254741001', requestId)],
@@ -155,12 +160,13 @@ describe('documented Nari requests', () => {
       .filter((method) => ['get', 'post'].includes(method)).map((method) => `${method} ${path}`));
     const active = [...new Set(cases.map(([method, path]) => `${method} ${prefix}${path}`))];
     const notYetIntegrated = [
+      `get ${prefix}/logistics/cancellable-tasks`,
       `post ${prefix}/line-side/inbounds/{id}/sync`,
       `post ${prefix}/line-side/inbounds`, `post ${prefix}/line-side/inbounds/preview`,
       `get ${prefix}/receiving/not-shelving-records`, `get ${prefix}/receiving/not-shelving-records/{id}`
     ];
     expect([...active, ...notYetIntegrated].sort()).toEqual(documented.sort());
-    expect(active).toHaveLength(53);
+    expect(active).toHaveLength(56);
   });
   it.each(['all', 'selected'] as const)('preserves the original request UUID for manually replayed %s panel unbind', async mode => {
     if (mode === 'all') await panels.unbindAll('箱/1', 2, requestId);

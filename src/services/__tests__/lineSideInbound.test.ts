@@ -52,6 +52,8 @@ describe('line-side inbound batch', () => {
       { boxCode: 'B2', boxVersion: 3, shippingOperationId: '9007199254741001', contentHash: '0'.repeat(64), expectedId: '999', expectedVersion: 5 },
       { boxCode: 'B3', boxVersion: 4, shippingOperationId: '9007199254741001', contentHash: '0'.repeat(64) }]);
     expect(flow.boxes.value).toHaveLength(0); expect(flow.location.value).toBeNull(); expect(flow.notice.value?.text).toContain('2 箱');
+    expect(flow.release.asking.value).toBe(true);
+    expect(flow.release.pending.value?.input.receivingRequestId).toBe(submit.mock.calls[0][0].requestId);
   });
   it('keeps the previous draft for empty, conflicting, unknown and oversized vehicle scans', async () => {
     const scan = vi.spyOn(api, 'scan').mockResolvedValueOnce(scanResult([box('B1')]))

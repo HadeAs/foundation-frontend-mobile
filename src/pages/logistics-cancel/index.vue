@@ -10,7 +10,7 @@ import { displayTaskTime } from '../../services/pendingReceiving';
 import { triggerModeName } from '../../services/logisticsCancellation';
 
 const flow = useLogisticsCancellation();
-const { keyword, items, loading, refreshing, error, notice, hasMore, selected, submitting, checking, attempts, storageError } = flow;
+const { keyword, items, loading, refreshing, error, notice, hasMore, selected, selectedAction, submitting, checking, attempts, storageError } = flow;
 const scrollTop = ref(0);
 const scanDisabled = computed(() => flow.disabled.value);
 let active = false;
@@ -19,8 +19,20 @@ watch(notice, (value) => {
   clearTimeout(noticeTimer);
   if (value) noticeTimer = setTimeout(() => { notice.value = null; }, value.error ? 6500 : 2500);
 });
-async function query() {
+async function scrollToTop() {
   scrollTop.value = 1; await nextTick(); scrollTop.value = 0;
+}
+async function confirmAction() {
+  const resumed = selectedAction.value === 'resume';
+  await flow.confirm();
+  if (resumed && active) await scrollToTop();
+}
+async function checkAction(taskId: string, resumed: boolean) {
+  await flow.check(taskId);
+  if (resumed && active) await scrollToTop();
+}
+async function query() {
+  await scrollToTop();
   await flow.query();
 }
 async function handleScan(value: string) {
@@ -43,23 +55,23 @@ function goBack() { uni.navigateBack({ delta: 1 }); }
   <view class="app-page cancellation-page">
     <view class="app-nav">
       <button class="nav-back" @tap="goBack">‹ 返回</button>
-      <view class="app-nav__title">取消物流任务</view><view></view>
+      <view class="app-nav__title">运输单管理</view><view></view>
     </view>
     <OperationNotice :text="notice?.message" :error="notice?.error" />
     <view class="scan-top">
-      <ScanInput v-model="keyword" placeholder="容器码/AGV编号或名称" confirm-type="search" :disabled="scanDisabled"
+      <ScanInput v-model="keyword" placeholder="扫描或输入查询关键字" confirm-type="search" :disabled="scanDisabled"
         show-scan-button compact inline-errors @scan="handleScan" @clear="handleScan('')" @error="notice = { message: $event, error: true }" />
     </view>
     <view class="content">
       <scroll-view class="list-scroll" scroll-y refresher-enabled :refresher-triggered="refreshing" :scroll-top="scrollTop"
         :lower-threshold="60" @scrolltolower="flow.loadMore" @refresherrefresh="flow.refresh">
         <view class="rows">
-          <view v-if="storageError" class="result-card" role="status">取消请求记录暂不可用，请重新进入页面核实原请求，勿重复取消。</view>
+          <view v-if="storageError" class="result-card" role="status">操作记录暂不可用，请重新进入页面核实原请求，勿重复提交。</view>
           <view v-for="attempt in attempts" :key="attempt.requestId" class="result-card" role="status">
             <view class="task-number">{{ attempt.taskNo }}</view>
             <view class="result-message">{{ attempt.reason }}</view>
-            <button class="query-button small" :disabled="scanDisabled || storageError" @tap="flow.check(attempt.taskId)">
-              {{ checking.includes(attempt.taskId) ? '查询中…' : '刷新取消结果' }}
+            <button class="query-button small" :disabled="scanDisabled || storageError" @tap="checkAction(attempt.taskId, attempt.action === 'resume')">
+              {{ checking.includes(attempt.taskId) ? '查询中…' : attempt.action === 'resume' ? '核实继续结果' : '刷新取消结果' }}
             </button>
           </view>
           <view v-for="task in items" :key="task.taskId" class="task-card">
@@ -74,7 +86,10 @@ function goBack() { uni.navigateBack({ delta: 1 }); }
                   <text>当前状态</text><text>{{ task.statusName }}</text>
                   <text>发起方式</text><text>{{ triggerModeName(task.triggerMode) }}</text>
                 </view>
-                <button class="danger small" :disabled="scanDisabled || storageError || flow.isPending(task.taskId)" @tap="flow.open(task)">取消任务</button>
+                <view class="task-actions">
+                  <button class="danger small" @tap="flow.open(task)">取消任务</button>
+                  <button class="danger small" @tap="flow.open(task, 'resume')">继续任务</button>
+                </view>
               </view>
               <text class="label">发起时间</text><text>{{ displayTaskTime(task.createdTime) }}</text>
             </view>
@@ -82,23 +97,24 @@ function goBack() { uni.navigateBack({ delta: 1 }); }
           <view class="list-status" role="status">
             <text v-if="loading">{{ refreshing ? '刷新中…' : '加载中…' }}</text>
             <button v-else-if="error" class="retry" :disabled="scanDisabled" @tap="flow.retry">加载失败，点击重试</button>
-            <text v-else-if="!items.length">暂无可取消任务</text>
+            <text v-else-if="!items.length">暂无未完成运输单</text>
             <text v-else>{{ hasMore ? '上滑加载更多' : '已加载全部任务' }}</text>
           </view>
         </view>
       </scroll-view>
     </view>
     <view v-if="selected" class="modal-mask" @tap.self="flow.close">
-      <view class="modal" role="dialog" aria-modal="true" aria-label="确认取消任务">
-        <view class="modal-title">确认取消任务</view>
-        <view class="modal-body">确认取消物流任务 {{ selected.taskNo }}？取消后无法在 App 中恢复。</view>
-        <view class="modal-actions"><button :disabled="!!submitting" @tap="flow.close">暂不取消</button><button class="danger" :disabled="!!submitting" @tap="flow.confirm">{{ submitting ? '提交中…' : '确认取消' }}</button></view>
+      <view class="modal" role="dialog" aria-modal="true" :aria-label="selectedAction === 'resume' ? '确认继续任务' : '确认取消任务'">
+        <view class="modal-title">{{ selectedAction === 'resume' ? '确认继续任务' : '确认取消任务' }}</view>
+        <view class="modal-body">{{ selectedAction === 'resume' ? '确认继续' : '确认取消' }}运输单 {{ selected.taskNo }}？</view>
+        <view class="modal-actions"><button :disabled="!!submitting" @tap="flow.close">返回</button><button :class="selectedAction === 'resume' ? 'query-button' : 'danger'" :disabled="!!submitting" @tap="confirmAction">{{ submitting ? '提交中…' : selectedAction === 'resume' ? '确认继续' : '确认取消' }}</button></view>
       </view>
     </view>
   </view>
 </template>
 
 <style scoped lang="scss">
+.task-actions { display: flex; flex-direction: column; gap: 6rpx; }
 .cancellation-page { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; padding-top: var(--status-bar-height, 0px); color: #254b54; }
 .app-nav { flex-shrink: 0; height: 88rpx; grid-template-columns: 104rpx 1fr 104rpx; padding: 0 16rpx; gap: 0; }
 .app-nav__title { font-size: 32rpx; }

@@ -63,11 +63,11 @@ describe('order packing Mock workflow', () => {
     await finish(flow.scan('BOX-1'));
     flow.quantity.value = '2'; expect(flow.canSubmit.value).toBe(false);
     await finish(flow.scan(representativeCode));
-    for (const value of ['', '0', '-1', '1.5', '1e2', '2147483648']) {
+    for (const value of ['', '0', '-1', '1.5', '1e2', '51', '2147483648']) {
       flow.quantity.value = value;
       expect(flow.canSubmit.value).toBe(false);
     }
-    flow.quantity.value = '2147483647';
+    flow.quantity.value = '50';
     expect(flow.canSubmit.value).toBe(true);
     flow.quantity.value = '2';
     expect(flow.order.value).toBe('SO-20260901-018');

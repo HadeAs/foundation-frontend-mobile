@@ -9,7 +9,7 @@ import type { BoxMaterials } from '../warehouseApplication';
 import { seedTestSession } from './helpers/authSession';
 
 const hooks = vi.hoisted(() => ({ show: [] as (() => void)[], hide: [] as (() => void)[] }));
-vi.mock('@dcloudio/uni-app', () => ({ onShow: (fn: () => void) => hooks.show.push(fn), onHide: (fn: () => void) => hooks.hide.push(fn) }));
+vi.mock('@dcloudio/uni-app', () => ({ onBackPress: vi.fn(), onShow: (fn: () => void) => hooks.show.push(fn), onHide: (fn: () => void) => hooks.hide.push(fn) }));
 
 const object = (type: 'BOX' | 'VEHICLE' = 'BOX'): ApplicationObject => ({
   scanType: type, scanCode: type === 'BOX' ? 'BOX-1' : 'CAR-1', object: { containerType: type, containerCode: type === 'BOX' ? 'BOX-1' : 'CAR-1', version: 7,
@@ -205,13 +205,17 @@ describe('warehouse application 2026-10-12.1', () => {
       hooks.show.forEach(show => show());
       wrapper.getComponent(ScanInput).vm.$emit('scan', 'CAR-1');
       await flushPromises();
-      const [firstOrder, secondOrder] = wrapper.findAll('.order-group');
-      expect(firstOrder.get('.order-heading').text()).toMatch(/订单 SO-1\s*2 件/);
-      expect(firstOrder.findAll('.box-body').map(box => box.text())).toEqual(['BOX-1', 'BOX-2']);
-      expect(firstOrder.findAll('.material-code').map(row => row.text())).toEqual(['PANEL-1', 'PANEL-3']);
-      expect(secondOrder.get('.order-heading').text()).toMatch(/订单 SO-2\s*1 件/);
-      expect(secondOrder.text()).toContain('PANEL-2');
-      expect(secondOrder.text()).toContain('批次 000002');
+      expect(wrapper.text()).toContain('按订单汇总');
+      expect(wrapper.text()).toContain('按料箱汇总');
+      expect(wrapper.find('.material-code').exists()).toBe(false);
+      const findButton = (label: string) => wrapper.findAll('button').find(b => b.text().includes(label))!;
+      await findButton('SO-1').trigger('tap');
+      expect(wrapper.findAll('.material-code').map(row => row.text())).toEqual(['PANEL-1', 'PANEL-3']);
+      await findButton('关闭').trigger('tap');
+      await findButton('BOX-1').trigger('tap');
+      await wrapper.get('.box-orders').findAll('button')[1].trigger('tap');
+      expect(wrapper.findAll('.material-code').map(row => row.text())).toEqual(['PANEL-2']);
+      expect(wrapper.get('[role="dialog"]').text()).toContain('批次 000002');
       expect(value.boxes[0].materials).toHaveLength(2);
     } finally { wrapper.unmount(); }
   });

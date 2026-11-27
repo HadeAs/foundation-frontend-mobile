@@ -206,6 +206,6 @@ describe('logistics cancellation', () => {
     other.keyword.value = 'CANCEL-NORMAL'; await finish(other.query()); other.open(other.items.value[0]);
     const cancel = vi.spyOn(api, 'cancel'); vi.spyOn(uni, 'setStorageSync').mockImplementationOnce(() => { throw new Error('storage full'); });
     await other.confirm(); expect(cancel).not.toHaveBeenCalled(); expect(other.attempts.value).toHaveLength(0);
-    expect(other.notice.value?.message).toContain('未提交取消');
+    expect(other.notice.value?.message).toContain('未提交操作');
   });
 });

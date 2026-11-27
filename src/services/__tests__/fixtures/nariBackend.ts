@@ -677,7 +677,7 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
     emptyCallHistory.push({ input: { ...input }, result });
     return result;
   }
-  if (method === 'GET' && path === `${prefix}/logistics/cancellable-tasks`) {
+  if (method === 'GET' && path === `${prefix}/logistics/tasks/unfinished`) {
     const page = Number(data.page ?? 1); const size = Number(data.size ?? 20);
     if (!Number.isInteger(page) || page < 1 || !Number.isInteger(size) || size < 1 || size > 200) throw new Error('分页参数无效');
     if (data.keyword !== undefined && (typeof data.keyword !== 'string' || !data.keyword.trim() || data.keyword.length > 128)) throw new Error('查询条件无效');
@@ -687,7 +687,7 @@ function mockData(path: string, method: string, data: Record<string, unknown>): 
     const matches = cancellationTasks().filter((task) => !cancelledTasks.has(task.taskId) &&
       (!data.vendor || task.vendor === data.vendor) && [task.container.containerCode, task.agvCode || '', task.agvName || ''].some((value) => value.toLowerCase().includes(keyword)))
       .sort((a, b) => b.createdTime.localeCompare(a.createdTime) || b.taskId.localeCompare(a.taskId));
-    return { records: matches.slice((page - 1) * size, page * size), total: matches.length, size, current: page, pages: Math.ceil(matches.length / size) };
+    return { records: matches.slice((page - 1) * size, page * size).map(task => ({ ...task, cancelEligibility: { allowed: true, reason: null }, resumeEligibility: { allowed: false, reason: '未挂起' } })), total: matches.length, size, current: page, pages: Math.ceil(matches.length / size) };
   }
   const cancelMatch = path.match(/\/logistics\/tasks\/([1-9][0-9]{0,18})\/(cancel|cancellation)$/);
   if (cancelMatch && ((method === 'POST' && cancelMatch[2] === 'cancel') || (method === 'GET' && cancelMatch[2] === 'cancellation'))) {

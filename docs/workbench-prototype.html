@@ -1622,12 +1622,15 @@
           max-height: 100dvh;
         }
       }
-      #nari-logistics-prototype .nari-task-card:has([data-action='cancel-logistics']) {
+      #nari-logistics-prototype [data-cancel-task] {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
         column-gap: 5px;
         align-items: center;
       }
+      .transport-actions { display: flex; flex-direction: column; gap: 4px; }
+      #nari-logistics-prototype .landmark-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .landmark-filters select { min-width: 0; width: 100%; }
       #nari-logistics-prototype [data-cancel-task] .nari-task-card-head {
         grid-column: 1/-1;
       }
@@ -1754,7 +1757,8 @@
             'line-side-inbound-records': '线边入库记录',
             'logistics-create': '发起物流任务',
             'empty-carrier-call': '呼叫空载具',
-            'logistics-cancel': '取消物流任务',
+            'logistics-cancel': '运输单管理',
+            'landmark-query': '地标查询',
             'traffic-control': '交通管制',
             'finished-shipping': '成品发货',
             'warehouse-apply': '缴库申请',
@@ -1834,14 +1838,14 @@
                 ['clipboard-list', '缴库待接收', 'pending-tasks'],
                 ['package-open', '成品发货', 'finished-shipping'],
                 ['warehouse', '线边入库', 'line-side-inbound'],
-                ['clipboard-list', '线边入库记录', 'line-side-inbound-records'],
               ],
             ],
             [
               '物流作业',
               [
                 ['route', '发起物流任务', 'logistics-create'],
-                ['circle-x', '取消物流任务', 'logistics-cancel'],
+                ['circle-x', '运输单管理', 'logistics-cancel'],
+                ['map-pin-check', '地标查询', 'landmark-query'],
                 ['truck', '呼叫空载具', 'empty-carrier-call'],
                 ['shield-check', '交通管制', 'traffic-control'],
                 ['warehouse', '缴库发起', 'warehouse-send'],
@@ -2108,11 +2112,12 @@
                   '"' +
                   (state.busy || order.saved ? ' disabled' : '') +
                   '></label>' +
-                  '<label>数量<input class="nari-input" data-order-field="quantity" aria-label="数量" type="number" inputmode="numeric" min="1" step="1" placeholder="数量" value="' +
+                  '<label>数量<input class="nari-input" data-order-field="quantity" aria-label="数量" type="number" inputmode="numeric" min="1" max="50" step="1" placeholder="数量" value="' +
                   escapeText(order.quantity) +
                   '"' +
                   (state.busy || order.saved ? ' disabled' : '') +
                   '></label></div>' +
+                  '<div data-quantity-error class="nari-section-body" style="color:#b53535"' + (Number(order.quantity) > 50 ? '' : ' hidden') + '>每次最多绑定 50 件</div>' +
                   (order.representative
                     ? '<div class="nari-section-body wb-sub">代表板件 ' + escapeText(order.representative) + '</div>'
                     : '') +
@@ -2129,9 +2134,9 @@
             return (
               state.order.box &&
               state.order.order.trim() &&
-              Number.isSafeInteger(Number(state.order.quantity)) &&
+              /^\d+$/.test(state.order.quantity) &&
               Number(state.order.quantity) > 0 &&
-              Number(state.order.quantity) <= 2147483647 &&
+              Number(state.order.quantity) <= 50 &&
               !state.busy &&
               !state.order.saved
             );
@@ -2142,7 +2147,7 @@
               .map(function (item) {
                 return (
                   '<li class="nari-list-item"><div><div class="nari-list-main">' +
-                  escapeText(item.code) +
+                  escapeText(item.code || '按数量绑箱') +
                   '</div><div class="nari-list-sub">' +
                   escapeText(item.materialCode + ' · ' + item.name) +
                   '</div><div class="nari-list-sub">订单 ' +
@@ -2152,7 +2157,7 @@
                   '</div>' +
                   (status
                     ? '<span class="nari-pack-status">' + escapeText(status) + '</span>'
-                    : '<span class="nari-list-value">1 件</span>') +
+                    : '<span class="nari-list-value">' + (item.quantity ?? 1) + ' 件</span>') +
                   '</li>'
                 );
               })
@@ -3185,6 +3190,23 @@
             );
           }
 
+          const landmarkFilter = { floor: '', scope: '', limit: 20 };
+          const landmarks = Array.from({ length: 32 }, (_, i) => ({
+            floor: 1 + Math.floor(i / 8), code: 'LM-' + (1 + Math.floor(i / 8)) + 'F-' + String(1 + i % 8).padStart(2, '0'),
+            name: ['线边暂存位', '接收接驳位', '周转等待位', '装配工位'][i % 4], standard: i % 2 === 0,
+            status: ['空闲', '占用', '预占', '未知'][i % 4],
+          }));
+          function landmarkScreen() {
+            const f = landmarkFilter;
+            const rows = landmarks.filter(row => (!f.floor || row.floor === Number(f.floor)) && (!f.scope || row.standard));
+            const select = (key, label, choices) => '<select class="nari-input" aria-label="' + label + '" data-landmark="' + key + '">' +
+              choices.map(([val, name]) => '<option value="' + val + '"' + (f[key] === val ? ' selected' : '') + '>' + name + '</option>').join('') + '</select>';
+            return page('<div class="nari-task-filters landmark-filters">' + select('scope', '地标范围', [['', '全部地标'], ['STANDARD', '斯坦德潜伏车地标']]) +
+              select('floor', '楼层', [['', '全部楼层'], ...[1,2,3,4].map(n => [String(n), n + ' 楼'])]) + '</div>' +
+              panel('地标', rows.length + ' 个', rows.slice(0, f.limit).map(row => '<div class="wb-card"><div class="wb-row"><strong>' + row.code +
+                '</strong><span class="nari-tag">' + row.status + '</span></div><small>' + row.floor + ' 楼 · ' + row.name + '</small></div>').join('') +
+                (rows.length > f.limit ? button('more-landmarks', '加载更多') : ''), true));
+          }
           function logisticsCancelScreen() {
             var tasks = state.cancelTasks;
             var cards = tasks.items
@@ -3214,20 +3236,19 @@
                   '</span><span>发起时间</span><span>' +
                   escapeText(task.createdAt) +
                   '</span></div>' +
-                  (cancellationRequests.has(task.id)
-                    ? button('verify-cancel', '核实取消结果', 'nari-secondary-action', false, task.id)
-                    : '<button type="button" class="nari-danger-action" data-action="cancel-logistics" data-task-id="' +
-                      escapeText(task.id) +
-                      '">取消任务</button>') +
-                  '</div>'
+                  '<div class="transport-actions"><button type="button" class="nari-danger-action" data-action="cancel-logistics" data-task-id="' +
+                  escapeText(task.id) + '">取消任务</button>' +
+                  button('resume-transport', '继续任务', 'nari-danger-action', false, task.id) +
+                  (cancellationRequests.has(task.id) ? button('verify-cancel', '核实取消结果', 'wb-link', false, task.id) : '') +
+                  '</div></div>'
                 );
               })
               .join('');
             return (
               '<div class="nari-screen nari-work-screen">' +
-              sequenceInput('容器码/AGV编号或名称', false) +
+              sequenceInput('扫描或输入查询关键字', false) +
               '<div class="nari-list-scroll" data-list-scroll>' +
-              (cards || '<div class="nari-section"><div class="nari-empty">暂无可取消任务</div></div>') +
+              (cards || '<div class="nari-section"><div class="nari-empty">暂无未完成运输单</div></div>') +
               '</div></div>'
             );
           }
@@ -3305,7 +3326,7 @@
                 ['扫描编码', model.code],
                 ['容器编号', object.code],
                 ['当前位置', object.origin.code + ' · ' + object.origin.name],
-                ['关联物料', object.materials.length + ' 件'],
+                ['关联物料', object.materials.reduce((sum, m) => sum + (m.quantity ?? 1), 0) + ' 件'],
               ]);
               if (send) {
                 content +=
@@ -3323,7 +3344,8 @@
                     : '<div>暂无可用目标地点</div>') +
                   '</div></div>';
               }
-              if (!object.materials.length)
+              if (name === 'warehouse-apply' && object.kind === 'carrier') content += applicationSummary(object);
+              else if (!object.materials.length)
                 content +=
                   '<div class="nari-list-scroll" data-list-scroll>' +
                   emptyBlock('当前对象无可处理物料', '请核对对象或扫描其他容器') +
@@ -3374,6 +3396,25 @@
             );
           }
 
+          function materialGroups(materials, keyOf) {
+            const groups = new Map();
+            for (const item of materials) {
+              const key = keyOf(item);
+              groups.set(key, (groups.get(key) || 0) + (item.quantity ?? 1));
+            }
+            return [...groups.entries()];
+          }
+          function applicationSummary(object) {
+            const orderButton = (order, count, box = '') =>
+              button('order-details', order + '　' + count + ' 件 · 详情 ›', 'wb-card', false, JSON.stringify([order, box]));
+            const total = materialGroups(object.materials, m => m.order).map(([o, n]) => orderButton(o, n)).join('');
+            const boxes = object.boxes.map(b =>
+              '<details class="wb-card"><summary>' + escapeText(b.code) + '　' +
+              b.materials.reduce((sum, line) => sum + (line.quantity ?? 1), 0) + ' 件</summary>' +
+              materialGroups(b.materials, m => m.order).map(([o, n]) => orderButton(o, n, b.code)).join('') + '</details>').join('');
+            return '<div class="nari-list-scroll" data-list-scroll>' +
+              panel('按订单汇总', '', total || '暂无关联板件') + panel('按料箱汇总', '', boxes || '暂无关联料箱') + '</div>';
+          }
           function queryNewBusiness(code) {
             var screen = state.screen;
             var key = newBusinessKey(screen);
@@ -3409,6 +3450,10 @@
                         return { code: 'BOX-NR-' + (240821 + index), materials: [material] };
                       })
                     : [];
+                if (screen === 'warehouse-apply' && kind === 'carrier' && materials.length >= 3) {
+                  materials = [...materials, { order: materials[0].order, materialCode: materials[0].materialCode, name: materials[0].name, quantity: 5 }];
+                  boxes = [{ code: 'BOX-NR-240821', materials: materials.slice(0, 2) }, { code: 'BOX-NR-240822', materials: materials.slice(2) }];
+                }
                 if (screen === 'finished-shipping' && kind === 'carrier' && code.includes('MIX')) {
                   boxes = [
                     { code: 'BOX-MIX-01', materials: materials.slice(0, 2) },
@@ -3537,6 +3582,7 @@
             if (name === 'material-call') return materialCallScreen();
             if (name === 'logistics-create') return logisticsCreateScreen();
             if (name === 'empty-carrier-call') return emptyCarrierCallScreen();
+            if (name === 'landmark-query') return landmarkScreen();
             if (name === 'logistics-cancel') return logisticsCancelScreen();
             if (name === 'traffic-control') return trafficControlScreen();
             return pendingTasksScreen();
@@ -3970,7 +4016,7 @@
               object: 'CON-NR-0102',
               origin: 'CS-02-04',
               destination: 'KW-03-02',
-              status: '已下发',
+              status: '已挂起',
               method: '满载自动发起',
               createdAt: '2026-09-04 09:18:43',
             },
@@ -4014,7 +4060,7 @@
             filters.items = cancelTaskFixtures.filter(function (task) {
               return (
                 !keyword ||
-                [task.object, task.agvCode, task.agvName].some(function (value) {
+                [task.id, task.object, task.agvCode, task.agvName, task.origin, task.destination].some(function (value) {
                   return value.toUpperCase().indexOf(keyword) >= 0;
                 })
               );
@@ -4041,6 +4087,12 @@
             );
             if (JSON.stringify(payload).indexOf('LOCKED') >= 0 && action !== 'box-info' && action !== 'receipt-query')
               throw new Error('当前业务状态不允许此操作，请核对后重试');
+            if (action === 'logistics-cancel' || action === 'logistics-resume') {
+              const task = cancelTaskFixtures.find(item => item.id === payload.taskId);
+              if (!task) throw new Error('运输单不存在');
+              if (action === 'logistics-resume' && task.status !== '已挂起') throw new Error('当前运输单未挂起');
+              if (action === 'logistics-cancel' && task.id.endsWith('0015')) throw new Error('调度正在处理中');
+            }
             return result;
           }
 
@@ -4636,6 +4688,7 @@
             if (event.target.matches('[data-order-field]')) {
               state.order[event.target.getAttribute('data-order-field')] = event.target.value;
               root.querySelector('[data-action="order-submit"]').disabled = !orderReady();
+              root.querySelector('[data-quantity-error]').hidden = !(Number(state.order.quantity) > 50);
             }
             if (event.target.matches('[data-task-filter]'))
               state.tasks[event.target.getAttribute('data-task-filter')] = event.target.value;
@@ -5011,27 +5064,24 @@
                 state.cascadeSelection = null;
                 render();
               }
-              if (modalAction.indexOf('cancel-logistics:') === 0) {
-                var taskId = modalAction.slice('cancel-logistics:'.length);
-                if (taskId === 'AGV-20260904-0017') {
-                  cancellationRequests.add(taskId);
-                  render();
-                  showToast('取消已受理，请核实最终结果');
-                  return;
-                }
+              if (modalAction.startsWith('cancel-logistics:') || modalAction.startsWith('resume-logistics:')) {
+                const resume = modalAction.startsWith('resume-logistics:');
+                const taskId = modalAction.split(':')[1];
+                const pendingCancel = !resume && taskId === 'AGV-20260904-0017';
                 runQuery(
-                  '正在取消物流任务…',
+                  resume ? '正在继续运输单…' : '正在取消物流任务…',
                   function () {
-                    return mockRequest('logistics-cancel', { taskId: taskId }, true);
+                    return mockRequest(resume ? 'logistics-resume' : 'logistics-cancel', { taskId }, true);
                   },
                   function () {
-                    cancelTaskFixtures = cancelTaskFixtures.filter(function (item) {
-                      return item.id !== taskId;
-                    });
+                    if (resume) cancelTaskFixtures.find(item => item.id === taskId).status = '运行中';
+                    else if (pendingCancel) cancellationRequests.add(taskId);
+                    else cancelTaskFixtures = cancelTaskFixtures.filter(item => item.id !== taskId);
                     applyCancelFilters();
                   },
                   function () {
-                    showToast('任务 ' + taskId + ' 已取消', true);
+                    if (pendingCancel) showToast('取消请求处理中，请核实最终结果');
+                    else showToast(resume ? '任务已继续' : '任务 ' + taskId + ' 已取消', true);
                   },
                 );
               }
@@ -5216,6 +5266,7 @@
               render();
             } else if (action === 'cancel-logistics') {
               var cancelId = target.getAttribute('data-task-id');
+              if (cancellationRequests.has(cancelId)) return showToast('该运输单有待核实的请求，请先核实原请求结果');
               showModal(
                 '确认取消任务',
                 '<div class="nari-state-detail">确认取消物流任务 ' +
@@ -5274,12 +5325,13 @@
               );
             } else if (action === 'receive-confirm' && state.receipt.task) {
               var receipt = state.receipt.task;
-              completeOperation(
+              runQuery(
                 '正在确认接收…',
                 function () {
                   return mockRequest('receive-confirm', { taskNo: receipt.taskNo, code: receipt.code }, true);
                 },
-                '接收完成，当前接收流程已结束',
+                clearPage,
+                () => { finish('缴库接收成功'); offerRelease(receipt.kind === 'carrier' ? [[receipt.code, receipt.location, '已解绑']] : []); },
               );
             } else if (action === 'order-submit') {
               if (!orderReady()) return;
@@ -5646,6 +5698,11 @@
             ),
           );
           let batchSerial = 0;
+          let releaseVehicles = [];
+          function offerRelease(rows) {
+            releaseVehicles = rows;
+            showModal('是否解绑车与位置关系？', '', '确认解绑', 'confirm-release', '暂不解绑');
+          }
           function submitInbound() {
             const d = lineDraft;
             if (!d.request) {
@@ -5672,6 +5729,12 @@
             });
             lineDraft = freshDraft();
             finish('线边入库成功，共 ' + request.boxes.length + ' 箱');
+            const positions = [
+              ['CAR-4F-01', 'PARK-4F-01', ['BOX-4F-01', 'BOX-4F-02']],
+              ['CAR-4F-02', 'PARK-4F-02', ['BOX-4F-03']],
+            ];
+            offerRelease(positions.filter(([, , codes]) => request.boxes.some(b => codes.includes(b.code)))
+              .map(([vehicle, position]) => [vehicle, position, '已解绑']));
           }
           const blankFilters = () => ({ box: '', mode: '', status: '', from: '', to: '' });
           const records = { draft: blankFilters(), applied: blankFilters(), limit: 20, more: false };
@@ -5826,6 +5889,8 @@
               boxes,
               received: [],
               rejected: [],
+              materialMap: Object.fromEntries(boxes.map((box, index) => [box, [demoMaterials[index], demoMaterials[0]]
+                .map((m, n) => ({ ...m, code: 'MU-' + suffix + '-' + index + '-' + n }))])),
               location: 'KW-03-02',
               created: '2026-11-24 08:' + suffix + ':00',
             };
@@ -5896,13 +5961,11 @@
             const list = t.items
               .map(
                 (app) =>
-                  '<label class="wb-check wb-card"><input type="checkbox" data-application="' +
+                  '<div class="wb-check wb-card"><input type="checkbox" aria-label="选择申请 ' + app.id + '" data-application="' +
                   app.id +
                   '"' +
                   (chosenApplications.has(app.id) ? ' checked' : '') +
-                  '><span><strong>申请单号 ' +
-                  app.id +
-                  '</strong><small>' +
+                  '><span>' + button('app-details', '申请单号 ' + app.id + ' ›', 'wb-link', false, app.id) + '<small>' +
                   escapeText(app.code) +
                   ' · ' +
                   escapeText(app.location) +
@@ -5914,7 +5977,7 @@
                   app.boxes.length +
                   ' 箱</small><small>创建时间 ' +
                   escapeText(app.created) +
-                  '</small></span></label>',
+                  '</small></span></div>',
               )
               .join('');
             return page(
@@ -5990,7 +6053,7 @@
               '先扫箱码，遇已有绑定时选择保留或一键解绑。',
               '连续扫板件，列表有待绑定板件时可获取拼板，确认仅提交本次待绑定项。',
             ],
-            'order-pack': ['扫描空箱，再扫代表板件获取订单。', '填写装箱数量并确认。'],
+            'order-pack': ['扫描空箱，再扫代表板件获取订单。', '每次填写 1～50 件，确认装箱。'],
             'material-unbind': ['扫描箱码载入已绑定板件。', '扫码或手动勾选，确认解绑所选或全部解绑。'],
             'carrier-bind': ['交替扫描料车上的库位和料箱，组成装载对。', '核对或删除误扫项，确认装载。'],
             'carrier-unload': ['扫码载具，查看各装载位上的箱。', '勾选或扫码选箱，确认卸载。'],
@@ -5998,16 +6061,16 @@
             'container-unbind': ['扫描料车，查询直接绑定的料箱。', '扫码或勾选后解绑，也可一键解绑全部。'],
             'location-bind': ['先扫库位，查看已绑定的载具或料箱。', '空位可继续扫码绑定；占用的库位可核对并解绑。'],
             'warehouse-apply': [
-              '扫描料箱或载具，查看箱内物料。',
+              '扫料车后分别按订单和料箱汇总件数，点订单查看对应板件。',
               '确认申请后，可从缴库待接收查看，再到缴库接收扫描同一对象。',
             ],
-            'receive-box': ['扫描缴库申请的单箱或原料车，核对本次范围。', '扫箱接收该箱，扫原料车接收本次剩余箱。'],
-            'pending-tasks': ['按箱号、载具号或库位查询待接收申请。', '选择一笔或多笔，填写原因并确认不予上架，清单刷新。'],
+            'receive-box': ['扫描缴库申请的单箱或原料车，核对本次范围。', '扫箱接收该箱，扫原料车接收本次剩余箱；接收成功后可选择解绑车位。'],
+            'pending-tasks': ['按箱号、载具号或库位查询待接收申请。', '点申请单号查看原申请的物料、订单和数量。勾选后可不予上架。'],
             'finished-shipping': ['扫描料车、位置或料箱，查看关联物料并确认发货。', '整车发货成功后可继续发起物流任务。'],
             'line-side-inbound': [
               '先选地标，或扫描带有登记地标的料箱。',
               '连续扫料箱和料车，按箱去重，可移除误扫箱。',
-              '确认整批入库，到线边入库记录查看新记录。',
+              '确认整批入库后，可选择解绑车与位置关系。',
             ],
             'line-side-inbound-records': [
               '扫描箱码，或展开入库方式、同步状态和时间筛选。',
@@ -6015,7 +6078,8 @@
             ],
             'logistics-create': ['扫载具或起始位置，核对运输信息。', '选择可达目标并创建任务，也可根据回库资格直接回库。'],
             'empty-carrier-call': ['扫描目标位置。', '选择起始位置，核对其空载具后确认呼叫。'],
-            'logistics-cancel': ['按容器码、AGV 编号或名称查询。', '在对应任务上点击取消，二次确认。'],
+            'logistics-cancel': ['查询未完成运输单。', '选择取消或继续任务，确认提交后查看处理结果。'],
+            'landmark-query': ['按楼层和地标范围筛选。', '查看空闲、占用、预占或未知状态，加载更多地标。'],
             'traffic-control': ['按区域或状态查询。', '空闲区域可锁定，占用区域可释放，操作需二次确认。'],
             'warehouse-send': ['扫描料车或已绑料车的位置。', '核对推荐目标，确认创建到库房的物流任务。'],
             'material-call': [
@@ -6073,10 +6137,8 @@
             const list = samples[name] || [];
             const links =
               name === 'home'
-                ? ['line-side-inbound', 'line-side-inbound-records', 'pending-tasks']
-                : name === 'line-side-inbound'
-                  ? ['line-side-inbound-records']
-                  : name === 'warehouse-apply'
+                ? ['line-side-inbound', 'landmark-query', 'pending-tasks']
+                : name === 'warehouse-apply'
                     ? ['pending-tasks', 'receive-box']
                     : name === 'pending-tasks'
                       ? ['receive-box']
@@ -6101,7 +6163,7 @@
                 : '') +
               '</div>';
             root.querySelector('#example-panel').hidden =
-              state.view === 'architecture' || ['login', 'traffic-control'].includes(name);
+              state.view === 'architecture' || ['login', 'traffic-control', 'landmark-query'].includes(name);
           }
           let demoAddress = '',
             customAddress = false,
@@ -6182,6 +6244,32 @@
             const act = target.dataset.wb || target.dataset.modalPrimary;
             const value = target.dataset.value || '';
             switch (act) {
+              case 'confirm-release': {
+                const rows = releaseVehicles;
+                releaseVehicles = [];
+                if (!rows.length || rows.every(r => r[2] === '已解绑')) finish(rows.length ? '车与位置关系已解绑' : '本次无车位关系需要解绑');
+                else { render(); showModal('车位解绑结果', rows.map(([car, loc, status]) => '<div class="wb-card">' + escapeText(car + ' · ' + loc + ' · ' + status) + '</div>').join(''), '', '', '完成'); }
+                break;
+              }
+              case 'more-landmarks':
+                landmarkFilter.limit += 20; render(); break;
+              case 'app-details': {
+                const app = applications.find(a => a.id === value);
+                const rows = materialGroups(Object.values(app.materialMap).flat(), m => JSON.stringify([m.materialCode, m.order]));
+                showModal('缴库申请明细', rows.map(([key, n]) => {
+                  const [code, order] = JSON.parse(key);
+                  return '<div class="wb-card"><strong>' + escapeText(code) + '</strong><small>订单 ' + escapeText(order) + ' · ' + n + ' 件</small></div>';
+                }).join(''), '', '', '关闭', app.id);
+                break;
+              }
+              case 'order-details': {
+                const [order, box] = JSON.parse(value);
+                const body = state.inbound.object.boxes.filter(b => !box || b.code === box).map(b => {
+                  const rows = b.materials.filter(m => m.order === order);
+                  return rows.length ? panel(b.code, '', '<ul class="nari-list">' + materialRows(rows) + '</ul>') : '';
+                }).join('');
+                showModal('板件明细', body, '', '', '关闭', order); break;
+              }
               case 'access':
                 activeAccess = value;
                 render();
@@ -6205,6 +6293,10 @@
                   '',
                   '关闭',
                 );
+                break;
+              case 'resume-transport':
+                if (cancellationRequests.has(value)) showToast('该运输单有待核实的请求，请先核实原请求结果');
+                else showModal('确认继续任务', '确认继续运输单 ' + escapeText(value) + '？', '确认继续', 'resume-logistics:' + value, '返回');
                 break;
               case 'verify-cancel':
                 if (cancellationRequests.delete(value)) {
@@ -6340,6 +6432,7 @@
                 a.received.push(...t.boxCodes);
                 clearPage();
                 finish('缴库接收成功');
+                offerRelease(a.code.startsWith('CAR-') ? [[a.code, a.location, remaining(a).length ? '等待料箱处理' : '已解绑']] : []);
                 break;
               }
               case 'offer-update':
@@ -6411,6 +6504,9 @@
             });
             root.addEventListener('change', (e) => {
               const el = e.target;
+              if (el.hasAttribute('data-landmark')) {
+                landmarkFilter[el.dataset.landmark] = el.value; landmarkFilter.limit = 20; renderedScreen = ''; render();
+              }
               if (el.hasAttribute('data-application')) {
                 if (el.checked) chosenApplications.add(el.dataset.application);
                 else chosenApplications.delete(el.dataset.application);
@@ -6436,6 +6532,7 @@
                   records.limit += 20;
                   render();
                 }
+                if (state.screen === 'landmark-query' && list.querySelector('[data-wb="more-landmarks"]')) { landmarkFilter.limit += 20; render(); }
                 if (state.screen === 'pending-tasks' && state.tasks.items.length < state.tasks.total) loadTasks(false);
               },
               true,

@@ -1,6 +1,15 @@
 # 真实接口接入与联调
 
-最后更新：2026-11-20。
+最后更新：2026-11-27。
+
+## 2026-11-25 接口增量
+
+当前接入契约为 `2026-11-25.receiving-v97.2`。以下路径相对 `/api/v1/business/nari-logistics`。
+
+- 运输单管理使用 `GET /logistics/tasks/unfinished` 分页查询。列表中的 `cancelEligibility` 和 `resumeEligibility` 不限制点击。确认后调用对应接口，以提交响应为准。继续调用 `POST /logistics/tasks/{taskId}/resume`，结果未知时沿用该操作人、请求 UUID 和原版本核实。
+- 缴库接收和线边入库成功后，确认解绑调用 `POST /receiving/confirm-vehicle-release`。请求使用独立 UUID，`receivingRequestId` 来自原成功写请求，重试继续使用这两个标识。
+- 地标查询调用 `GET /locations/status`，传 `scope=ALL`（全部）或 `scope=STANDARD`（斯坦德潜伏车）。全部楼层省略 `floorNumber`，指定楼层传 1～4，每页 20 条，保留服务端排序。
+- 缴库待接收详情使用独立路径 `GET /api/v1/business/nari-warehouse-record-box`。以清单中的 `applicationId` 原文传入 `warehouseRecordId`，从第 1 页开始，每页 100 条，按 `id ASC` 排序。读完全部页后，按 `materialCode` 和 `orderNo` 合计 `quantity`。
 
 ## 回库资格
 
@@ -54,14 +63,20 @@
 - `apiTransport.ts` 始终调用 `uni.request`，不再读取 `VITE_API_MODE`，不提供本地业务数据、延时模拟、模拟错误或失败回退。已有环境文件中的该变量可以删除。
 - 旧版库存查询、库房任务（含详情）、容器管理页面及路由、服务、专用组件/类型和测试已移除；扫描录入工具保留。
 
+### 地标查询菜单配置
+
+在 `sys_menu` 的“PDA → 物流作业”下维护“地标查询”，路径为 `/pages/landmark-query/index`，图标为 `map-pin-check`。设置 `terminal_type=MOBILE`、`menu_type=MENU`、`status=1`、`visible=1`。原型顺序位于“运输单管理”和“呼叫空载具”之间；后台分配角色菜单后，首页随 `auth/me` 返回的授权展示该入口。
+
 ### 线边入库菜单配置
 
-在 `sys_menu` 的“PDA → 库房作业”下新增以下两条记录，`menu_type=MENU`、`terminal_type=MOBILE`，启用并设为可见。可按角色分别授权，首页按后台 `sort_no` 排序。
+在 `sys_menu` 的“PDA → 库房作业”下新增以下两条记录，`menu_type=MENU`、`terminal_type=MOBILE`，启用；线边入库设为可见，线边入库记录设为隐藏。可按角色分别授权，首页按后台 `sort_no` 排序。
 
 | 菜单名称 | 页面路径 | 图标 |
 | --- | --- | --- |
 | 线边入库 | `/pages/line-side-inbound/index` | `warehouse` |
 | 线边入库记录 | `/pages/line-side-inbound-records/index` | `clipboard-list` |
+
+现有菜单升级可执行 [PDA 菜单更新脚本](pda-menu-transport.sql)，同时将原取消物流任务菜单更名为运输单管理。脚本保留菜单 ID 和已有授权。
 
 ### 线边入库作业
 
@@ -79,7 +94,7 @@
 
 - 默认固定地址：`http://172.25.2.25:8088`，不再提供环境预设切换。登录页勾选“使用自定义环境地址”后使用设置弹框保存的IPv4地址（可带端口及HTTP/HTTPS协议）；省略协议补HTTP，启用却未有效配置时禁止登录。地址和开关缓存在设备本地，关闭开关不删除地址。
 - 在库房作业的两条 MOBILE 菜单记录中维护 `sys_menu.menu_name`。将 `/pages/receiving/index` 配置为“缴库接收”，将 `/pages/pending-receiving/index` 配置为“缴库待接收”。首页直接展示 `auth/me` 返回的 `menuName`。
-- 首页每次显示时通过当前会话调用`GET /api/v1/auth/me`获取授权菜单，不使用`/system/menus`全量管理接口。需要返回`menus`数组（无权限返回空数组）及PDA根目录、分类祖先；各层均为`MOBILE`、启用且可见。仅展示已注册的20个本地页面，按`sortNo`排序；加载失败或缺少menus时不回退全部入口。前端仅控制首页展示，服务端继续校验业务权限。
+- 首页每次显示时通过当前会话调用`GET /api/v1/auth/me`获取授权菜单，不使用`/system/menus`全量管理接口。需要返回`menus`数组（无权限返回空数组）及PDA根目录、分类祖先；各层均为`MOBILE`、启用且可见。仅展示已注册的21个本地作业页面中已授权且可见的入口，按`sortNo`排序；加载失败或缺少menus时不回退全部入口。前端仅控制首页展示，服务端继续校验业务权限。
 - App 使用登录环境的基础地址，后续请求携带真实登录返回的 Bearer Token。
 - H5 默认服务器使用同源 `/api`。`npm run dev:h5` 启动的 Vite 代理转发至默认地址；生产 H5 需由 Web 服务配置 `/api` 反向代理。自定义地址使用绝对URL直连，后端需允许页面来源跨域，HTTPS页面不能直连HTTP混合内容。浏览器预览静态构建产物不会自动获得 Vite 开发代理。
 - 登录成功后服务器地址固定在会话中；业务接口、退出登录、WGT参数查询及相对下载接口均使用该地址，修改登录设置不会改写现有会话。

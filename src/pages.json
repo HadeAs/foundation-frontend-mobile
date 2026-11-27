@@ -72,6 +72,10 @@
       "style": { "navigationStyle": "custom", "disableScroll": true }
     },
     {
+      "path": "pages/landmark-query/index",
+      "style": { "navigationStyle": "custom", "disableScroll": true }
+    },
+    {
       "path": "pages/warehouse-logistics/index",
       "style": { "navigationStyle": "custom", "disableScroll": true }
     },

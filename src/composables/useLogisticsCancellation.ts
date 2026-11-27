@@ -1,24 +1,24 @@
 import { computed, ref } from 'vue';
-import { logisticsCancellationApi as api, cancellationPendingMessage, cancellationQueryErrorMessage, type CancellationResult } from '../services/logisticsCancellation';
+import { logisticsCancellationApi as api, cancellationPendingMessage, cancellationQueryErrorMessage, type CancellationResult, type TransportTask } from '../services/logisticsCancellation';
 import { ApiRequestError, requestId } from '../services/nariRequest';
 import { getCurrentApiBaseUrl, getCurrentUser } from '../services/auth';
-import type { LogisticsTask } from '../services/logistics';
-import type { LocationContainer, LocationSummary } from '../services/locationBinding';
+import type { LocationSummary } from '../services/locationBinding';
 
 interface Attempt {
   taskId: string; taskNo: string; requestId: string;
-  status: 'ACCEPTED' | 'UNKNOWN'; reason: string;
+  status: 'ACCEPTED' | 'UNKNOWN'; reason: string; action?: 'resume'; version?: number;
 }
 
 export function useLogisticsCancellation() {
   const keyword = ref('');
-  const items = ref<LogisticsTask[]>([]);
+  const items = ref<TransportTask[]>([]);
   const total = ref(0);
   const loading = ref(false);
   const refreshing = ref(false);
   const error = ref('');
   const notice = ref<{ message: string; error: boolean } | null>(null);
-  const selected = ref<LogisticsTask | null>(null);
+  const selected = ref<TransportTask | null>(null);
+  const selectedAction = ref<'cancel' | 'resume'>('cancel');
   const submitting = ref('');
   const checking = ref<string[]>([]);
   const attempts = ref<Attempt[]>([]);
@@ -42,7 +42,7 @@ export function useLogisticsCancellation() {
   const message = (text: string, failed = true) => { notice.value = { message: text, error: failed }; };
   const isPending = (taskId: string) => attempts.value.some((item) => item.taskId === taskId);
   const text = (value: unknown, max = 128) => typeof value === 'string' && !!value.trim() && value.length <= max;
-  const optionalText = (value: unknown) => value === undefined || text(value);
+  const optionalText = (value: unknown) => value == null || text(value);
   const version = (value: unknown, min = 1) => typeof value === 'number' && Number.isInteger(value) && value >= min && value <= 2147483647;
   const identifier = (value: unknown) => typeof value === 'string' && /^[1-9][0-9]{0,18}$/.test(value);
   function restore() {
@@ -51,7 +51,7 @@ export function useLogisticsCancellation() {
       if (stored === '' || stored === undefined) { attempts.value = []; storageError.value = false; return; }
       if (!Array.isArray(stored) || !stored.every((item: Attempt) => item && identifier(item.taskId) && text(item.taskNo) &&
         typeof item.requestId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.requestId) &&
-        ['ACCEPTED', 'UNKNOWN'].includes(item.status) && typeof item.reason === 'string') ||
+        (item.action === undefined || (item.action === 'resume' && version(item.version) && item.status === 'UNKNOWN')) && ['ACCEPTED', 'UNKNOWN'].includes(item.status) && typeof item.reason === 'string') ||
         new Set(stored.map(item => item.taskId)).size !== stored.length || new Set(stored.map(item => item.requestId)).size !== stored.length) {
         throw new Error('本地取消记录异常，请保留记录并核实，勿重复取消');
       }
@@ -67,16 +67,16 @@ export function useLogisticsCancellation() {
     return value && text(value.locationCode) && text(value.locationName) &&
       [value.locationType, value.floorCode, value.floorName, value.areaCode, value.areaName].every(optionalText);
   }
-  function validContainer(value: LocationContainer) {
-    return value && ['BOX', 'VEHICLE'].includes(value.containerType) && text(value.containerCode) && version(value.version) && optionalText(value.containerName) &&
-      (value.contentState === undefined || ['UNKNOWN', 'EMPTY', 'LOADED'].includes(value.contentState)) &&
-      (value.runtimeUsage === undefined || ['MATERIAL', 'FIXTURE'].includes(value.runtimeUsage)) &&
+  function validContainer(value: TransportTask['container']) {
+    return value && text(value.containerType) && text(value.containerCode) && version(value.version) && optionalText(value.containerName) &&
+      optionalText(value.contentState) &&
+      optionalText(value.runtimeUsage) &&
       (value.location === undefined || validLocation(value.location));
   }
-  function validTask(task: LogisticsTask) {
-    return task && identifier(task.taskId) && text(task.taskNo) && version(task.version) && ['STANDARD', 'HIKVISION'].includes(task.vendor) && task.taskType === 'GENERAL' &&
+  function validTask(task: TransportTask) {
+    return task && identifier(task.taskId) && text(task.taskNo) && version(task.version) && ['STANDARD', 'HIKVISION'].includes(task.vendor) && text(task.taskType) &&
       validContainer(task.container) && validLocation(task.origin) && validLocation(task.destination) && [task.agvCode, task.agvName].every(optionalText) &&
-      ['QUEUED', 'DISPATCHING', 'ACCEPTED', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'UNKNOWN'].includes(task.status) && text(task.statusName) && text(task.triggerMode) &&
+      ['QUEUED', 'DISPATCHING', 'ACCEPTED', 'RUNNING', 'HUNG', 'UNKNOWN'].includes(task.status) && text(task.statusName) && text(task.triggerMode) &&
       typeof task.createdTime === 'string' && Number.isFinite(Date.parse(task.createdTime));
   }
 
@@ -150,13 +150,39 @@ export function useLogisticsCancellation() {
     } else if (result.cancelStatus === 'FAILED') message(result.reason!);
     else if (result.cancelStatus === 'UNKNOWN') message(result.reason!);
   }
+  async function continueTask(attempt: Attempt, current: () => boolean, replay = false) {
+    try {
+      const result = await api.resume(attempt.taskId, { requestId: attempt.requestId, version: attempt.version! });
+      if (!result || result.requestId !== attempt.requestId || result.taskId !== attempt.taskId || result.taskNo !== attempt.taskNo ||
+          !text(result.status) || !Number.isFinite(Date.parse(result.processedTime)) ||
+          !['RESUMED', 'SUPERSEDED', 'UNKNOWN'].includes(result.resumeStatus)) throw new Error('继续任务回执异常，请核实原请求');
+      if (result.resumeStatus === 'UNKNOWN') throw new Error('继续任务结果待核实，请使用原请求核实结果');
+      save(attempts.value.filter(row => row.requestId !== attempt.requestId));
+      if (current()) message(result.resumeStatus === 'RESUMED' ? '任务已继续' : '运输单已进入终态', false);
+    } catch (cause) {
+      if (!replay && cause instanceof ApiRequestError && [400, 401, 403].includes(cause.statusCode)) {
+        save(attempts.value.filter(row => row.requestId !== attempt.requestId));
+        if (current()) message(cause.message);
+        return;
+      }
+      const row = attempts.value.find(item => item.requestId === attempt.requestId);
+      if (row) {
+        row.reason = cause instanceof Error ? cause.message : '继续任务结果待核实';
+        try { save(); } catch { /* Preserve the initial durable request. */ }
+        if (current()) message(row.reason);
+      }
+    } finally { if (current()) await load(1); }
+  }
   async function check(taskId: string) {
     const attempt = attempts.value.find((item) => item.taskId === taskId);
     if (!available() || selected.value || submitting.value || loading.value || storageError.value || !attempt || checking.value.includes(taskId)) return;
     const generation = visibility;
     const current = () => available() && generation === visibility;
     checking.value.push(taskId);
-    try { await applyResult(attempt, await api.result(taskId, attempt.requestId), true, current); }
+    try {
+      if (attempt.action === 'resume') await continueTask(attempt, current, true);
+      else await applyResult(attempt, await api.result(taskId, attempt.requestId), true, current);
+    }
     catch (cause) {
       const saved = attempts.value.find(item => item.requestId === attempt.requestId);
       if (saved) {
@@ -166,10 +192,12 @@ export function useLogisticsCancellation() {
       }
     } finally { checking.value = checking.value.filter((id) => id !== taskId); schedule(); }
   }
-  function open(task: LogisticsTask) {
-    if (available() && !disabled.value && !storageError.value && validTask(task) && !isPending(task.taskId)) {
-      clearTimeout(timer); notice.value = null; selected.value = task;
-    }
+  function open(task: TransportTask, action: 'cancel' | 'resume' = 'cancel') {
+    if (!available() || selected.value || !validTask(task)) return;
+    if (storageError.value) { message('操作记录暂不可用，请重新进入页面核实原请求'); return; }
+    if (isPending(task.taskId)) { message('该运输单有待核实的请求，请先核实原请求结果'); return; }
+    if (disabled.value) { message('正在处理请求，请稍候再试'); return; }
+    clearTimeout(timer); notice.value = null; selectedAction.value = action; selected.value = task;
   }
   function close() { if (!submitting.value) { selected.value = null; schedule(); } }
   async function confirm() {
@@ -179,14 +207,20 @@ export function useLogisticsCancellation() {
     const visible = () => available() && generation === visibility;
     submitting.value = task.taskId;
     const attempt: Attempt = { taskId: task.taskId, taskNo: task.taskNo, requestId: requestId(), status: 'UNKNOWN', reason: '提交中，正在确认取消结果' };
+    if (selectedAction.value === 'resume') Object.assign(attempt, { action: 'resume', version: task.version, reason: '继续任务结果待核实' });
     attempts.value.push(attempt);
     // Use the reactive item so async results also update the result card.
     const current = attempts.value[attempts.value.length - 1];
     try { save(); } catch {
       attempts.value = attempts.value.filter((item) => item !== current);
-      submitting.value = ''; message('无法保存请求标识，未提交取消，请检查本地存储'); return;
+      submitting.value = ''; message('无法保存请求标识，未提交操作，请检查本地存储'); return;
     }
     try {
+      if (current.action === 'resume') {
+        selected.value = null;
+        await continueTask(current, visible);
+        return;
+      }
       const result = await api.cancel(task.taskId, { requestId: current.requestId, version: task.version });
       if (visible()) selected.value = null;
       await applyResult(current, result, false, visible);
@@ -206,9 +240,9 @@ export function useLogisticsCancellation() {
   function pause() { active = false; visibility++; revision++; clearTimeout(timer); loading.value = false; refreshing.value = false; notice.value = null; selected.value = null; }
   async function resume() {
     active = true;
-    if (!sameScope()) { items.value = []; message('账号或环境已变化，请重新进入取消任务页面'); return; }
+    if (!sameScope()) { items.value = []; message('账号或环境已变化，请重新进入运输单管理'); return; }
     restore(); refreshing.value = true; await load(1); schedule();
   }
-  return { keyword, items, total, loading, refreshing, error, notice, selected, submitting, checking, attempts, disabled, storageError,
+  return { keyword, items, total, loading, refreshing, error, notice, selected, selectedAction, submitting, checking, attempts, disabled, storageError,
     hasMore, page, query, refresh, loadMore, retry, isPending, open, close, confirm, check, pause, resume };
 }

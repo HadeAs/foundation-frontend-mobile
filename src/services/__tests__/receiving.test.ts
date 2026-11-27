@@ -40,6 +40,7 @@ describe('receiving', () => {
     expect(flow.notice.value?.text).toContain('接收完成');
     const page = await finish(pendingReceivingApi.query({ vehicleCode: 'CAR-RECEIVE' }, 1));
     expect(page.total).toBe(0);
+    expect(flow.release.asking.value).toBe(true); flow.release.close();
     await finish(flow.scan('CAR-RECEIVE'));
     expect(flow.result.value?.task?.status).toBe('RECEIVED');
     expect(flow.canClearWms.value).toBe(true);
@@ -83,6 +84,7 @@ describe('receiving', () => {
     expect(flow.materials.value).toHaveLength(3);
     await finish(flow.submit());
     expect(await finish(panelPackingApi.getBox('BOX-NR-240818'))).toEqual(panelsBefore);
+    flow.release.close();
     await finish(flow.scan('CAR-NR-0098'));
     expect(flow.result.value?.boxes).toHaveLength(3); // task contents differ from LES's one loaded box
     await finish(flow.submit());

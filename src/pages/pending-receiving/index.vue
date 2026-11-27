@@ -2,13 +2,14 @@
 import OperationNotice from '../../components/OperationNotice.vue';
 import PendingSubmission from '../../components/PendingSubmission.vue';
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
-import { onShow, onHide, onLoad } from '@dcloudio/uni-app';
+import { onShow, onHide, onLoad, onBackPress } from '@dcloudio/uni-app';
 import { usePendingReceiving } from '../../composables/usePendingReceiving';
 import { displayTaskTime, type PendingApplication } from '../../services/pendingReceiving';
 
 const flow = usePendingReceiving();
 const { vehicleCode, locationCode, items, total, loading, refreshing, error, notice, noticeError, hasMore,
-  selectedIds, reason, confirming, submitting, selectionLocked, pending, storageError } = flow;
+  selectedIds, reason, confirming, submitting, selectionLocked, pending, storageError,
+  detailApplication, detailRows, detailLoading, detailError } = flow;
 const selectionCount = computed(() => pending.value?.input.items.length ?? selectedIds.value.size);
 const scrollTop = ref(0);
 const scannedCode = ref('');
@@ -38,6 +39,10 @@ onShow(() => { flow.resume(); void query(); });
 onHide(() => { flow.dispose(); clearTimeout(noticeTimer); });
 onUnmounted(() => { flow.dispose(); clearTimeout(noticeTimer); });
 function goBack() { uni.navigateBack({ delta: 1 }); }
+onBackPress(() => {
+  if (!detailApplication.value) return false;
+  flow.closeDetail(); return true;
+});
 </script>
 
 <template>
@@ -60,21 +65,27 @@ function goBack() { uni.navigateBack({ delta: 1 }); }
           :lower-threshold="60" @scrolltolower="flow.loadMore" @refresherrefresh="flow.refresh">
           <view class="rows">
             <view v-for="task in items" :key="task.applicationId" class="task-record">
-              <checkbox-group @change="flow.toggle(task)">
-                <label class="record-row">
-                  <checkbox v-if="!scannedCode" :value="task.applicationId" :checked="selectedIds.has(task.applicationId)"
+              <view class="record-row">
+                <checkbox-group v-if="!scannedCode" @change="flow.toggle(task)">
+                  <checkbox :id="`select-${task.applicationId}`" :value="task.applicationId" :checked="selectedIds.has(task.applicationId)"
                     :disabled="selectionLocked || task.receivedBoxCount === task.totalBoxCount" color="#0D9496" :aria-label="`选择申请 ${task.applicationNo}`" />
-                  <view class="record-body">
-                    <view class="record-heading"><text class="task-number">申请单号 {{ task.applicationNo }}</text>
-                      <button v-if="scannedCode" class="view-application" @tap.stop="openApplication(task)">选择此申请 ›</button>
-                    </view>
+                </checkbox-group>
+                <view class="record-body">
+                  <view class="record-heading">
+                    <button v-if="!scannedCode" class="detail-link task-number" @tap="flow.openDetail(task)">申请单号 {{ task.applicationNo }} ›</button>
+                    <template v-else>
+                      <text class="task-number">申请单号 {{ task.applicationNo }}</text>
+                      <button class="view-application" @tap="openApplication(task)">选择此申请 ›</button>
+                    </template>
+                  </view>
+                  <label :for="scannedCode ? undefined : `select-${task.applicationId}`">
                     <view class="record-meta">{{ task.object.containerType === 'BOX' ? '箱号' : '载具号' }} {{ task.object.containerCode }}</view>
                     <view class="record-meta">库位号 {{ task.object.location?.locationCode || '—' }}</view>
                     <view class="record-meta">接收状态 <text class="receiving-progress">{{ task.statusName }} · 实收 {{ task.receivedBoxCount }}/{{ task.totalBoxCount }} 箱</text></view>
                     <view class="record-meta">创建时间 {{ displayTaskTime(task.createdTime) }}</view>
-                  </view>
-                </label>
-              </checkbox-group>
+                  </label>
+                </view>
+              </view>
             </view>
             <view class="list-status" role="status">
               <text v-if="loading">{{ refreshing ? '刷新中…' : '加载中…' }}</text>
@@ -92,6 +103,21 @@ function goBack() { uni.navigateBack({ delta: 1 }); }
       <button class="danger" :disabled="!selectionCount || loading || submitting || !!storageError" @tap="flow.askNotShelve">
         {{ submitting ? '提交中…' : pending ? '重试原请求' : '不予上架' }}（{{ selectionCount }}）
       </button>
+    </view>
+    <view v-if="detailApplication" class="modal-mask">
+      <view class="modal detail-modal" role="dialog" aria-modal="true" aria-label="缴库申请明细">
+        <view class="card-heading"><text>缴库申请明细</text><text class="count">{{ detailApplication.applicationNo }}</text></view>
+        <view class="detail-body">
+          <view v-if="detailLoading" class="list-status" role="status">正在加载申请明细…</view>
+          <view v-else-if="detailError" class="list-status"><button class="retry" @tap="flow.openDetail(detailApplication)">加载失败，点击重试</button></view>
+          <view v-else-if="!detailRows.length" class="list-status" role="status">暂无申请明细</view>
+          <view v-for="row in detailRows" :key="JSON.stringify([row.materialCode, row.orderNo])" class="task-record">
+            <view class="task-number">{{ row.materialCode }}</view>
+            <view class="record-meta">订单 {{ row.orderNo }} · {{ row.quantity }} 件</view>
+          </view>
+        </view>
+        <button class="detail-close" @tap="flow.closeDetail">关闭</button>
+      </view>
     </view>
     <view v-if="confirming" class="modal-mask">
       <view class="modal" role="dialog" aria-modal="true" aria-label="确认不予上架">
@@ -133,6 +159,7 @@ input { min-width: 0; height: 76rpx; box-sizing: border-box; border: 1px solid #
 .task-number { font-size: 28rpx; font-weight: 600; }
 .record-heading { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; }
 .view-application { flex-shrink: 0; height: auto; line-height: 1.6; border: 0; font-size: 24rpx; color: #087779; }
+.detail-link { padding: 0; border: 0; height: auto; line-height: 1.6; text-align: left; white-space: normal; overflow-wrap: anywhere; color: #087779; }
 .record-meta { margin-top: 6rpx; font-size: 24rpx; color: #748d93; line-height: 1.5; }
 .receiving-progress { color: #254b54; }
 .list-status { padding: 24rpx 0; text-align: center; font-size: 24rpx; color: #748d93; }
@@ -142,6 +169,10 @@ input { min-width: 0; height: 76rpx; box-sizing: border-box; border: 1px solid #
 .modal-mask { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 24rpx; background: #163e4970; }
 .modal { box-sizing: border-box; width: 100%; max-width: 440px; max-height: 80vh; overflow-y: auto; padding: 24rpx; border-radius: 16rpx; background: white; }
 .modal-title { font-size: 30rpx; font-weight: 600; }
+.detail-modal { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+.detail-modal .count { overflow-wrap: anywhere; }
+.detail-body { min-height: 0; overflow-y: auto; padding: 0 16rpx; }
+.detail-close { flex-shrink: 0; margin: 16rpx; }
 .modal-scope { margin: 16rpx 0; font-size: 26rpx; }
 .modal textarea { box-sizing: border-box; width: 100%; height: 120rpx; padding: 12rpx; border: 1px solid #9fbfc5; border-radius: 8rpx; font-size: 26rpx; }
 .modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12rpx; margin-top: 20rpx; }

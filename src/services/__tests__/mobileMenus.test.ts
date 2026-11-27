@@ -50,12 +50,13 @@ describe('mobile menu authorization tree', () => {
       [receiveName, '/pages/receiving/index'], [pendingName, '/pages/pending-receiving/index']
     ]);
   });
-  it('supports all 20 registered business pages without adding login, home or scan utilities', () => {
+  it('supports all 21 registered business pages without adding login, home or scan utilities', () => {
     const paths = pages.pages.map(page => '/' + page.path).filter(path => !['/pages/login/index', '/pages/home/index', '/pages/scan/index'].includes(path));
     const data = rows().slice(0, 2);
     paths.forEach((path, index) => data.push({ ...rows()[2], menuId: index + 10, path, sortNo: index }));
     const menus = buildMobileMenuGroups(data)[0].menus;
-    expect(menus).toHaveLength(20); expect(menus.map(menu => menu.path)).toEqual(paths);
+    expect(menus).toHaveLength(21); expect(menus.map(menu => menu.path)).toEqual(paths);
+    expect(menus.find(menu => menu.path === '/pages/landmark-query/index')?.icon).toBe('map-pin-check');
   });
   it('uses server names and order, hides empty groups and normalizes local paths with a safe fallback icon', () => {
     const data = rows(); data[2].path = 'pages/panel-packing/index'; data[2].icon = 'https://remote/icon'; data[3].icon = 'truck';

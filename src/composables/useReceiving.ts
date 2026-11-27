@@ -1,3 +1,4 @@
+import { useReceivingVehicleRelease } from './useReceivingVehicleRelease';
 import { computed, ref, shallowRef } from 'vue';
 import { receivingApi as api, isReceivingId, receivingIdentity, type ClearWmsRequest, type ReceivingIdentity, type ReceivingResult, type ReceivingRequest, type ReceivingTask } from '../services/receiving';
 import { ApiRequestError, requestId } from '../services/nariRequest';
@@ -29,7 +30,8 @@ export function useReceiving() {
   const { pending: pendingConfirmation } = confirmation;
   const storageError = computed(() => confirmation.storageError.value || cleanup.storageError.value);
   const notice = ref<{ text: string; error: boolean } | null>(null);
-  const operationBlocked = computed(() => busy.value || cleaning.value || submitting.value || !!detail.value || confirmingClear.value || !!storageError.value);
+  const release = useReceivingVehicleRelease('receiving', text => notify(text));
+  const operationBlocked = computed(() => release.visible.value || busy.value || cleaning.value || submitting.value || !!detail.value || confirmingClear.value || !!storageError.value);
   const disabled = computed(() => operationBlocked.value || !!pending.value || !!pendingConfirmation.value);
   const originalVehicleMismatch = computed(() => {
     const data = result.value;
@@ -52,6 +54,7 @@ export function useReceiving() {
   function clear() { if (!pending.value && !pendingConfirmation.value && !storageError.value && !cleaning.value && !submitting.value) resetView(); }
   function pause() { active = false; resetView(); }
   function resume() {
+    release.restore();
     active = true;
     if (!cleaning.value) cleanup.restore();
     if (!submitting.value) confirmation.restore();
@@ -250,7 +253,8 @@ export function useReceiving() {
           !integer(receipt.version) || receipt.version <= input.version || receipt.affectedCount !== expectedCount) {
           throw new Error('接收回执与本次范围或最新版本不一致，未能确认成功，请核实后重试原请求');
         }
-        confirmation.finish(input.requestId);
+        if (confirmation.finish(input.requestId)) release.offer(input.requestId);
+        else release.restore();
         if (!current()) return;
         if (identity.applicationId) applicationVersions.set(identity.applicationId, receipt.version);
         else if (identity.taskId) remember(input.object.containerCode, identity.taskId, receipt.version);
@@ -266,6 +270,6 @@ export function useReceiving() {
       } finally { submitting.value = false; }
     });
   }
-  return { pending, pendingConfirmation, storageError, result, materials, detail, confirmingClear, unresolvedCode, remark, busy, disabled, canReceive, canClearWms, notice, notify, clear, pause, resume, scan,
+  return { release, pending, pendingConfirmation, storageError, result, materials, detail, confirmingClear, unresolvedCode, remark, busy, disabled, canReceive, canClearWms, notice, notify, clear, pause, resume, scan,
     openMaterials, closeMaterials, askClearWms, cancelClearWms, submit };
 }

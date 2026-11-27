@@ -19,7 +19,7 @@ import { AUTH_SESSION_STORAGE_KEY } from '../auth';
 import { seedTestSession } from './helpers/authSession';
 
 const hooks = vi.hoisted(() => ({ load: [] as ((query: Record<string, string>) => void)[], show: [] as (() => void)[], hide: [] as (() => void)[] }));
-vi.mock('@dcloudio/uni-app', () => ({ onLoad: (fn: typeof hooks.load[number]) => hooks.load.push(fn), onShow: (fn: () => void) => hooks.show.push(fn), onHide: (fn: () => void) => hooks.hide.push(fn) }));
+vi.mock('@dcloudio/uni-app', () => ({ onBackPress: vi.fn(), onLoad: (fn: typeof hooks.load[number]) => hooks.load.push(fn), onShow: (fn: () => void) => hooks.show.push(fn), onHide: (fn: () => void) => hooks.hide.push(fn) }));
 const time = '2026-10-19T01:00:00Z';
 const storage = new Map<string, unknown>();
 const snapshot = (): ApplicationObject => ({ scanType: 'BOX', scanCode: 'BOX-1', object: { containerType: 'BOX', containerCode: 'BOX-1', version: 7 },
@@ -123,14 +123,23 @@ it('keeps the menu list read-only and carries the actual scanned box through app
   vi.stubGlobal('uni', { ...uni, navigateTo });
   const slot = { template: '<div><slot /></div>' };
   const options = { global: { stubs: { 'scroll-view': slot, 'checkbox-group': slot, checkbox: true } } };
+  const details = vi.spyOn(pendingReceivingApi, 'details').mockResolvedValue({ current: 1, size: 100, total: 1, pages: 1,
+    records: [{ materialCode: 'MAT-01', orderNo: 'SO-07', quantity: 4 }] });
   const list = mount(PendingReceivingPage, options);
   hooks.show.forEach(fn => fn()); await flushPromises();
   expect(list.get('.app-nav__title').text()).toBe('缴库待接收');
   expect(list.text()).toContain('JK-3');
   expect(list.find('.view-application').exists()).toBe(false);
+  expect(details).not.toHaveBeenCalled();
+  await list.get('.detail-link').trigger('tap'); await flushPromises();
+  expect(details).toHaveBeenCalledWith(application.applicationId, 1);
+  expect(list.get('[role="dialog"]').text()).toContain('MAT-01');
+  expect(list.get('[role="dialog"]').text()).toContain('订单 SO-07 · 4 件');
+  await list.get('.detail-close').trigger('tap');
   expect(list.get('.footer button').attributes('disabled')).toBeDefined();
   hooks.load.forEach(fn => fn({ scanCode: 'BOX-1' })); await flushPromises();
   expect(list.find('.footer').exists()).toBe(false);
+  expect(list.find('.detail-link').exists()).toBe(false);
   await list.get('.view-application').trigger('tap');
   const url = new URL(navigateTo.mock.calls[0][0].url, 'https://example.test');
   expect(url.pathname).toBe('/pages/receiving/index');

@@ -19,6 +19,54 @@ describe('pending applications not shelving', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
+  it('reads every sorted record page with the exact application ID and sums quantities by material and order', async () => {
+    const id = '9223372036854775806';
+    const row = { materialCode: '00031', orderNo: '000062', quantity: 2 };
+    const first = Array.from({ length: 100 }, () => row);
+    const second = [row, { ...row, orderNo: '000063' }, { ...row, materialCode: '00032' }];
+    const get = vi.fn((options: UniNamespace.RequestOptions) => {
+      const { page } = options.data as { page: number };
+      options.success!({ statusCode: 200, header: {}, cookies: [], data: { code: 0,
+        data: { records: page === 1 ? first : second, current: page, pages: 2, total: 103, size: 100 } } });
+    });
+    vi.stubGlobal('uni', { ...uni, request: get });
+    const flow = usePendingReceiving(); await flow.openDetail(task(id));
+    expect(get).toHaveBeenCalledTimes(2);
+    for (const page of [1, 2]) {
+      expect(get.mock.calls[page - 1][0]).toMatchObject({
+        url: expect.stringMatching(/\/api\/v1\/business\/nari-warehouse-record-box$/), method: 'GET',
+        header: { Authorization: expect.stringMatching(/^Bearer /) },
+        data: { warehouseRecordId: id, page, size: 100, sortBy: 'id', sortOrder: 'ASC' }
+      });
+    }
+    expect(flow.detailRows.value).toEqual([{ ...row, quantity: 202 }, second[1], second[2]]);
+  });
+
+  it('discards partial totals after a failed page and can retry an empty result without changing the selection', async () => {
+    vi.spyOn(api, 'query').mockResolvedValue(page(rows));
+    const line = { materialCode: 'MAT', orderNo: 'SO', quantity: 1 };
+    const details = vi.spyOn(api, 'details').mockResolvedValueOnce({ records: Array(100).fill(line), current: 1, pages: 2, total: 101, size: 100 })
+      .mockRejectedValueOnce(new Error('无权读取申请明细')).mockResolvedValueOnce({ records: [], current: 1, pages: 0, total: 0, size: 100 });
+    const flow = usePendingReceiving(); await flow.query(); flow.toggle(rows[0]); await flow.openDetail(rows[0]);
+    expect(flow.detailError.value).toBe('无权读取申请明细'); expect(flow.detailRows.value).toEqual([]);
+    await flow.openDetail(rows[0]);
+    expect(details.mock.calls.map(call => call[1])).toEqual([1, 2, 1]);
+    expect(flow.detailError.value).toBe(''); expect(flow.detailRows.value).toEqual([]); flow.closeDetail();
+    expect([...flow.selectedIds.value]).toEqual([rows[0].applicationId]);
+  });
+
+  it('ignores a late first page after closing and reopening another application', async () => {
+    const line = { materialCode: 'MAT', orderNo: 'SO', quantity: 3 };
+    let resolve!: (value: ReceivingTaskPage<typeof line>) => void;
+    const details = vi.spyOn(api, 'details').mockReturnValueOnce(new Promise(done => { resolve = done; }))
+      .mockResolvedValueOnce({ records: [line], current: 1, pages: 1, total: 1, size: 100 });
+    const flow = usePendingReceiving(); const old = flow.openDetail(rows[0]);
+    flow.closeDetail(); await flow.openDetail(rows[1]);
+    resolve({ records: Array(100).fill(line), current: 1, pages: 2, total: 101, size: 100 }); await old;
+    expect(details).toHaveBeenCalledTimes(2); expect(flow.detailApplication.value?.applicationId).toBe(rows[1].applicationId);
+    expect(flow.detailRows.value).toEqual([line]); flow.dispose(); expect(flow.detailApplication.value).toBeNull();
+  });
+
   it('requires an explicit confirmation with a nonblank reason and at least one pending application', async () => {
     const completed = { ...task('7'), status: 'RECEIVED', receivedBoxCount: 3 };
     vi.spyOn(api, 'query').mockResolvedValue(page([...rows, completed]));

@@ -31,7 +31,11 @@ export type ReceivingRequest = ReceivingIdentity & { requestId: string; version:
 export interface ClearWmsRequest { requestId: string; taskId: string; version: number; object: ContainerRef }
 export interface ReceivingReceipt { requestId: string; affectedCount: number; processedTime: string }
 export type ReceivingOperationReceipt = ReceivingReceipt & ReceivingIdentity & { object: ContainerRef; version: number };
+export interface ReleaseInput { requestId: string; receivingRequestId: string }
+export interface ReleaseVehicle { vehicleCode: string; locationCode: string; status: 'RELEASED' | 'WAITING_BOXES' | 'RETAINED' }
+interface ReleaseReceipt extends ReleaseInput { vehicles: ReleaseVehicle[] }
 export const receivingApi = {
+  releaseVehicles: (input: ReleaseInput) => request<ReleaseReceipt>('/receiving/confirm-vehicle-release', 'POST', { ...input }),
   query: (scanCode: string, source?: string | ReceivingIdentity) => request<ReceivingResult>('/receiving/tasks', 'GET', {
     scanCode, ...(typeof source === 'string' ? { taskId: source } : source)
   }),

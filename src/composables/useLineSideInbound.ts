@@ -1,3 +1,4 @@
+import { useReceivingVehicleRelease } from './useReceivingVehicleRelease';
 import { computed, ref } from 'vue';
 import { ApiRequestError, requestId } from '../services/nariRequest';
 import { batchItem, lineSideInboundApi as api, matchesBatch, readyBox, validBatch, validCode, validLocation,
@@ -24,7 +25,8 @@ export function useLineSideInbound() {
   const checking = ref(false);
   const writing = ref(false);
   const notice = ref<{ text: string; error: boolean } | null>(null);
-  const locked = computed(() => checking.value || writing.value || !!pending.value || !!storageError.value);
+  const release = useReceivingVehicleRelease('inbound', text => notify(text));
+  const locked = computed(() => release.visible.value || checking.value || writing.value || !!pending.value || !!storageError.value);
   const busy = computed(() => scans.value > 0 || locked.value);
   const canSubmit = computed(() => !busy.value && !!location.value && !blockReason.value &&
     boxes.value.length > 0 && boxes.value.every(readyBox));
@@ -48,6 +50,7 @@ export function useLineSideInbound() {
     active = false; generation++; scans.value = 0; checking.value = false; queue = Promise.resolve();
   }
   function resume() {
+    release.restore();
     active = true;
     if (!writing.value) saved.restore();
     if (!saved.sameScope()) reset();
@@ -149,7 +152,8 @@ export function useLineSideInbound() {
       saved.save(input, '正在确认本次入库结果');
       const result = await api.submit(input);
       if (!matchesBatch(result, input)) throw new Error('入库回执不完整，请重试原请求核实结果');
-      saved.finish(input.requestId);
+      if (saved.finish(input.requestId)) release.offer(input.requestId);
+      else release.restore();
       reset();
       if (active && saved.sameScope()) notify('线边入库成功，共 ' + result.affectedBoxCount + ' 箱');
     } catch (error) {
@@ -170,6 +174,6 @@ export function useLineSideInbound() {
       if (active && saved.sameScope()) report(error);
     } finally { writing.value = false; }
   }
-  return { location, boxes, factoryId, blockReason, pending, storageError, scans, checking, writing, locked, busy,
+  return { release, location, boxes, factoryId, blockReason, pending, storageError, scans, checking, writing, locked, busy,
     canSubmit, notice, notify, scan, chooseLocation, submit, remove, clear, pause, resume };
 }
